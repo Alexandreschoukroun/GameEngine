@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/Alexandreschoukroun/GameEngine/actions/workflows/build.yml/badge.svg)](https://github.com/Alexandreschoukroun/GameEngine/actions/workflows/build.yml)
 
-Un moteur de jeu **C++20** spécialisé dans les jeux d'**horreur first-person** sur PC, écrit de zéro.
+Un moteur de jeu **open source** en **C++20**, spécialisé dans les jeux d'**horreur first-person** sur PC, écrit de zéro.
 
 Pas de moteur généraliste ici. Tout est pensé pour un seul genre : des intérieurs clos et sombres, une lampe torche, du brouillard, un son qui trahit ce qui se passe derrière une porte, et une créature qui vous traque.
 
@@ -130,3 +130,9 @@ Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minu
 - [`SPEC.md`](SPEC.md) : la source de vérité du projet
 - [`docs/00-architecture.md`](docs/00-architecture.md) : le socle M0 (fenêtre, boucle à pas fixe)
 - [`docs/build-et-ci.md`](docs/build-et-ci.md) : build, tests et intégration continue
+
+## Licence
+
+Le moteur est distribué sous licence [MIT](LICENSE). Il peut être utilisé, modifié et servir à créer des jeux, y compris commerciaux, à condition de conserver la mention de copyright.
+
+Les bibliothèques tierces gardent leur propre licence, toutes permissives (MIT, zlib, BSD). Un jeu distribué doit inclure leurs mentions.

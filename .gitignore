@@ -1,0 +1,18 @@
+# Build
+/build/
+/out/
+/cmake-build-*/
+
+# vcpkg (cloné localement, pas versionné)
+/vcpkg/
+/vcpkg_installed/
+
+# IDE
+.vs/
+.vscode/
+*.user
+CMakeUserPresets.json
+
+# OS
+Thumbs.db
+.DS_Store

@@ -30,6 +30,13 @@ La pipeline de CI répond au premier problème : à chaque push et chaque pull r
 
 **Choix : les presets.**
 
+### Générateur CMake
+- **Imposer `Visual Studio 17 2022`** : c'est explicite, mais ça casse dès que cette version exacte est absente. Ça s'est produit dès le premier run de CI : l'image `windows-2025` de GitHub embarque Visual Studio 2026, et la configuration a échoué avec « could not find any instance of Visual Studio ».
+- **Ninja + environnement MSVC** : ne dépend pas de la version de Visual Studio, mais oblige à charger l'environnement du compilateur (`vcvars`) avant chaque commande, en local comme en CI. C'est une étape de plus à comprendre et à maintenir.
+- **Ne pas préciser de générateur** : sur Windows, CMake choisit alors le Visual Studio le plus récent installé.
+
+**Choix : ne pas préciser de générateur.** Conséquence à connaître : la CI compile avec un MSVC plus récent que ta machine (VS 2026 contre VS 2022). Si un nouveau compilateur ajoute un warning, la CI échouera (`/WX`) avant que tu le voies en local. C'est plutôt un avantage : tu es prévenu tôt.
+
 ### Plateformes
 **Windows/MSVC seulement pour l'instant**, puisque le SPEC donne la priorité à Windows. Un job Linux s'ajoutera quand Linux deviendra une cible réelle : SDL3 y demande des paquets système (X11, Wayland), et les maintenir sans en avoir besoin serait du « pour plus tard ».
 
@@ -40,6 +47,8 @@ La pipeline de CI répond au premier problème : à chaque push et chaque pull r
 - **Matrice** : un même job lancé avec plusieurs jeux de paramètres. Ici `config: [debug, release]` produit deux jobs en parallèle.
 - **builtin-baseline** : un commit du dépôt vcpkg. Il fige la version de chaque port (SDL3, doctest…). Même baseline, mêmes versions, sur toutes les machines.
 - **Cache binaire vcpkg** : les dépendances déjà compilées sont archivées. Tant que rien ne change (version, compilateur, options), vcpkg les réutilise au lieu de les recompiler.
+- **Générateur** : le type de projet que CMake produit à partir des `CMakeLists.txt`. Ce peut être une solution Visual Studio (`.sln` + `.vcxproj`, compilée par MSBuild) ou des fichiers Ninja. CMake décrit le projet, le générateur décide qui le compile.
+- **Image du runner** : le système préinstallé sur la machine de CI (`windows-2025`). Le label fige la version de Windows. GitHub met en revanche à jour les outils (Visual Studio, CMake) chaque semaine environ.
 - **Preset CMake** : un nom (`windows-msvc`) associé à un ensemble d'options (générateur, toolchain vcpkg, dossier de build).
 - **Multi-config** : le générateur Visual Studio configure une seule fois, puis compile Debug ou Release au moment du build. C'est pour ça que la configuration (`windows-msvc`) n'a qu'un preset, alors que le build et les tests en ont deux.
 

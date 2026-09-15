@@ -1,0 +1,73 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Un nouveau push sur la meme branche annule le run precedent, devenu obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Moindre privilege : la pipeline ne fait que lire le depot.
+permissions:
+  contents: read
+
+jobs:
+  windows-msvc:
+    name: Windows MSVC (${{ matrix.config }})
+    # Image epinglee (et non windows-latest) : le compilateur ne change pas sans qu'on le decide.
+    runs-on: windows-2025
+    timeout-minutes: 45
+    strategy:
+      # Un echec en Debug ne doit pas masquer le resultat de Release (et inversement).
+      fail-fast: false
+      matrix:
+        config: [debug, release]
+
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,readwrite
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install vcpkg at the manifest builtin-baseline
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $baseline = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
+          git clone --quiet https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
+          git -C "$env:VCPKG_ROOT" checkout --quiet $baseline
+          & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force "${{ github.workspace }}/vcpkg-binary-cache" | Out-Null
+
+      # Les dependances compilees (SDL3...) sont reutilisees d'un run a l'autre.
+      - name: Restore vcpkg binary cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/vcpkg-binary-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Configure
+        run: cmake --preset windows-msvc
+
+      # Sauvegarde juste apres la configuration (ou vcpkg compile les dependances),
+      # pour garder le cache meme si la compilation du moteur echoue ensuite.
+      - name: Save vcpkg binary cache
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/vcpkg-binary-cache
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+
+      - name: Build
+        run: cmake --build --preset windows-msvc-${{ matrix.config }}
+
+      - name: Test
+        run: ctest --preset windows-msvc-${{ matrix.config }}

@@ -88,4 +88,4 @@ Négligeable à ce stade : pas d'allocation en boucle de frame (l'accumulateur e
 
 **Ce qui vient après (M1)** : RHI minimale (buffers, textures, shaders, pipelines, passes) derrière laquelle tout appel OpenGL direct de M0 sera remplacé, triangle texturé, caméra libre.
 
-**Limite connue de cette session** : le code n'a pas pu être compilé ni exécuté sur cette machine — `cmake` et `vcpkg` ne sont pas installés (Visual Studio 2022 Community est présent mais sans le workload « Développement Desktop en C++ » incluant les outils CMake). Voir le message de fin de tâche pour la procédure d'installation et de premier build.
+**Vérification du build** : le socle compile sans warning (`/W4 /WX`) en Debug et en Release avec MSVC 19.38, et les tests doctest passent. La CI GitHub Actions le revérifie à chaque push. Procédure et détails dans [build-et-ci.md](build-et-ci.md).

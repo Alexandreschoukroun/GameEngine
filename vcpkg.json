@@ -1,6 +1,7 @@
 {
   "name": "gameengine",
   "version": "0.1.0",
+  "builtin-baseline": "4b6825283f814d7f522aafd11990454ed39e9983",
   "dependencies": [
     "sdl3",
     "doctest"

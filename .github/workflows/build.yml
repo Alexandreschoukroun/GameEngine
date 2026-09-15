@@ -18,7 +18,9 @@ permissions:
 jobs:
   windows-msvc:
     name: Windows MSVC (${{ matrix.config }})
-    # Image epinglee (et non windows-latest) : le compilateur ne change pas sans qu'on le decide.
+    # Image epinglee (et non windows-latest) : la version de Windows ne change pas sans qu'on
+    # le decide. Les outils de l'image (Visual Studio, CMake) sont en revanche mis a jour par
+    # GitHub : le preset ne fige donc pas de version de Visual Studio.
     runs-on: windows-2025
     timeout-minutes: 45
     strategy:

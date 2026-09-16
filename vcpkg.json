@@ -4,6 +4,10 @@
   "builtin-baseline": "4b6825283f814d7f522aafd11990454ed39e9983",
   "dependencies": [
     "sdl3",
-    "doctest"
+    "doctest",
+    {
+      "name": "glad",
+      "features": ["gl-api-46"]
+    }
   ]
 }

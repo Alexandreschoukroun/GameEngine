@@ -8,6 +8,10 @@ struct SDL_Window;
 
 namespace platform {
 
+// Fonction qui rend l'adresse d'une fonction OpenGL a partir de son nom. On la fournit aux
+// couches superieures pour qu'elles chargent OpenGL sans jamais voir SDL.
+using GLProcAddressLoader = void* (*)(const char* name);
+
 class Window {
 public:
     Window() = default;
@@ -20,6 +24,8 @@ public:
     void destroy();
 
     void swapBuffers();
+
+    GLProcAddressLoader glProcAddressLoader() const;
 
     core::u32 width() const { return m_width; }
     core::u32 height() const { return m_height; }

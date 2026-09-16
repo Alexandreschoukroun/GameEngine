@@ -1,5 +1,4 @@
 find_package(SDL3 CONFIG REQUIRED)
-find_package(OpenGL REQUIRED)
 
 add_library(engine_platform STATIC
     src/window.cpp
@@ -15,8 +14,9 @@ target_link_libraries(engine_platform
     PUBLIC
         engine::core
     PRIVATE
+        # platform cree le contexte OpenGL via SDL mais n'appelle plus aucune fonction GL :
+        # c'est le role de rhi, qui est au-dessus. Plus de lien vers OpenGL ici.
         SDL3::SDL3
-        OpenGL::GL
 )
 
 set_project_warnings(engine_platform)

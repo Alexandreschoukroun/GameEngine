@@ -10,6 +10,11 @@ include(CompilerWarnings)
 
 option(GAMEENGINE_BUILD_TESTS "Build the doctest test suite" ON)
 
+# Active dans les deux configurations : un profil mesure sur un build Debug ne dit rien du
+# budget de 16,6 ms, qui ne se verifie qu'en Release. A passer a OFF pour les builds
+# distribues (M9) : le client Tracy ouvre un port reseau.
+option(GAMEENGINE_PROFILING "Instrument the engine for the Tracy profiler" ON)
+
 add_subdirectory(engine)
 add_subdirectory(game)
 

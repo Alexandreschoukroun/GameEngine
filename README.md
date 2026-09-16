@@ -6,7 +6,7 @@ Un moteur de jeu **open source** en **C++20**, spécialisé dans les jeux d'**ho
 
 Pas de moteur généraliste ici. Tout est pensé pour un seul genre : des intérieurs clos et sombres, une lampe torche, du brouillard, un son qui trahit ce qui se passe derrière une porte, et une créature qui vous traque.
 
-> **État actuel : jalon M0 (socle).** Le moteur ouvre une fenêtre, fait tourner une boucle de jeu à pas fixe et efface l'écran. Il n'y a encore aucun rendu 3D. Voir la [feuille de route](#feuille-de-route).
+> **État actuel : jalons M0 et M1 terminés.** Le moteur ouvre une fenêtre, fait tourner une boucle de jeu à pas fixe, dialogue avec le GPU à travers sa propre couche d'abstraction, et affiche un triangle texturé qu'on observe avec une caméra libre. Le profileur est branché. La suite, c'est le rendu PBR. Voir la [feuille de route](#feuille-de-route).
 
 ## Objectifs
 
@@ -75,8 +75,8 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 
 | Jalon | Contenu | État |
 |---|---|---|
-| **M0** | Socle : CMake + vcpkg, core, fenêtre SDL3, boucle à pas fixe | En cours |
-| M1 | Abstraction GPU + backend OpenGL 4.6, triangle texturé, caméra libre | À venir |
+| **M0** | Socle : CMake + vcpkg, core, fenêtre SDL3, boucle à pas fixe | ✅ Terminé |
+| **M1** | Abstraction GPU + backend OpenGL 4.6, triangle texturé, caméra libre | ✅ Terminé |
 | M2 | Renderer PBR deferred, glTF, lumières et ombres, lampe torche | À venir |
 | M3 | Scène (EnTT), sérialisation JSON, graphe de secteurs/portails | À venir |
 | M4 | Physique Jolt, character controller, portes, saisie d'objets | À venir |
@@ -106,8 +106,10 @@ cmake --preset windows-msvc
 cmake --build --preset windows-msvc-debug
 ctest --preset windows-msvc-debug
 
-.\build\windows-msvc\game\Debug\game.exe    # Échap pour quitter
+.\build\windows-msvc\game\Debug\game.exe
 ```
+
+Commandes : **Z Q S D** pour se déplacer (les touches suivent la disposition physique, donc W A S D sur un clavier QWERTZ ou QWERTY), **Espace** et **Maj gauche** pour monter et descendre, la **souris** pour regarder, **Échap** pour quitter.
 
 Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minutes. Les suivants sont instantanés. La CI GitHub Actions exécute exactement ces commandes, en Debug et en Release, à chaque push. Détails dans [`docs/build-et-ci.md`](docs/build-et-ci.md).
 
@@ -129,6 +131,9 @@ Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minu
 
 - [`SPEC.md`](SPEC.md) : la source de vérité du projet
 - [`docs/00-architecture.md`](docs/00-architecture.md) : le socle M0 (fenêtre, boucle à pas fixe)
+- [`docs/01-rhi.md`](docs/01-rhi.md) : la couche GPU (chargement d'OpenGL, buffers, shaders, textures)
+- [`docs/02-camera.md`](docs/02-camera.md) : maths, caméra perspective et caméra libre
+- [`docs/03-profilage.md`](docs/03-profilage.md) : Tracy, et le bilan de M1
 - [`docs/build-et-ci.md`](docs/build-et-ci.md) : build, tests et intégration continue
 
 ## Licence

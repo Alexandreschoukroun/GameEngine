@@ -80,4 +80,15 @@ GLProcAddressLoader Window::glProcAddressLoader() const {
     return &glGetProcAddress;
 }
 
+void Window::setRelativeMouseMode(bool enabled) {
+    if (m_window != nullptr) {
+        SDL_SetWindowRelativeMouseMode(m_window, enabled);
+    }
+}
+
+void Window::notifyResized(core::u32 width, core::u32 height) {
+    m_width = width;
+    m_height = height;
+}
+
 } // namespace platform

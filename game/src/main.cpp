@@ -1,13 +1,33 @@
 #include "platform/application.h"
+#include "rhi/device.h"
+
+namespace {
+
+class HorrorGame final : public platform::Application {
+public:
+    using Application::Application;
+
+protected:
+    bool onInit() override {
+        if (!m_device.create(window().glProcAddressLoader())) {
+            return false;
+        }
+        m_device.setViewport(window().width(), window().height());
+        return true;
+    }
+
+    void onRender() override { m_device.clear(0.04f, 0.0f, 0.02f, 1.0f); }
+
+private:
+    rhi::Device m_device;
+};
+
+} // namespace
 
 int main() {
     platform::ApplicationConfig config;
-    config.title = "GameEngine -- M0";
-    config.clearColor[0] = 0.04f;
-    config.clearColor[1] = 0.0f;
-    config.clearColor[2] = 0.02f;
-    config.clearColor[3] = 1.0f;
+    config.title = "GameEngine -- M1";
 
-    platform::Application app(config);
-    return app.run() ? 0 : 1;
+    HorrorGame game(config);
+    return game.run() ? 0 : 1;
 }

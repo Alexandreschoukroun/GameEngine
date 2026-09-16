@@ -3,18 +3,18 @@
 #include "core/log.h"
 #include "core/time.h"
 
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
-#include <GL/gl.h>
-
 namespace platform {
 
 Application::Application(ApplicationConfig config) : m_config(config) {}
 
 bool Application::run() {
     if (!m_window.create(m_config.title, m_config.width, m_config.height)) {
+        return false;
+    }
+
+    if (!onInit()) {
+        m_window.destroy();
+        core::logError("initialisation de l'application echouee");
         return false;
     }
 
@@ -33,13 +33,11 @@ bool Application::run() {
             onFixedUpdate(m_config.fixedTimestepSeconds);
         }
 
-        glClearColor(m_config.clearColor[0], m_config.clearColor[1], m_config.clearColor[2],
-                     m_config.clearColor[3]);
-        glClear(GL_COLOR_BUFFER_BIT);
         onRender();
         m_window.swapBuffers();
     }
 
+    onShutdown();
     m_window.destroy();
     core::logInfo("application shut down cleanly");
     return true;

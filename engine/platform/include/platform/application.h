@@ -13,7 +13,6 @@ struct ApplicationConfig {
     core::u32 width = 1280;
     core::u32 height = 720;
     core::f64 fixedTimestepSeconds = 1.0 / 60.0;
-    core::f32 clearColor[4] = {0.02f, 0.0f, 0.0f, 1.0f};
 };
 
 class Application {
@@ -27,8 +26,15 @@ public:
     bool run();
 
 protected:
+    // Appele une fois, la fenetre et le contexte GPU etant crees. Renvoyer false annule
+    // le demarrage. C'est ici que le jeu initialise sa couche de rendu.
+    virtual bool onInit() { return true; }
     virtual void onFixedUpdate(core::f64 fixedDeltaSeconds) { (void)fixedDeltaSeconds; }
     virtual void onRender() {}
+    // Appele avant la destruction de la fenetre : le contexte GPU est encore valide.
+    virtual void onShutdown() {}
+
+    Window& window() { return m_window; }
 
 private:
     ApplicationConfig m_config;

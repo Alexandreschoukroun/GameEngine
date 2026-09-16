@@ -7,6 +7,13 @@
 #include <string>
 
 namespace platform {
+namespace {
+
+void* glGetProcAddress(const char* name) {
+    return reinterpret_cast<void*>(SDL_GL_GetProcAddress(name));
+}
+
+} // namespace
 
 Window::~Window() {
     destroy();
@@ -21,6 +28,11 @@ bool Window::create(std::string_view title, core::u32 width, core::u32 height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#if !defined(NDEBUG)
+    // Contexte de debug : le pilote produit alors des messages d'erreur detailles,
+    // que rhi::Device redirige vers nos logs. Inutile en Release.
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+#endif
 
     m_window = SDL_CreateWindow(std::string(title).c_str(), static_cast<int>(width),
                                  static_cast<int>(height), SDL_WINDOW_OPENGL);
@@ -62,6 +74,10 @@ void Window::destroy() {
 
 void Window::swapBuffers() {
     SDL_GL_SwapWindow(m_window);
+}
+
+GLProcAddressLoader Window::glProcAddressLoader() const {
+    return &glGetProcAddress;
 }
 
 } // namespace platform

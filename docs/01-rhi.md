@@ -1,6 +1,6 @@
 # 01 — RHI (M1)
 
-*Étape 1 : chargement d'OpenGL. Étape 2 : le premier triangle (section 7).*
+*Étape 1 : chargement d'OpenGL. Étape 2 : le premier triangle (section 7). Étape 3 : le triangle texturé (section 8).*
 
 ## 1. Le problème
 
@@ -157,4 +157,76 @@ Le GPU ne sait pas dessiner « un triangle ». Il sait exécuter des programmes 
 
 **Ce qui n'existe pas encore** : pas de texture, pas de caméra (les sommets sont écrits à la main en NDC), pas de gestion du redimensionnement de la fenêtre, pas de tampon de profondeur.
 
-**Ce qui vient après (étape 3)** : chargement d'une image avec stb_image, coordonnées de texture ajoutées au sommet, échantillonnage dans le fragment shader — le triangle texturé du livrable de M1.
+**Ce qui vient après (étape 3)** : coordonnées de texture ajoutées au sommet, envoi d'une image au GPU, échantillonnage dans le fragment shader — le triangle texturé du livrable de M1.
+
+---
+
+# 8. Étape 3 — le triangle texturé
+
+## 8.1 Le problème
+
+Un triangle d'une seule couleur ne valide presque rien. Ce qu'il faut éprouver, c'est la chaîne complète : **envoyer une image dans la mémoire du GPU, dire à chaque sommet quelle partie de l'image lui correspond, faire lire la bonne couleur par chaque pixel**. C'est ce que feront ensuite chaque mur, chaque porte et chaque objet du jeu.
+
+Une difficulté s'y ajoute : un triangle affiché couvre rarement exactement autant de pixels que l'image a de texels. De près, un texel s'étale sur plusieurs pixels ; de loin, un pixel couvre des dizaines de texels. C'est la question du **filtrage**, et c'est elle qui sépare une texture nette d'une texture qui scintille.
+
+## 8.2 Les options considérées
+
+**Le contenu de l'image** — Charger un fichier supposerait `stb_image`. Mais tant qu'aucun vrai fichier n'est chargé, ce serait une dépendance sans utilisateur, donc du « pour plus tard » que le SPEC interdit. **Choix : un damier généré par le code.** Il rend visible la moindre erreur d'UV ou de déformation, et n'ajoute aucun binaire au dépôt. `stb_image` arrivera avec la couche assets.
+
+**Le filtrage** — `GL_NEAREST` prend le texel le plus proche (net mais crénelé) ; `GL_LINEAR` fait la moyenne des 4 voisins. **Choix : linéaire, avec mipmaps** (`GL_LINEAR_MIPMAP_LINEAR`, dit trilinéaire), nécessaire dès qu'un couloir s'éloigne. À noter : c'est aussi le filtrage attendu **par défaut** par OpenGL. Sans mipmaps, la texture est *incomplète* et le triangle sort noir — un piège classique.
+
+**L'espace colorimétrique** — Une image de couleur est presque toujours encodée en sRGB, donc non linéaire. L'échantillonner sans conversion puis l'éclairer donne un rendu faux, typiquement délavé. **Choix : ne pas traiter ce point maintenant.** Sans éclairage ni tonemapping, une demi-correction serait pire que rien. La chaîne linéaire complète est une décision de M2. Le format de stockage est donc `GL_RGBA8`, et ce paragraphe est là pour qu'on n'oublie pas la dette.
+
+## 8.3 Vocabulaire
+
+- **Texel** : un pixel de la texture, par opposition au pixel de l'écran.
+- **UV** : coordonnées de texture attachées à chaque sommet, de 0 à 1. Le GPU les **interpole** entre les sommets, ce qui donne à chaque pixel sa position dans l'image.
+- **Sampler** : la façon de lire la texture — filtrage, et comportement hors de 0..1 (ici, répétition).
+- **Mipmap** : la même image pré-réduite de moitié, en cascade (256, 128, 64… 1). Le GPU choisit le niveau adapté à la distance. Coût : +33 % de mémoire ; bénéfice : plus de scintillement au loin.
+- **Unité de texture** : emplacement numéroté où l'on branche une texture pour qu'un shader la lise. Ici l'unité 0, désignée côté GLSL par `layout(binding = 0)`.
+- **Attributs entrelacés** : position et UV cohabitent dans le même `Vertex`, donc dans le même buffer, avec le même pas. C'est la disposition la plus favorable au cache du GPU.
+
+## 8.4 Flux de l'étape 3
+
+```
+  game/main.cpp
+      │
+      ├── makeCheckerboard()  ──► 256 Ko de RGBA8 en RAM
+      │                                │
+      │                                ▼
+      │                      rhi::Texture::create
+      │                        ├─ glCreateTextures
+      │                        ├─ glTextureStorage2D   (réserve 9 mipmaps)
+      │                        ├─ glTextureSubImage2D  (envoie le niveau 0)
+      │                        ├─ glGenerateTextureMipmap
+      │                        └─ filtrage trilinéaire + répétition
+      │
+      └── rhi::Vertex { position, uv }
+                   │
+                   ▼
+          attribut 0 = vec3, attribut 1 = vec2, même buffer, même pas
+                   │
+                   ▼
+   Device::bindTexture(texture, unité 0)
+                   │
+                   ▼
+   Device::draw  ──►  vertex shader : passe l'UV
+                            │   (le GPU interpole entre les 3 sommets)
+                            ▼
+                      fragment shader : texture(uAlbedo, vTexCoord)
+                            │
+                            ▼
+                      damier à l'écran
+```
+
+## 8.5 Coût
+
+256 × 256 × 4 octets = **256 Ko**, plus environ 33 % de mipmaps, soit ~341 Ko de mémoire GPU. Génération et envoi une seule fois au démarrage. Par frame, une lecture de texture par pixel : négligeable ici, mais c'est la brique élémentaire du budget de 2,5 ms du G-buffer fixé par le SPEC.
+
+## 8.6 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : damier beige et rouge sombre plaqué sur le triangle, arêtes nettes, aucun message du debug output.
+
+**Dette assumée** : la conversion sRGB n'est pas faite (voir 8.2), et le redimensionnement de la fenêtre n'est toujours pas géré.
+
+**Ce qui vient après (étape 4)** : GLM, une caméra libre, la souris capturée, et la gestion du redimensionnement — les sommets cesseront alors d'être écrits en NDC pour devenir des coordonnées du monde.

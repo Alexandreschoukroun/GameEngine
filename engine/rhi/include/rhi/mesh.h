@@ -4,11 +4,12 @@
 
 namespace rhi {
 
-// Format de sommet du moteur. Il n'y en a qu'un aujourd'hui : une position dans l'espace.
-// Il gagnera ses coordonnees de texture a l'etape suivante. On ne generalise pas avant
-// d'avoir deux formats reellement utilises.
+// Format de sommet du moteur : une position, et les coordonnees de texture qui lui
+// correspondent. On ne generalise pas le format tant qu'il n'en existe qu'un seul
+// reellement utilise (regle 5 du SPEC) ; les normales viendront avec l'eclairage en M2.
 struct Vertex {
     core::f32 position[3];
+    core::f32 uv[2];
 };
 
 // Geometrie prete a etre dessinee : les sommets copies dans la memoire de la carte,

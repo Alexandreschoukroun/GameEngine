@@ -2,6 +2,8 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "rhi/mesh.h"
+#include "rhi/shader_program.h"
 
 #include <glad/glad.h>
 
@@ -115,6 +117,17 @@ void Device::clear(core::f32 red, core::f32 green, core::f32 blue, core::f32 alp
     ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
     glClearColor(red, green, blue, alpha);
     glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void Device::draw(const ShaderProgram& program, const Mesh& mesh) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    if (program.m_program == 0 || mesh.m_vertexArray == 0) {
+        return;
+    }
+
+    glUseProgram(program.m_program);
+    glBindVertexArray(mesh.m_vertexArray);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(mesh.m_vertexCount));
 }
 
 } // namespace rhi

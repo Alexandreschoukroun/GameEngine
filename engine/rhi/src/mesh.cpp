@@ -31,11 +31,18 @@ bool Mesh::create(const Vertex* vertices, core::u32 count) {
     glVertexArrayVertexBuffer(m_vertexArray, 0, m_vertexBuffer, 0,
                               static_cast<GLsizei>(sizeof(Vertex)));
 
-    // Attribut 0 : 3 flottants non normalises, a l'offset de Vertex::position.
+    // Attribut 0 : la position, 3 flottants a son offset dans Vertex.
     glEnableVertexArrayAttrib(m_vertexArray, 0);
     glVertexArrayAttribFormat(m_vertexArray, 0, 3, GL_FLOAT, GL_FALSE,
                               static_cast<GLuint>(offsetof(Vertex, position)));
     glVertexArrayAttribBinding(m_vertexArray, 0, 0);
+
+    // Attribut 1 : les coordonnees de texture, 2 flottants. Les deux attributs partagent
+    // le meme buffer et le meme pas : ils sont entrelaces dans chaque sommet.
+    glEnableVertexArrayAttrib(m_vertexArray, 1);
+    glVertexArrayAttribFormat(m_vertexArray, 1, 2, GL_FLOAT, GL_FALSE,
+                              static_cast<GLuint>(offsetof(Vertex, uv)));
+    glVertexArrayAttribBinding(m_vertexArray, 1, 0);
 
     m_vertexCount = count;
     return true;

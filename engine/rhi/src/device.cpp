@@ -4,6 +4,7 @@
 #include "core/log.h"
 #include "rhi/mesh.h"
 #include "rhi/shader_program.h"
+#include "rhi/texture.h"
 
 #include <glad/glad.h>
 
@@ -117,6 +118,11 @@ void Device::clear(core::f32 red, core::f32 green, core::f32 blue, core::f32 alp
     ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
     glClearColor(red, green, blue, alpha);
     glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void Device::bindTexture(const Texture& texture, core::u32 unit) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    glBindTextureUnit(static_cast<GLuint>(unit), texture.m_texture);
 }
 
 void Device::draw(const ShaderProgram& program, const Mesh& mesh) {

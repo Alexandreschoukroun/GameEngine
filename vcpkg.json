@@ -5,6 +5,7 @@
   "dependencies": [
     "sdl3",
     "doctest",
+    "glm",
     {
       "name": "glad",
       "features": ["gl-api-46"]

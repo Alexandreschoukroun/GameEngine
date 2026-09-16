@@ -93,6 +93,17 @@ bool ShaderProgram::create(std::string_view vertexSource, std::string_view fragm
     return true;
 }
 
+void ShaderProgram::setMat4(core::u32 location, const core::Mat4& value) {
+    if (m_program == 0) {
+        return;
+    }
+    // glProgramUniform... (4.1+) designe le programme au lieu d'exiger qu'il soit actif :
+    // meme logique DSA que partout ailleurs. GLM range ses matrices par colonnes, comme
+    // OpenGL les attend, d'ou transpose = GL_FALSE.
+    glProgramUniformMatrix4fv(m_program, static_cast<GLint>(location), 1, GL_FALSE,
+                              &value[0][0]);
+}
+
 void ShaderProgram::destroy() {
     if (m_program != 0) {
         glDeleteProgram(m_program);

@@ -4,6 +4,9 @@
 
 namespace rhi {
 
+class Mesh;
+class ShaderProgram;
+
 // Signature d'une fonction qui rend l'adresse d'une fonction OpenGL a partir de son nom.
 // C'est le seul lien entre rhi et la couche fenetrage : aucun type SDL ne remonte ici,
 // aucun type OpenGL ne descend la-bas.
@@ -24,6 +27,10 @@ public:
 
     void setViewport(core::u32 width, core::u32 height);
     void clear(core::f32 red, core::f32 green, core::f32 blue, core::f32 alpha);
+
+    // Dessine la geometrie avec ce programme. C'est le "draw call" : le seul ordre qui
+    // declenche reellement du travail sur le GPU.
+    void draw(const ShaderProgram& program, const Mesh& mesh);
 
 private:
     bool m_created = false;

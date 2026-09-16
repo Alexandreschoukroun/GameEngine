@@ -2,6 +2,8 @@ find_package(glad CONFIG REQUIRED)
 
 add_library(engine_rhi STATIC
     src/device.cpp
+    src/mesh.cpp
+    src/shader_program.cpp
 )
 
 target_include_directories(engine_rhi PUBLIC

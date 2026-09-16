@@ -81,6 +81,11 @@ void main() {
 }
 )";
 
+// Sensibilite du regard, en radians par pixel de deplacement souris. Reglable par le
+// joueur le jour ou il y aura des options (M8).
+constexpr core::f32 kLookSensitivity = 0.0022f;
+constexpr core::f32 kMoveSpeed = 3.0f; // metres par seconde
+
 class HorrorGame final : public platform::Application {
 public:
     using Application::Application;
@@ -97,6 +102,8 @@ protected:
         m_camera.setPerspective(core::radians(60.0f), aspect, 0.05f, 100.0f);
         m_camera.setPosition(core::Vec3{0.0f, 0.0f, 0.0f});
 
+        window().setRelativeMouseMode(true);
+
         if (!m_program.create(kVertexShader, kFragmentShader)) {
             return false;
         }
@@ -106,6 +113,55 @@ protected:
 
         const std::vector<core::u8> pixels = makeCheckerboard();
         return m_texture.create(kCheckerSize, kCheckerSize, pixels.data());
+    }
+
+    // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
+    void onFrame(core::f64 frameDeltaSeconds) override {
+        (void)frameDeltaSeconds; // un deplacement souris est deja une quantite, pas un taux
+        // Souris vers la droite (dx > 0) => on tourne vers +X, soit la droite de la vue
+        // initiale. Souris vers le haut (dy < 0) => on leve les yeux, donc pitch positif.
+        m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
+                             -input().mouseDeltaY() * kLookSensitivity);
+    }
+
+    // A pas fixe : le deplacement est de la simulation, il doit etre deterministe.
+    void onFixedUpdate(core::f64 fixedDeltaSeconds) override {
+        using platform::Key;
+
+        core::Vec3 direction{0.0f, 0.0f, 0.0f};
+        if (input().isKeyDown(Key::W)) {
+            direction += m_camera.forward();
+        }
+        if (input().isKeyDown(Key::S)) {
+            direction -= m_camera.forward();
+        }
+        if (input().isKeyDown(Key::D)) {
+            direction += m_camera.right();
+        }
+        if (input().isKeyDown(Key::A)) {
+            direction -= m_camera.right();
+        }
+        if (input().isKeyDown(Key::Space)) {
+            direction.y += 1.0f;
+        }
+        if (input().isKeyDown(Key::LeftShift)) {
+            direction.y -= 1.0f;
+        }
+
+        // Normaliser evite d'aller plus vite en diagonale. Le test protege glm::normalize,
+        // qui divise par zero si le vecteur est nul.
+        if (glm::dot(direction, direction) > 0.0f) {
+            const core::f32 distance = kMoveSpeed * static_cast<core::f32>(fixedDeltaSeconds);
+            m_camera.setPosition(m_camera.position() + glm::normalize(direction) * distance);
+        }
+    }
+
+    void onResize(core::u32 width, core::u32 height) override {
+        if (width == 0 || height == 0) {
+            return; // fenetre reduite : on ignore, sinon on divise par zero
+        }
+        m_device.setViewport(width, height);
+        m_camera.setAspect(static_cast<core::f32>(width) / static_cast<core::f32>(height));
     }
 
     void onRender() override {

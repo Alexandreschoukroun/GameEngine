@@ -27,6 +27,14 @@ public:
 
     GLProcAddressLoader glProcAddressLoader() const;
 
+    // Capture et masque le curseur : la souris ne renvoie plus que des deplacements,
+    // sans bord d'ecran. C'est le mode de tous les jeux a la premiere personne.
+    void setRelativeMouseMode(bool enabled);
+
+    // Enregistre la nouvelle taille apres un redimensionnement. Ne redimensionne pas la
+    // fenetre : c'est le systeme qui l'a deja fait, on se met a jour.
+    void notifyResized(core::u32 width, core::u32 height);
+
     core::u32 width() const { return m_width; }
     core::u32 height() const { return m_height; }
 

@@ -28,7 +28,15 @@ bool Application::run() {
             break;
         }
 
-        accumulator.addFrameTime(clock.restart());
+        if (m_inputState.windowResized()) {
+            m_window.notifyResized(m_inputState.windowWidth(), m_inputState.windowHeight());
+            onResize(m_inputState.windowWidth(), m_inputState.windowHeight());
+        }
+
+        const core::f64 frameSeconds = clock.restart();
+        onFrame(frameSeconds);
+
+        accumulator.addFrameTime(frameSeconds);
         while (accumulator.consumeStep()) {
             onFixedUpdate(m_config.fixedTimestepSeconds);
         }

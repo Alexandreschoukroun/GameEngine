@@ -14,6 +14,14 @@ target_include_directories(engine_core PUBLIC
 # documente dans math.h.
 target_link_libraries(engine_core PUBLIC glm::glm)
 
+if(GAMEENGINE_PROFILING)
+    find_package(Tracy CONFIG REQUIRED)
+    # PUBLIC pour la meme raison que GLM : les macros de core/profiler.h s'expansent chez
+    # l'appelant, donc l'en-tete de Tracy doit lui etre visible.
+    target_link_libraries(engine_core PUBLIC Tracy::TracyClient)
+    target_compile_definitions(engine_core PUBLIC ENGINE_PROFILING_ENABLED)
+endif()
+
 target_compile_features(engine_core PUBLIC cxx_std_20)
 set_project_warnings(engine_core)
 

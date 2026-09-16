@@ -9,6 +9,10 @@
     {
       "name": "glad",
       "features": ["gl-api-46"]
+    },
+    {
+      "name": "tracy",
+      "features": ["on-demand"]
     }
   ]
 }

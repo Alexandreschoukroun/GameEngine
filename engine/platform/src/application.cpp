@@ -1,6 +1,7 @@
 #include "platform/application.h"
 
 #include "core/log.h"
+#include "core/profiler.h"
 #include "core/time.h"
 
 namespace platform {
@@ -23,7 +24,10 @@ bool Application::run() {
 
     bool running = true;
     while (running) {
-        m_input.update(m_inputState);
+        {
+            ENGINE_PROFILE_SCOPE("input");
+            m_input.update(m_inputState);
+        }
         if (m_inputState.quitRequested()) {
             break;
         }
@@ -34,15 +38,33 @@ bool Application::run() {
         }
 
         const core::f64 frameSeconds = clock.restart();
-        onFrame(frameSeconds);
-
-        accumulator.addFrameTime(frameSeconds);
-        while (accumulator.consumeStep()) {
-            onFixedUpdate(m_config.fixedTimestepSeconds);
+        {
+            ENGINE_PROFILE_SCOPE("frame update");
+            onFrame(frameSeconds);
         }
 
-        onRender();
-        m_window.swapBuffers();
+        {
+            // Une zone pour l'ensemble des pas : dans Tracy, sa largeur montre d'un coup
+            // d'oeil combien de pas fixes la frame a consommes.
+            ENGINE_PROFILE_SCOPE("fixed update");
+            accumulator.addFrameTime(frameSeconds);
+            while (accumulator.consumeStep()) {
+                onFixedUpdate(m_config.fixedTimestepSeconds);
+            }
+        }
+
+        {
+            ENGINE_PROFILE_SCOPE("render");
+            onRender();
+        }
+        {
+            // Avec la synchronisation verticale, c'est ici que la frame attend l'ecran.
+            // Une zone large ne veut donc pas dire "lent", mais "en avance".
+            ENGINE_PROFILE_SCOPE("present");
+            m_window.swapBuffers();
+        }
+
+        ENGINE_PROFILE_FRAME();
     }
 
     onShutdown();

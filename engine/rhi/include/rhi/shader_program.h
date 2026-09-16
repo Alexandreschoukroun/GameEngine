@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/math.h"
 #include "core/types.h"
 
 #include <string_view>
@@ -18,6 +19,10 @@ public:
     // Compile les deux etages et les lie. En cas d'echec, le journal du pilote est
     // recopie dans nos logs : c'est la seule facon de savoir ce que GLSL reproche.
     bool create(std::string_view vertexSource, std::string_view fragmentSource);
+
+    // Envoie une matrice au programme. L'emplacement est celui declare cote GLSL par
+    // layout(location = N), ce qui evite d'avoir a le chercher par son nom au demarrage.
+    void setMat4(core::u32 location, const core::Mat4& value);
 
     // Meme regle que Mesh::destroy : a appeler tant que le contexte GPU est vivant.
     void destroy();

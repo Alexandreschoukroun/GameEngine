@@ -1,5 +1,7 @@
+#include "core/math.h"
 #include "core/types.h"
 #include "platform/application.h"
+#include "renderer/camera.h"
 #include "rhi/device.h"
 #include "rhi/mesh.h"
 #include "rhi/shader_program.h"
@@ -10,15 +12,15 @@
 
 namespace {
 
-// Sommets ecrits directement en coordonnees normalisees (NDC) : X et Y vont de -1 a +1,
-// quelle que soit la taille de la fenetre. Il n'y a pas encore de camera pour convertir
-// des coordonnees du monde vers cet espace, ce sera l'etape 4.
+// Sommets exprimes en metres dans le monde, et non plus en coordonnees d'ecran : un
+// triangle de 2 m de large, pose a 3 m devant l'origine (donc a -3 sur Z). C'est
+// desormais la camera qui decide de ce qu'on en voit.
 // Les UV disent quel point de l'image correspond a chaque sommet ; le GPU interpole entre
 // les trois pour donner sa coordonnee a chaque pixel.
 constexpr rhi::Vertex kTriangle[] = {
-    {{0.0f, 0.6f, 0.0f}, {0.5f, 1.0f}},
-    {{-0.6f, -0.5f, 0.0f}, {0.0f, 0.0f}},
-    {{0.6f, -0.5f, 0.0f}, {1.0f, 0.0f}},
+    {{0.0f, 1.0f, -3.0f}, {0.5f, 1.0f}},
+    {{-1.0f, -1.0f, -3.0f}, {0.0f, 0.0f}},
+    {{1.0f, -1.0f, -3.0f}, {1.0f, 0.0f}},
 };
 
 constexpr core::u32 kCheckerSize = 256;
@@ -53,11 +55,17 @@ constexpr const char* kVertexShader = R"(#version 460 core
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec2 aTexCoord;
 
+// location = 0 : l'emplacement d'uniforme que le moteur remplit avec la matrice de la
+// camera. Il est declare ici, donc rien a chercher par son nom cote C++.
+layout(location = 0) uniform mat4 uViewProjection;
+
 out vec2 vTexCoord;
 
 void main() {
     vTexCoord = aTexCoord;
-    gl_Position = vec4(aPosition, 1.0);
+    // Du monde vers l'espace clip : c'est cette multiplication qui remplace les
+    // coordonnees ecrites a la main jusqu'ici.
+    gl_Position = uViewProjection * vec4(aPosition, 1.0);
 }
 )";
 
@@ -84,6 +92,11 @@ protected:
         }
         m_device.setViewport(window().width(), window().height());
 
+        const core::f32 aspect = static_cast<core::f32>(window().width()) /
+                                 static_cast<core::f32>(window().height());
+        m_camera.setPerspective(core::radians(60.0f), aspect, 0.05f, 100.0f);
+        m_camera.setPosition(core::Vec3{0.0f, 0.0f, 0.0f});
+
         if (!m_program.create(kVertexShader, kFragmentShader)) {
             return false;
         }
@@ -97,6 +110,7 @@ protected:
 
     void onRender() override {
         m_device.clear(0.04f, 0.0f, 0.02f, 1.0f);
+        m_program.setMat4(0, m_camera.viewProjectionMatrix());
         m_device.bindTexture(m_texture, 0);
         m_device.draw(m_program, m_mesh);
     }
@@ -113,6 +127,7 @@ private:
     rhi::ShaderProgram m_program;
     rhi::Mesh m_mesh;
     rhi::Texture m_texture;
+    renderer::Camera m_camera;
 };
 
 } // namespace

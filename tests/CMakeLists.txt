@@ -1,10 +1,14 @@
 find_package(doctest CONFIG REQUIRED)
 
 add_executable(engine_tests
+    main.cpp
     core/test_time.cpp
+    renderer/test_camera.cpp
 )
 
-target_link_libraries(engine_tests PRIVATE engine::core doctest::doctest)
+# Ne sont liees ici que les couches testables sans GPU ni fenetre : c'est ce qui permet
+# a la CI de lancer ces tests sur une machine sans carte graphique.
+target_link_libraries(engine_tests PRIVATE engine::core engine::renderer doctest::doctest)
 
 set_project_warnings(engine_tests)
 

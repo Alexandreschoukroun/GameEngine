@@ -4,6 +4,7 @@ find_package(Stb REQUIRED)
 add_library(engine_assets STATIC
     src/gltf_loader.cpp
     src/image.cpp
+    src/text_file.cpp
 )
 
 target_include_directories(engine_assets PUBLIC

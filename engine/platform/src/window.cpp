@@ -28,6 +28,9 @@ bool Window::create(std::string_view title, core::u32 width, core::u32 height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    // Tampon de profondeur : 24 bits par pixel. Sans cette demande, le contexte peut etre
+    // cree sans profondeur du tout, et le test de profondeur n'aurait alors aucun effet.
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 #if !defined(NDEBUG)
     // Contexte de debug : le pilote produit alors des messages d'erreur detailles,
     // que rhi::Device redirige vers nos logs. Inutile en Release.

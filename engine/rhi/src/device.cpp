@@ -105,6 +105,19 @@ bool Device::create(ProcAddressLoader loader) {
     logDriverIdentity();
     enableDebugOutput();
 
+    // Test de profondeur : le GPU garde la distance de ce qui est deja dessine a chaque
+    // pixel et jette ce qui est derriere. L'ordre de dessin cesse d'avoir de l'importance.
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
+    // Faces arriere ignorees. Sur un objet ferme, la moitie des triangles tournent le dos
+    // a la camera : les eliminer avant le fragment shader supprime la moitie du travail.
+    // Le GPU les reconnait au sens de rotation des sommets a l'ecran : anti-horaire = face
+    // avant, convention OpenGL par defaut.
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+
     m_created = true;
     return true;
 }
@@ -117,7 +130,9 @@ void Device::setViewport(core::u32 width, core::u32 height) {
 void Device::clear(core::f32 red, core::f32 green, core::f32 blue, core::f32 alpha) {
     ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
     glClearColor(red, green, blue, alpha);
-    glClear(GL_COLOR_BUFFER_BIT);
+    // La profondeur est remise a 1 (le plus loin possible) en meme temps que la couleur :
+    // sans ca, la frame precedente masquerait la nouvelle.
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void Device::bindTexture(const Texture& texture, core::u32 unit) {
@@ -127,13 +142,16 @@ void Device::bindTexture(const Texture& texture, core::u32 unit) {
 
 void Device::draw(const ShaderProgram& program, const Mesh& mesh) {
     ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
-    if (program.m_program == 0 || mesh.m_vertexArray == 0) {
+    if (program.m_program == 0 || mesh.m_vertexArray == 0 || mesh.m_indexCount == 0) {
         return;
     }
 
     glUseProgram(program.m_program);
     glBindVertexArray(mesh.m_vertexArray);
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(mesh.m_vertexCount));
+    // DrawElements et non DrawArrays : les triangles sont decrits par des indices, et le
+    // buffer d'indices est deja memorise dans le VAO, d'ou le nullptr.
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.m_indexCount), GL_UNSIGNED_INT,
+                   nullptr);
 }
 
 } // namespace rhi

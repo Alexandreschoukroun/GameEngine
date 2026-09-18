@@ -7,21 +7,71 @@
 #include "rhi/shader_program.h"
 #include "rhi/texture.h"
 
+#include <array>
 #include <iterator>
 #include <vector>
 
 namespace {
 
-// Sommets exprimes en metres dans le monde, et non plus en coordonnees d'ecran : un
-// triangle de 2 m de large, pose a 3 m devant l'origine (donc a -3 sur Z). C'est
-// desormais la camera qui decide de ce qu'on en voit.
-// Les UV disent quel point de l'image correspond a chaque sommet ; le GPU interpole entre
-// les trois pour donner sa coordonnee a chaque pixel.
-constexpr rhi::Vertex kTriangle[] = {
-    {{0.0f, 1.0f, -3.0f}, {0.5f, 1.0f}},
-    {{-1.0f, -1.0f, -3.0f}, {0.0f, 0.0f}},
-    {{1.0f, -1.0f, -3.0f}, {1.0f, 0.0f}},
+// Cube de 1 m de cote, centre sur l'origine du monde.
+//
+// 24 sommets et non 8 : chaque face a besoin de ses propres coordonnees de texture, donc
+// un coin partage par trois faces porte trois UV differentes. En revanche les triangles
+// sont decrits par des indices, ce qui evite les 36 sommets qu'il faudrait sans eux.
+//
+// L'ordre des sommets de chaque face est anti-horaire vu de l'exterieur : c'est ce qui
+// permet au GPU de reconnaitre les faces avant et d'ignorer les autres.
+constexpr rhi::Vertex kCubeVertices[] = {
+    // face avant (+Z)
+    {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.5f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f}},
+    // face arriere (-Z)
+    {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
+    // face droite (+X)
+    {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
+    {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f}},
+    // face gauche (-X)
+    {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
+    {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f}},
+    {{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
+    // face haute (+Y)
+    {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
+    // face basse (-Y)
+    {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f}},
+    {{-0.5f, -0.5f, 0.5f}, {0.0f, 1.0f}},
 };
+
+// Chaque face est un quadrilatere, donc deux triangles : 0-1-2 puis 0-2-3, decales de 4
+// sommets a chaque face.
+constexpr std::array<core::u32, 36> makeCubeIndices() {
+    std::array<core::u32, 36> indices{};
+    for (core::u32 face = 0; face < 6; ++face) {
+        const core::u32 vertex = face * 4;
+        const core::u32 index = face * 6;
+        indices[index + 0] = vertex + 0;
+        indices[index + 1] = vertex + 1;
+        indices[index + 2] = vertex + 2;
+        indices[index + 3] = vertex + 0;
+        indices[index + 4] = vertex + 2;
+        indices[index + 5] = vertex + 3;
+    }
+    return indices;
+}
+
+constexpr std::array<core::u32, 36> kCubeIndices = makeCubeIndices();
 
 constexpr core::u32 kCheckerSize = 256;
 constexpr core::u32 kCheckerSquare = 32;
@@ -100,14 +150,17 @@ protected:
         const core::f32 aspect = static_cast<core::f32>(window().width()) /
                                  static_cast<core::f32>(window().height());
         m_camera.setPerspective(core::radians(60.0f), aspect, 0.05f, 100.0f);
-        m_camera.setPosition(core::Vec3{0.0f, 0.0f, 0.0f});
+        // Recule de 3 m : le cube est a l'origine, la camera le regarde depuis +Z.
+        m_camera.setPosition(core::Vec3{0.0f, 0.0f, 3.0f});
 
         window().setRelativeMouseMode(true);
 
         if (!m_program.create(kVertexShader, kFragmentShader)) {
             return false;
         }
-        if (!m_mesh.create(kTriangle, static_cast<core::u32>(std::size(kTriangle)))) {
+        if (!m_mesh.create(kCubeVertices, static_cast<core::u32>(std::size(kCubeVertices)),
+                           kCubeIndices.data(),
+                           static_cast<core::u32>(kCubeIndices.size()))) {
             return false;
         }
 

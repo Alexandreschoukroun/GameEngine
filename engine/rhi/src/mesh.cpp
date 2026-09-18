@@ -8,9 +8,10 @@
 
 namespace rhi {
 
-bool Mesh::create(const Vertex* vertices, core::u32 count) {
-    if (vertices == nullptr || count == 0) {
-        core::logError("Mesh::create appele sans sommets");
+bool Mesh::create(const Vertex* vertices, core::u32 vertexCount, const core::u32* indices,
+                  core::u32 indexCount) {
+    if (vertices == nullptr || vertexCount == 0 || indices == nullptr || indexCount == 0) {
+        core::logError("Mesh::create appele sans sommets ou sans indices");
         return false;
     }
 
@@ -21,8 +22,13 @@ bool Mesh::create(const Vertex* vertices, core::u32 count) {
 
     // Storage et non Data : la taille est definitive. Le pilote sait que ces octets ne
     // seront jamais reallouees et peut les placer en consequence.
-    glNamedBufferStorage(m_vertexBuffer, static_cast<GLsizeiptr>(sizeof(Vertex) * count),
+    glNamedBufferStorage(m_vertexBuffer, static_cast<GLsizeiptr>(sizeof(Vertex) * vertexCount),
                          vertices, 0);
+
+    // Meme principe pour les indices : un buffer de plus dans la carte graphique.
+    glCreateBuffers(1, &m_indexBuffer);
+    glNamedBufferStorage(m_indexBuffer,
+                         static_cast<GLsizeiptr>(sizeof(core::u32) * indexCount), indices, 0);
 
     // Le VAO ne contient pas de donnees : il decrit comment relire celles du buffer.
     glCreateVertexArrays(1, &m_vertexArray);
@@ -44,7 +50,11 @@ bool Mesh::create(const Vertex* vertices, core::u32 count) {
                               static_cast<GLuint>(offsetof(Vertex, uv)));
     glVertexArrayAttribBinding(m_vertexArray, 1, 0);
 
-    m_vertexCount = count;
+    // Le VAO retient aussi quel buffer d'indices utiliser : un seul objet a lier au moment
+    // de dessiner, et non deux.
+    glVertexArrayElementBuffer(m_vertexArray, m_indexBuffer);
+
+    m_indexCount = indexCount;
     return true;
 }
 
@@ -53,11 +63,15 @@ void Mesh::destroy() {
         glDeleteVertexArrays(1, &m_vertexArray);
         m_vertexArray = 0;
     }
+    if (m_indexBuffer != 0) {
+        glDeleteBuffers(1, &m_indexBuffer);
+        m_indexBuffer = 0;
+    }
     if (m_vertexBuffer != 0) {
         glDeleteBuffers(1, &m_vertexBuffer);
         m_vertexBuffer = 0;
     }
-    m_vertexCount = 0;
+    m_indexCount = 0;
 }
 
 } // namespace rhi

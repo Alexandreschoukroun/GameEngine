@@ -156,4 +156,46 @@ cgltf et stb_image sont des bibliothèques « à en-tête unique » : leur impl�
 
 **Limites assumées** : le chargeur fusionne tout le fichier en un seul maillage et ignore les matériaux — il ne sait pas encore qu'un modèle peut avoir plusieurs textures. Les primitives non triangulaires sont rejetées. L'aspect est plat, puisqu'il n'y a aucun éclairage.
 
-**Ce qui vient après (étape 3)** : le G-buffer. Les shaders sortiront alors dans des fichiers `.glsl`, lus par cette même couche `assets`.
+**Ce qui vient après (étape 3)** : le G-buffer. Les shaders sortiront alors dans des fichiers, lus par cette même couche `assets`.
+
+---
+
+# 3. Étape 3a — les shaders deviennent des données
+
+## 3.1 Le problème
+
+Les deux shaders vivaient dans des chaînes de caractères, au milieu de `main.cpp`. Acceptable avec deux ; intenable avec les quatre ou cinq qu'exige un G-buffer, puis avec le fragment shader d'éclairage PBR, qui fera une centaine de lignes. Trois conséquences concrètes :
+
+- **aucune coloration syntaxique ni diagnostic** dans l'éditeur : du GLSL déguisé en littéral C++ ;
+- **chaque retouche impose une recompilation du C++**, alors qu'un shader est une donnée, pas du code ;
+- **les numéros de ligne des erreurs GLSL** renvoient à la chaîne, pas à un fichier qu'on peut ouvrir.
+
+C'était la dernière dette listée au bilan de M1.
+
+## 3.2 Les décisions
+
+**Un shader est une donnée du jeu**, au même titre qu'une texture. Les fichiers vivent donc dans `assets/shaders/` et sont lus au démarrage par la couche `assets`, qui lit déjà les modèles et les images. Bénéfice immédiat : modifier un shader et relancer le jeu **ne demande aucune recompilation**.
+
+**Pas de rechargement à chaud pour l'instant.** Ce serait confortable, mais il faudrait surveiller le système de fichiers et recompiler proprement en cours d'exécution. C'est une fonctionnalité d'éditeur — donc M6 — et rien ne la réclame aujourd'hui.
+
+**L'extension `.vert` / `.frag`** plutôt que `.glsl` : les éditeurs de texte savent colorer ces extensions et reconnaissent l'étage concerné.
+
+## 3.3 Ce que ça change dans le code
+
+`rhi::ShaderProgram` **ne lit aucun fichier** : il reçoit toujours deux chaînes. La lecture est faite par `assets::loadTextFile`, et c'est l'appelant qui assemble les deux. La couche GPU n'a pas à connaître le système de fichiers, exactement comme la couche `assets` ignore ce qu'est un buffer OpenGL.
+
+## 3.4 Vérification du chemin d'erreur
+
+Testé en pointant le moteur vers un dossier de données vide :
+
+```
+[00:47:42] ERROR | fichier texte introuvable
+[00:47:42] ERROR | C:\...\assets-vides\shaders\unlit.vert
+[00:47:42] ERROR | initialisation de l'application echouee
+```
+
+Message explicite, chemin complet, fenêtre détruite proprement, code de retour non nul. Au passage : une variable `GAMEENGINE_ASSETS` qui désigne un dossier **inexistant** est simplement ignorée, et la résolution retombe sur le niveau suivant — c'est le comportement voulu.
+
+## 3.5 Coût
+
+Deux lectures de fichier au démarrage, quelques kilo-octets. Rien par frame : les shaders sont compilés une fois, à l'initialisation.

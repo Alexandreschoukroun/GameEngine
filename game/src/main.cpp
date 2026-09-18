@@ -1,5 +1,6 @@
 #include "assets/image.h"
 #include "assets/mesh_data.h"
+#include "assets/text_file.h"
 #include "core/math.h"
 #include "core/types.h"
 #include "platform/application.h"
@@ -10,49 +11,33 @@
 #include "rhi/shader_program.h"
 #include "rhi/texture.h"
 
+#include <string>
 #include <vector>
 
 namespace {
 
 constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
 constexpr const char* kBaseColorPath = "models/suzanne/Suzanne_BaseColor.png";
+constexpr const char* kVertexShaderPath = "shaders/unlit.vert";
+constexpr const char* kFragmentShaderPath = "shaders/unlit.frag";
 
 // Sensibilite du regard, en radians par pixel de deplacement souris. Reglable par le
 // joueur le jour ou il y aura des options (M8).
 constexpr core::f32 kLookSensitivity = 0.0022f;
 constexpr core::f32 kMoveSpeed = 3.0f; // metres par seconde
 
-// GLSL, compile par le pilote au demarrage du jeu. Ces sources partiront dans des fichiers
-// quand la couche assets saura les lire (etape 3).
-constexpr const char* kVertexShader = R"(#version 460 core
-layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec2 aTexCoord;
-
-// location = 0 : l'emplacement d'uniforme que le moteur remplit avec la matrice de la
-// camera. Il est declare ici, donc rien a chercher par son nom cote C++.
-layout(location = 0) uniform mat4 uViewProjection;
-
-out vec2 vTexCoord;
-
-void main() {
-    vTexCoord = aTexCoord;
-    // Du monde vers l'espace clip : c'est cette multiplication qui remplace les
-    // coordonnees ecrites a la main jusqu'ici.
-    gl_Position = uViewProjection * vec4(aPosition, 1.0);
+// Les shaders sont des donnees du jeu, au meme titre qu'une texture : ils vivent dans
+// assets/shaders/ et se modifient sans recompiler le C++.
+bool createProgramFromFiles(rhi::ShaderProgram& program, const char* vertexPath,
+                            const char* fragmentPath) {
+    std::string vertexSource;
+    std::string fragmentSource;
+    if (!assets::loadTextFile(platform::assetPath(vertexPath).c_str(), vertexSource) ||
+        !assets::loadTextFile(platform::assetPath(fragmentPath).c_str(), fragmentSource)) {
+        return false;
+    }
+    return program.create(vertexSource, fragmentSource);
 }
-)";
-
-constexpr const char* kFragmentShader = R"(#version 460 core
-// binding = 0 : l'unite de texture sur laquelle le moteur branche l'image.
-layout(binding = 0) uniform sampler2D uAlbedo;
-
-in vec2 vTexCoord;
-out vec4 outColor;
-
-void main() {
-    outColor = texture(uAlbedo, vTexCoord);
-}
-)";
 
 // Les donnees du fichier sont neutres : c'est ici qu'elles prennent la forme attendue par
 // le GPU. La couche assets ignore volontairement ce qu'est un sommet pour rhi.
@@ -85,7 +70,7 @@ protected:
 
         window().setRelativeMouseMode(true);
 
-        if (!m_program.create(kVertexShader, kFragmentShader)) {
+        if (!createProgramFromFiles(m_program, kVertexShaderPath, kFragmentShaderPath)) {
             return false;
         }
 

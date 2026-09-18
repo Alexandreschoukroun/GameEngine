@@ -56,7 +56,11 @@ const std::string& assetsRoot() {
 }
 
 std::string assetPath(std::string_view relativePath) {
-    return (std::filesystem::path(assetsRoot()) / relativePath).string();
+    // make_preferred : les chemins relatifs sont ecrits avec des '/', la racine vient du
+    // systeme avec des '\'. Sans cette normalisation, les messages d'erreur melangent les
+    // deux separateurs et deviennent penibles a relire.
+    std::filesystem::path full = std::filesystem::path(assetsRoot()) / relativePath;
+    return full.make_preferred().string();
 }
 
 } // namespace platform

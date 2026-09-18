@@ -4,6 +4,13 @@ add_library(engine_platform STATIC
     src/window.cpp
     src/input.cpp
     src/application.cpp
+    src/paths.cpp
+)
+
+# Chemin du dossier de donnees des sources, dernier recours de la resolution faite dans
+# paths.cpp. PRIVATE : c'est un detail d'implementation, pas une information publique.
+target_compile_definitions(engine_platform PRIVATE
+    GAMEENGINE_SOURCE_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets"
 )
 
 target_include_directories(engine_platform PUBLIC

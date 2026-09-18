@@ -1,106 +1,29 @@
+#include "assets/image.h"
+#include "assets/mesh_data.h"
 #include "core/math.h"
 #include "core/types.h"
 #include "platform/application.h"
+#include "platform/paths.h"
 #include "renderer/camera.h"
 #include "rhi/device.h"
 #include "rhi/mesh.h"
 #include "rhi/shader_program.h"
 #include "rhi/texture.h"
 
-#include <array>
-#include <iterator>
 #include <vector>
 
 namespace {
 
-// Cube de 1 m de cote, centre sur l'origine du monde.
-//
-// 24 sommets et non 8 : chaque face a besoin de ses propres coordonnees de texture, donc
-// un coin partage par trois faces porte trois UV differentes. En revanche les triangles
-// sont decrits par des indices, ce qui evite les 36 sommets qu'il faudrait sans eux.
-//
-// L'ordre des sommets de chaque face est anti-horaire vu de l'exterieur : c'est ce qui
-// permet au GPU de reconnaitre les faces avant et d'ignorer les autres.
-constexpr rhi::Vertex kCubeVertices[] = {
-    // face avant (+Z)
-    {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.5f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f}},
-    // face arriere (-Z)
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
-    // face droite (+X)
-    {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
-    {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f}},
-    // face gauche (-X)
-    {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
-    {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f}},
-    {{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
-    // face haute (+Y)
-    {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
-    // face basse (-Y)
-    {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f}},
-    {{-0.5f, -0.5f, 0.5f}, {0.0f, 1.0f}},
-};
+constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
+constexpr const char* kBaseColorPath = "models/suzanne/Suzanne_BaseColor.png";
 
-// Chaque face est un quadrilatere, donc deux triangles : 0-1-2 puis 0-2-3, decales de 4
-// sommets a chaque face.
-constexpr std::array<core::u32, 36> makeCubeIndices() {
-    std::array<core::u32, 36> indices{};
-    for (core::u32 face = 0; face < 6; ++face) {
-        const core::u32 vertex = face * 4;
-        const core::u32 index = face * 6;
-        indices[index + 0] = vertex + 0;
-        indices[index + 1] = vertex + 1;
-        indices[index + 2] = vertex + 2;
-        indices[index + 3] = vertex + 0;
-        indices[index + 4] = vertex + 2;
-        indices[index + 5] = vertex + 3;
-    }
-    return indices;
-}
-
-constexpr std::array<core::u32, 36> kCubeIndices = makeCubeIndices();
-
-constexpr core::u32 kCheckerSize = 256;
-constexpr core::u32 kCheckerSquare = 32;
-
-// Damier genere par le code plutot qu'un fichier image : aucune dependance de chargement
-// n'est encore justifiee, et un damier rend immediatement visible la moindre erreur d'UV
-// ou de deformation.
-std::vector<core::u8> makeCheckerboard() {
-    std::vector<core::u8> pixels(static_cast<std::size_t>(kCheckerSize) * kCheckerSize * 4);
-
-    for (core::u32 y = 0; y < kCheckerSize; ++y) {
-        for (core::u32 x = 0; x < kCheckerSize; ++x) {
-            const bool light = ((x / kCheckerSquare) + (y / kCheckerSquare)) % 2 == 0;
-            const core::u8 red = light ? 200 : 60;
-            const core::u8 green = light ? 190 : 25;
-            const core::u8 blue = light ? 175 : 30;
-
-            const std::size_t index = (static_cast<std::size_t>(y) * kCheckerSize + x) * 4;
-            pixels[index + 0] = red;
-            pixels[index + 1] = green;
-            pixels[index + 2] = blue;
-            pixels[index + 3] = 255;
-        }
-    }
-    return pixels;
-}
+// Sensibilite du regard, en radians par pixel de deplacement souris. Reglable par le
+// joueur le jour ou il y aura des options (M8).
+constexpr core::f32 kLookSensitivity = 0.0022f;
+constexpr core::f32 kMoveSpeed = 3.0f; // metres par seconde
 
 // GLSL, compile par le pilote au demarrage du jeu. Ces sources partiront dans des fichiers
-// quand la couche assets existera.
+// quand la couche assets saura les lire (etape 3).
 constexpr const char* kVertexShader = R"(#version 460 core
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec2 aTexCoord;
@@ -131,10 +54,17 @@ void main() {
 }
 )";
 
-// Sensibilite du regard, en radians par pixel de deplacement souris. Reglable par le
-// joueur le jour ou il y aura des options (M8).
-constexpr core::f32 kLookSensitivity = 0.0022f;
-constexpr core::f32 kMoveSpeed = 3.0f; // metres par seconde
+// Les donnees du fichier sont neutres : c'est ici qu'elles prennent la forme attendue par
+// le GPU. La couche assets ignore volontairement ce qu'est un sommet pour rhi.
+std::vector<rhi::Vertex> toVertices(const assets::MeshData& meshData) {
+    std::vector<rhi::Vertex> vertices(meshData.positions.size());
+    for (std::size_t i = 0; i < vertices.size(); ++i) {
+        const core::Vec3& position = meshData.positions[i];
+        const core::Vec2& uv = meshData.uvs[i];
+        vertices[i] = rhi::Vertex{{position.x, position.y, position.z}, {uv.x, uv.y}};
+    }
+    return vertices;
+}
 
 class HorrorGame final : public platform::Application {
 public:
@@ -150,7 +80,7 @@ protected:
         const core::f32 aspect = static_cast<core::f32>(window().width()) /
                                  static_cast<core::f32>(window().height());
         m_camera.setPerspective(core::radians(60.0f), aspect, 0.05f, 100.0f);
-        // Recule de 3 m : le cube est a l'origine, la camera le regarde depuis +Z.
+        // Recule de 3 m : le modele est a l'origine, la camera le regarde depuis +Z.
         m_camera.setPosition(core::Vec3{0.0f, 0.0f, 3.0f});
 
         window().setRelativeMouseMode(true);
@@ -158,14 +88,23 @@ protected:
         if (!m_program.create(kVertexShader, kFragmentShader)) {
             return false;
         }
-        if (!m_mesh.create(kCubeVertices, static_cast<core::u32>(std::size(kCubeVertices)),
-                           kCubeIndices.data(),
-                           static_cast<core::u32>(kCubeIndices.size()))) {
+
+        assets::MeshData meshData;
+        if (!assets::loadGltfMesh(platform::assetPath(kModelPath).c_str(), meshData)) {
+            return false;
+        }
+        const std::vector<rhi::Vertex> vertices = toVertices(meshData);
+        if (!m_mesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
+                           meshData.indices.data(),
+                           static_cast<core::u32>(meshData.indices.size()))) {
             return false;
         }
 
-        const std::vector<core::u8> pixels = makeCheckerboard();
-        return m_texture.create(kCheckerSize, kCheckerSize, pixels.data());
+        assets::ImageData baseColor;
+        if (!assets::loadImage(platform::assetPath(kBaseColorPath).c_str(), baseColor)) {
+            return false;
+        }
+        return m_texture.create(baseColor.width, baseColor.height, baseColor.pixels.data());
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
@@ -243,7 +182,7 @@ private:
 
 int main() {
     platform::ApplicationConfig config;
-    config.title = "GameEngine -- M1";
+    config.title = "GameEngine -- M2";
 
     HorrorGame game(config);
     return game.run() ? 0 : 1;

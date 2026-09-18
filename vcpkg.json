@@ -6,6 +6,8 @@
     "sdl3",
     "doctest",
     "glm",
+    "cgltf",
+    "stb",
     {
       "name": "glad",
       "features": ["gl-api-46"]

@@ -24,6 +24,12 @@ struct DrawItem {
     const rhi::Mesh* mesh = nullptr;
     const rhi::Texture* baseColor = nullptr;
     const rhi::Texture* metallicRoughness = nullptr;
+    // Place l'objet dans le monde. Sans elle, toute la geometrie resterait la ou le
+    // fichier l'a laissee, et deux exemplaires du meme modele se superposeraient.
+    core::Mat4 modelMatrix{1.0f};
+    // Transposee de l'inverse de la partie rotation/echelle : une normale ne se transforme
+    // pas comme un point.
+    core::Mat3 normalMatrix{1.0f};
 };
 
 // Couches du G-buffer affichables telles quelles, pour verifier de ses yeux ce que la

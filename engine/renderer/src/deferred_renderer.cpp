@@ -106,6 +106,9 @@ core::i32 DeferredRenderer::renderShadowPass(rhi::Device& device,
     for (const DrawItem& item : items) {
         if (item.mesh != nullptr) {
             // Ni texture ni matiere : seule la geometrie compte pour mesurer une distance.
+            // La transformation, elle, est indispensable : sans elle l'ombre resterait la
+            // ou le fichier a laisse le modele.
+            m_shadowProgram.setMat4(4, item.modelMatrix);
             device.draw(m_shadowProgram, *item.mesh);
         }
     }
@@ -135,6 +138,10 @@ void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
                 item.metallicRoughness == nullptr) {
                 continue;
             }
+            // Ces deux uniformes changent a chaque objet, contrairement a la matrice de
+            // camera qui vaut pour toute la passe.
+            m_geometryProgram.setMat4(4, item.modelMatrix);
+            m_geometryProgram.setMat3(8, item.normalMatrix);
             device.bindTexture(*item.baseColor, 0);
             device.bindTexture(*item.metallicRoughness, 1);
             device.draw(m_geometryProgram, *item.mesh);

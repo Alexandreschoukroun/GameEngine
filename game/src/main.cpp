@@ -11,6 +11,7 @@
 #include "rhi/device.h"
 #include "rhi/mesh.h"
 #include "rhi/texture.h"
+#include "scene/scene.h"
 
 #include <array>
 #include <cmath>
@@ -37,11 +38,9 @@ constexpr core::u32 kCheckerSize = 256;
 constexpr core::u32 kCheckerSquare = 32;
 constexpr core::u32 kCookieSize = 256;
 
-// Une seule lumiere d'ambiance, tres faible et rouge : elle situe la piece sans jamais
-// concurrencer la torche. Dans un jeu d'horreur, c'est l'obscurite qui travaille.
-const std::array<renderer::Light, 1> kAmbientLights = {
-    renderer::Light{{0.0f, 2.2f, -5.0f}, {1.0f, 0.22f, 0.16f}, 3.0f},
-};
+// Nombre maximal de lumieres transmises au renderer en une frame : la torche plus celles
+// de la scene.
+constexpr std::size_t kMaxSceneLights = renderer::kMaxLights;
 
 // Ajoute un quadrilatere a la piece. Les sommets sont donnes dans l'ordre anti-horaire vu
 // depuis l'INTERIEUR : c'est de la que la camera regarde, et le culling eliminerait les
@@ -145,7 +144,11 @@ protected:
             return false;
         }
         m_flashlight.snapTo(m_camera);
-        return loadModel() && loadRoom();
+        if (!loadModel() || !loadRoom()) {
+            return false;
+        }
+        buildScene();
+        return true;
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
@@ -214,21 +217,45 @@ protected:
     }
 
     void onRender() override {
-        // Le jeu decrit la scene ; le renderer decide comment la dessiner.
-        const std::array<renderer::DrawItem, 2> items = {
-            renderer::DrawItem{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness},
-            renderer::DrawItem{&m_floorMesh, &m_floorBaseColor, &m_floorMaterial},
-        };
-
-        // La lampe torche en premier : c'est elle qui porte l'ombre, et le renderer
-        // retient la premiere lumiere a ombre de la liste.
-        std::array<renderer::Light, 1 + kAmbientLights.size()> lights{};
-        lights[0] = m_flashlight.light();
-        for (std::size_t i = 0; i < kAmbientLights.size(); ++i) {
-            lights[i + 1] = kAmbientLights[i];
+        // Deux systemes, au sens ECS : ils parcourent les entites possedant les composants
+        // qui les interessent, et en tirent ce que le renderer attend.
+        m_drawItems.clear();
+        for (auto [entity, transform, mesh] :
+             m_scene.registry().view<scene::Transform, scene::MeshRenderer>().each()) {
+            if (mesh.mesh == nullptr) {
+                continue;
+            }
+            m_drawItems.push_back(renderer::DrawItem{mesh.mesh, mesh.baseColor,
+                                                     mesh.metallicRoughness,
+                                                     transform.matrix(),
+                                                     transform.normalMatrix()});
         }
 
-        m_renderer.render(m_device, m_camera, items, lights, window().width(),
+        // La lampe torche en premier : c'est elle qui porte l'ombre, et le renderer retient
+        // la premiere lumiere a ombre de la liste.
+        m_lights.clear();
+        m_lights.push_back(m_flashlight.light());
+        for (auto [entity, transform, source] :
+             m_scene.registry().view<scene::Transform, scene::LightSource>().each()) {
+            if (m_lights.size() >= kMaxSceneLights) {
+                break;
+            }
+            renderer::Light light;
+            // La position vient du Transform, jamais du composant lumiere : une seule
+            // verite pour une seule information.
+            light.position = transform.position;
+            light.direction = core::Vec3(transform.matrix() * core::Vec4{0.0f, 0.0f, -1.0f, 0.0f});
+            light.color = source.color;
+            light.intensity = source.intensity;
+            light.type = source.type;
+            light.innerAngleRadians = source.innerAngleRadians;
+            light.outerAngleRadians = source.outerAngleRadians;
+            light.range = source.range;
+            light.castsShadow = source.castsShadow;
+            m_lights.push_back(light);
+        }
+
+        m_renderer.render(m_device, m_camera, m_drawItems, m_lights, window().width(),
                           window().height());
     }
 
@@ -245,6 +272,38 @@ protected:
     }
 
 private:
+    // La scene remplace les variables membres : chaque objet est une entite, decrite par
+    // ses composants. C'est ce qui rendra le chargement depuis un fichier possible.
+    void buildScene() {
+        const scene::Entity room = m_scene.createEntity("piece");
+        m_scene.registry().emplace<scene::MeshRenderer>(
+            room, scene::MeshRenderer{&m_floorMesh, &m_floorBaseColor, &m_floorMaterial});
+
+        // Deux exemplaires du meme maillage, a deux endroits et a deux echelles : c'est
+        // exactement ce qui etait impossible avant, la geometrie etant figee a l'origine.
+        const scene::Entity statue = m_scene.createEntity("statue");
+        m_scene.registry().emplace<scene::MeshRenderer>(
+            statue,
+            scene::MeshRenderer{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness});
+
+        const scene::Entity statueLoin = m_scene.createEntity("statue lointaine");
+        auto& farTransform = m_scene.registry().get<scene::Transform>(statueLoin);
+        farTransform.position = core::Vec3{-3.2f, -0.4f, -3.6f};
+        farTransform.rotation = core::Vec3{0.0f, core::radians(35.0f), 0.0f};
+        farTransform.scale = core::Vec3{0.7f, 0.7f, 0.7f};
+        m_scene.registry().emplace<scene::MeshRenderer>(
+            statueLoin,
+            scene::MeshRenderer{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness});
+
+        // La lumiere d'ambiance devient une entite comme les autres : sa position est dans
+        // son Transform, pas dans son composant lumiere.
+        const scene::Entity braise = m_scene.createEntity("braise");
+        m_scene.registry().get<scene::Transform>(braise).position =
+            core::Vec3{0.0f, 2.2f, -5.0f};
+        m_scene.registry().emplace<scene::LightSource>(
+            braise, scene::LightSource{core::Vec3{1.0f, 0.22f, 0.16f}, 3.0f});
+    }
+
     bool loadModel() {
         assets::MeshData meshData;
         if (!assets::loadGltfMesh(platform::assetPath(kModelPath).c_str(), meshData)) {
@@ -345,6 +404,11 @@ private:
     rhi::Texture m_cookie;
 
     renderer::Flashlight m_flashlight;
+    scene::Scene m_scene;
+    // Reutilises d'une frame a l'autre : on vide sans liberer, donc aucune allocation dans
+    // la boucle de frame une fois le regime etabli (regle 7 du SPEC).
+    std::vector<renderer::DrawItem> m_drawItems;
+    std::vector<renderer::Light> m_lights;
 
     bool m_tabWasDown = false;
     bool m_fWasDown = false;

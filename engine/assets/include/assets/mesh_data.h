@@ -14,19 +14,21 @@ namespace assets {
 // moteur et envoie au GPU.
 struct MeshData {
     std::vector<core::Vec3> positions;
+    std::vector<core::Vec3> normals;
     std::vector<core::Vec2> uvs;
     std::vector<core::u32> indices;
 
     bool isValid() const {
-        return !positions.empty() && positions.size() == uvs.size() && !indices.empty();
+        return !positions.empty() && positions.size() == normals.size() &&
+               positions.size() == uvs.size() && !indices.empty();
     }
 };
 
 // Charge la geometrie d'un fichier glTF 2.0 (.gltf avec son .bin a cote).
 //
 // Toutes les primitives triangulaires de toutes les scenes sont fusionnees en un seul
-// maillage, chaque position etant transformee par la matrice monde de son noeud. Les
-// normales et les tangentes du fichier sont ignorees : rien ne les utilise encore.
+// maillage, transformees par la matrice monde de leur noeud. Les tangentes du fichier
+// restent ignorees : elles ne serviront qu'avec les cartes de normales.
 bool loadGltfMesh(const char* path, MeshData& out);
 
 } // namespace assets

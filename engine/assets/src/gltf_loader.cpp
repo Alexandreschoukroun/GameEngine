@@ -53,8 +53,9 @@ bool appendPrimitive(const cgltf_primitive& primitive, const core::Mat4& worldMa
     }
 
     const cgltf_accessor* positions = findAttribute(primitive, cgltf_attribute_type_position);
+    const cgltf_accessor* normals = findAttribute(primitive, cgltf_attribute_type_normal);
     const cgltf_accessor* uvs = findAttribute(primitive, cgltf_attribute_type_texcoord);
-    if (positions == nullptr || uvs == nullptr) {
+    if (positions == nullptr || normals == nullptr || uvs == nullptr) {
         return false;
     }
 
@@ -62,16 +63,23 @@ bool appendPrimitive(const cgltf_primitive& primitive, const core::Mat4& worldMa
     // decaler de ce qui est deja accumule.
     const core::u32 vertexOffset = static_cast<core::u32>(out.positions.size());
 
-    const std::size_t firstPosition = out.positions.size();
+    const std::size_t firstVertex = out.positions.size();
     if (!readVectors<core::Vec3, 3>(positions, out.positions) ||
+        !readVectors<core::Vec3, 3>(normals, out.normals) ||
         !readVectors<core::Vec2, 2>(uvs, out.uvs)) {
         return false;
     }
 
+    // Une normale ne se transforme pas comme un point : avec une mise a l'echelle non
+    // uniforme, la matrice monde la ferait sortir de la perpendiculaire a la surface.
+    // La transposee de l'inverse corrige exactement ce defaut.
+    const core::Mat3 normalMatrix = glm::transpose(glm::inverse(core::Mat3(worldMatrix)));
+
     // La transformation du noeud amene la geometrie a sa place dans la scene. L'ignorer
     // empilerait tous les objets a l'origine.
-    for (std::size_t i = firstPosition; i < out.positions.size(); ++i) {
+    for (std::size_t i = firstVertex; i < out.positions.size(); ++i) {
         out.positions[i] = core::Vec3(worldMatrix * core::Vec4(out.positions[i], 1.0f));
+        out.normals[i] = glm::normalize(normalMatrix * out.normals[i]);
     }
 
     for (cgltf_size i = 0; i < primitive.indices->count; ++i) {

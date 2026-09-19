@@ -31,6 +31,9 @@ public:
     core::Vec3 forward() const;
     core::Vec3 right() const;
 
+    core::f32 nearZ() const { return m_nearZ; }
+    core::f32 farZ() const { return m_farZ; }
+
     core::Mat4 viewMatrix() const;
     core::Mat4 projectionMatrix() const;
     // Le produit envoye au shader : un seul uniforme au lieu de deux.

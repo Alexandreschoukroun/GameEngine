@@ -1,5 +1,6 @@
 #pragma once
 
+#include "audio/engine.h"
 #include "core/types.h"
 
 #include <string>
@@ -29,16 +30,22 @@ public:
     // Enregistre une ressource deja chargee. La table ne possede rien : elle reference.
     ResourceHandle addMesh(std::string_view name, const rhi::Mesh* mesh);
     ResourceHandle addTexture(std::string_view name, const rhi::Texture* texture);
+    // Un son n'est pas une ressource GPU, mais la table lui rend le meme service : la
+    // scene cite "braises" et ignore quel fichier c'est, comme elle cite "suzanne".
+    ResourceHandle addSound(std::string_view name, audio::SoundHandle sound);
 
     ResourceHandle findMesh(std::string_view name) const;
     ResourceHandle findTexture(std::string_view name) const;
+    ResourceHandle findSound(std::string_view name) const;
 
     const rhi::Mesh* mesh(ResourceHandle handle) const;
     const rhi::Texture* texture(ResourceHandle handle) const;
+    audio::SoundHandle sound(ResourceHandle handle) const;
 
     // Nom logique, pour l'ecriture dans un fichier. Chaine vide si la poignee est invalide.
     std::string_view meshName(ResourceHandle handle) const;
     std::string_view textureName(ResourceHandle handle) const;
+    std::string_view soundName(ResourceHandle handle) const;
 
 private:
     struct MeshEntry {
@@ -50,8 +57,14 @@ private:
         const rhi::Texture* texture = nullptr;
     };
 
+    struct SoundEntry {
+        std::string name;
+        audio::SoundHandle sound = audio::kInvalidSound;
+    };
+
     std::vector<MeshEntry> m_meshes;
     std::vector<TextureEntry> m_textures;
+    std::vector<SoundEntry> m_sounds;
 };
 
 } // namespace scene

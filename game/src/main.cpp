@@ -14,6 +14,7 @@
 #include "rhi/mesh.h"
 #include "rhi/texture.h"
 #include "platform/paths.h"
+#include "scene/audio_sync.h"
 #include "scene/resource_table.h"
 #include "scene/physics_sync.h"
 #include "scene/scene.h"
@@ -72,11 +73,12 @@ constexpr core::f32 kDoorDamping = 340.0f;   // N.s/m
 // porte contre sa butee.
 constexpr core::f32 kMaxDoorForce = 600.0f;
 
-// Le crepitement du foyer, joue en boucle a la position de la braise. C'est le premier
-// son du moteur, et il sert de repere sonore : en tournant sur soi-meme, on l'entend
-// passer d'une oreille a l'autre.
+// Le crepitement du foyer. Le fichier est cite ici, mais QUI l'emet et a quel volume est
+// decrit dans la scene : l'entite "braise" porte une source audio, comme elle porte un
+// maillage. Le nom logique "braises" fait le lien, exactement comme "suzanne" pour un
+// maillage.
 constexpr const char* kFireSound = "audio/braises.wav";
-constexpr core::f32 kFireVolume = 0.7f;
+constexpr const char* kFireSoundName = "braises";
 
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
@@ -209,6 +211,17 @@ protected:
 
         // La scene ne vient plus du code : elle est lue dans un fichier. Modifier
         // demo.json et relancer suffit a changer le niveau, sans recompiler.
+        // L'audio ne conditionne pas le lancement : un poste sans carte son doit pouvoir
+        // afficher le jeu. On signale et on continue, les sources resteront muettes.
+        if (!m_audio.create()) {
+            core::logWarn("le jeu demarre sans audio");
+        } else {
+            const audio::SoundHandle fire = m_audio.loadSound(platform::assetPath(kFireSound));
+            // Comme pour les maillages : enregistrer AVANT le chargement, sinon la scene
+            // reclamerait un nom que la table ne connait pas encore.
+            m_resources.addSound(kFireSoundName, fire);
+        }
+
         if (!scene::loadSceneFromFile(m_scene, m_resources,
                                       platform::assetPath(kScenePath).c_str())) {
             return false;
@@ -231,32 +244,11 @@ protected:
         m_camera.setPosition(kSpawnPosition + core::Vec3{0.0f, kEyeHeight, 0.0f});
         m_flashlight.snapTo(m_camera);
 
-        // L'audio ne conditionne pas le lancement : un poste sans carte son doit pouvoir
-        // afficher le jeu. On signale et on continue.
-        if (!m_audio.create()) {
-            core::logWarn("le jeu demarre sans audio");
-        } else {
-            startFireLoop();
-        }
+        // Les sources decrites dans la scene prennent vie. Le jeu ne sait plus quelle
+        // entite sonne ni a quel volume : c'est ecrit dans le fichier, comme les
+        // colliders et les lumieres avant lui.
+        scene::startAudioSources(m_scene, m_resources, m_audio);
         return true;
-    }
-
-    // Le crepitement est attache a l'entite "braise" : sa position dans le monde est lue
-    // dans la scene, pas ecrite en dur. Deplacer le foyer dans demo.json deplace le son.
-    void startFireLoop() {
-        const audio::SoundHandle fire =
-            m_audio.loadSound(platform::assetPath(kFireSound));
-        if (fire == audio::kInvalidSound) {
-            return;
-        }
-        const scene::Entity ember = m_scene.findByName("braise");
-        if (ember == scene::kInvalidEntity) {
-            return;
-        }
-        m_scene.updateWorldTransforms();
-        const core::Mat4 world = m_scene.worldMatrix(ember);
-        const core::Vec3 position(world[3]);
-        m_fireVoice = m_audio.play(fire, position, true, kFireVolume);
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
@@ -272,6 +264,12 @@ protected:
         // qu'on ne voit pas.
         m_audio.setListener(m_camera.position(), m_camera.forward(),
                             core::Vec3{0.0f, 1.0f, 0.0f});
+        // Les sources suivent leur entite. La braise est fille de la statue, qui tourne :
+        // sans cette ligne, le crepitement resterait fige la ou la braise se trouvait au
+        // chargement, pendant que la lueur s'en eloigne. L'oreille et l'oeil se
+        // contrediraient.
+        m_scene.updateWorldTransforms();
+        scene::syncAudioSources(m_scene, m_audio);
         m_audio.update();
 
         // F5 ecrit la scene sur le disque. Deux appuis successifs produisent exactement
@@ -775,7 +773,6 @@ private:
 
     renderer::Flashlight m_flashlight;
     audio::Engine m_audio;
-    audio::VoiceHandle m_fireVoice = audio::kInvalidVoice;
     physics::World m_physics;
     physics::CharacterHandle m_player = physics::kInvalidCharacter;
     physics::BodyHandle m_heldBody = physics::kInvalidBody;

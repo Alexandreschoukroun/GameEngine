@@ -624,6 +624,11 @@
         "outerAngle": 0.453786,
         "range": 20.0,
         "castsShadow": false
+      },
+      "audio": {
+        "sound": "braises",
+        "volume": 0.7,
+        "looping": true
       }
     }
   ]

@@ -213,6 +213,15 @@ void Engine::setVoicePosition(VoiceHandle voice, const core::Vec3& position) {
     ma_sound_set_position(&slot.sound, position.x, position.y, position.z);
 }
 
+core::Vec3 Engine::voicePosition(VoiceHandle voice) const {
+    if (!isVoicePlaying(voice)) {
+        return core::Vec3{0.0f, 0.0f, 0.0f};
+    }
+    const ma_vec3f position =
+        ma_sound_get_position(&m_impl->voices[voiceIndex(voice)].sound);
+    return core::Vec3{position.x, position.y, position.z};
+}
+
 bool Engine::isVoicePlaying(VoiceHandle voice) const {
     if (m_impl == nullptr || voice == kInvalidVoice) {
         return false;

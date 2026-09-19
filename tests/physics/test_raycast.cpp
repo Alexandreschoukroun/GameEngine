@@ -2,6 +2,8 @@
 
 #include "physics/world.h"
 
+#include <cmath>
+
 TEST_CASE("A ray finds the body in front of it") {
     physics::World world;
     REQUIRE(world.create());
@@ -94,4 +96,35 @@ TEST_CASE("Setting a velocity wakes a sleeping body") {
     // Sans le reveil explicite, un corps endormi ignorerait la consigne : la caisse
     // resterait figee malgre la poussee.
     CHECK(world.bodyPosition(crate).x > restingX + 0.5f);
+}
+
+TEST_CASE("A held body does not push the character that carries it") {
+    physics::World world;
+    REQUIRE(world.create());
+    world.addBox(core::Vec3{0.0f, -0.5f, 0.0f}, core::Quat(1, 0, 0, 0),
+                 core::Vec3{20.0f, 0.5f, 20.0f}, true);
+
+    const physics::CharacterHandle player =
+        world.addCharacter(core::Vec3{0.0f, 0.0f, 0.0f}, 0.35f, 1.8f);
+    const physics::BodyHandle crate =
+        world.addBox(core::Vec3{1.2f, 1.0f, 0.0f}, core::Quat(1, 0, 0, 0),
+                     core::Vec3{0.3f, 0.3f, 0.3f}, false);
+
+    world.setBodyHeld(crate, true);
+
+    // On pousse la caisse DANS le joueur, comme lorsqu'on ramene un objet tenu contre soi.
+    // Sans la couche dediee, elle le propulserait : c'est le bug rencontre en jouant.
+    for (core::u32 i = 0; i < 90; ++i) {
+        world.setBodyVelocity(crate, core::Vec3{-4.0f, 0.0f, 0.0f});
+        world.setCharacterVelocity(player, core::Vec3{0.0f, 0.0f, 0.0f});
+        world.step(1.0f / 60.0f);
+    }
+
+    const core::Vec3 position = world.characterPosition(player);
+    CHECK(std::abs(position.x) < 0.2f);
+    CHECK(std::abs(position.z) < 0.2f);
+
+    // Relachee, elle redevient un obstacle ordinaire.
+    world.setBodyHeld(crate, false);
+    CHECK(world.isBodyDynamic(crate));
 }

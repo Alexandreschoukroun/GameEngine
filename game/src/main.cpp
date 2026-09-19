@@ -459,7 +459,7 @@ private:
 
         if (justPressed) {
             if (m_heldBody != physics::kInvalidBody) {
-                m_heldBody = physics::kInvalidBody; // deuxieme appui : on lache
+                releaseHeldBody(); // deuxieme appui : on lache
             } else {
                 // On vise depuis l'oeil, dans l'axe du regard : exactement ce que voit le
                 // joueur, et non une zone approximative autour de lui.
@@ -467,6 +467,8 @@ private:
                     m_camera.position(), m_camera.forward(), kGrabRange);
                 if (hit.hit && m_physics.isBodyDynamic(hit.body)) {
                     m_heldBody = hit.body;
+                    // L'objet cesse de heurter le joueur tant qu'il est tenu.
+                    m_physics.setBodyHeld(m_heldBody, true);
                 }
             }
         }
@@ -481,7 +483,7 @@ private:
 
         // L'objet s'est coince : le ramener de force le ferait traverser l'obstacle.
         if (glm::length(toTarget) > kBreakDistance) {
-            m_heldBody = physics::kInvalidBody;
+            releaseHeldBody();
             return;
         }
 
@@ -494,6 +496,13 @@ private:
             velocity *= kMaxHoldSpeed / speed;
         }
         m_physics.setBodyVelocity(m_heldBody, velocity);
+    }
+
+    void releaseHeldBody() {
+        if (m_heldBody != physics::kInvalidBody) {
+            m_physics.setBodyHeld(m_heldBody, false);
+            m_heldBody = physics::kInvalidBody;
+        }
     }
 
     // Un controleur virtuel detecte les corps dynamiques sans leur transmettre de force :

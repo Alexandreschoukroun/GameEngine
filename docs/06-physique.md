@@ -232,6 +232,12 @@ Trois façons de faire suivre un objet tenu :
 
 **Un corps endormi doit être réveillé.** Jolt cesse de simuler les objets immobiles ; leur imposer une vitesse sans les réveiller ne fait rien du tout. C'est un piège silencieux — la caisse reste figée malgré la poussée — et un test le couvre explicitement.
 
+**L'objet tenu ne heurte plus son porteur.** Signalé en jouant : ramener une caisse contre soi **propulsait le joueur**. Logique — c'est un corps dynamique piloté à vitesse imposée qui entre en contact avec la capsule, et Jolt fait exactement ce qu'on lui demande.
+
+La correction est une **couche de collision dédiée**. Le personnage a désormais la sienne, et un objet tenu passe dans une couche qui ne la rencontre pas — tout en continuant de heurter les murs et les autres objets. Changer de couche suffit : l'objet garde sa masse, sa forme et sa vitesse, il cesse simplement d'exister pour le porteur.
+
+C'est ce que font tous les jeux du genre, et un test de non-régression le couvre : on pousse délibérément une caisse tenue dans le joueur et on vérifie qu'il ne bouge pas.
+
 ## 4.4 Le lancer de rayon, qui resservira
 
 Attraper commence par viser : un rayon part de l'œil, dans l'axe du regard, sur la portée du bras. Le premier corps touché est le candidat, à condition qu'il soit dynamique.

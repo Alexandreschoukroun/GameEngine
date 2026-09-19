@@ -30,10 +30,12 @@ constexpr core::u32 kUniformLightDirections = 23;
 constexpr core::u32 kUniformLightParams = 31;
 constexpr core::u32 kUniformShadowViewProjection = 39; // une mat4 occupe 39 a 42
 constexpr core::u32 kUniformShadowLightIndex = 43;
+constexpr core::u32 kUniformHasCookie = 44;
 
 // 1024 x 1024 en 24 bits : 3 Mo. Doubler la resolution quadruple la memoire.
 constexpr core::u32 kShadowResolution = 1024;
 constexpr core::u32 kShadowTextureUnit = 3;
+constexpr core::u32 kCookieTextureUnit = 4;
 
 bool createProgramFromFiles(rhi::ShaderProgram& program, const char* vertexPath,
                             const char* fragmentPath) {
@@ -188,6 +190,14 @@ void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
         m_lightingProgram.setMat4(kUniformShadowViewProjection, m_shadowViewProjection);
         m_lightingProgram.setInt(kUniformShadowLightIndex, shadowLightIndex);
         device.bindShadowTexture(m_shadowMap, kShadowTextureUnit);
+
+        // Le cookie se projette avec la meme matrice que l'ombre : la lumiere regarde sa
+        // texture exactement comme elle regarde sa carte de profondeur.
+        const bool hasCookie = m_spotCookie != nullptr && shadowLightIndex >= 0;
+        m_lightingProgram.setInt(kUniformHasCookie, hasCookie ? 1 : 0);
+        if (hasCookie) {
+            device.bindTexture(*m_spotCookie, kCookieTextureUnit);
+        }
 
         device.drawFullscreenTriangle(m_lightingProgram);
     }

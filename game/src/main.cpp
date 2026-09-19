@@ -6,12 +6,14 @@
 #include "platform/paths.h"
 #include "renderer/camera.h"
 #include "renderer/deferred_renderer.h"
+#include "renderer/flashlight.h"
 #include "renderer/light.h"
 #include "rhi/device.h"
 #include "rhi/mesh.h"
 #include "rhi/texture.h"
 
 #include <array>
+#include <cmath>
 #include <vector>
 
 namespace {
@@ -23,41 +25,76 @@ constexpr const char* kMetallicRoughnessPath = "models/suzanne/Suzanne_MetallicR
 constexpr core::f32 kLookSensitivity = 0.0022f; // radians par pixel de souris
 constexpr core::f32 kMoveSpeed = 3.0f;          // metres par seconde
 
-constexpr core::f32 kFloorSize = 12.0f;
-constexpr core::f32 kFloorHeight = -1.3f;
+// Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
+// vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
+// eclairee par une lampe torche.
+constexpr core::f32 kRoomHalfWidth = 6.0f;
+constexpr core::f32 kRoomFloorY = -1.3f;
+constexpr core::f32 kRoomCeilingY = 2.7f;
+constexpr core::f32 kWallUvScale = 0.5f; // un carreau de damier par demi-metre
+
 constexpr core::u32 kCheckerSize = 256;
 constexpr core::u32 kCheckerSquare = 32;
+constexpr core::u32 kCookieSize = 256;
 
-// Sol : un quadrilatere horizontal, normale vers le haut, UV repetees pour que le damier
-// se lise. C'est une surface DIELECTRIQUE, contrairement a Suzanne qui est un metal : elle
-// rend enfin l'eclairage diffus lisible, et recevra les ombres a l'etape 5.
-constexpr rhi::Vertex kFloorVertices[] = {
-    {{-kFloorSize, kFloorHeight, -kFloorSize}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    {{kFloorSize, kFloorHeight, -kFloorSize}, {0.0f, 1.0f, 0.0f}, {8.0f, 0.0f}},
-    {{kFloorSize, kFloorHeight, kFloorSize}, {0.0f, 1.0f, 0.0f}, {8.0f, 8.0f}},
-    {{-kFloorSize, kFloorHeight, kFloorSize}, {0.0f, 1.0f, 0.0f}, {0.0f, 8.0f}},
+// Une seule lumiere d'ambiance, tres faible et rouge : elle situe la piece sans jamais
+// concurrencer la torche. Dans un jeu d'horreur, c'est l'obscurite qui travaille.
+const std::array<renderer::Light, 1> kAmbientLights = {
+    renderer::Light{{0.0f, 2.2f, -5.0f}, {1.0f, 0.22f, 0.16f}, 3.0f},
 };
-// Vu de dessus, l'ordre doit etre anti-horaire pour que la face soit consideree comme
-// avant : sinon le sol serait invisible depuis le dessus.
-constexpr core::u32 kFloorIndices[] = {0, 2, 1, 0, 3, 2};
 
-// Trois lumieres : un projecteur au plafond qui porte l'ombre, et deux ponctuelles
-// d'ambiance. Leur cout se paie par pixel d'ecran, pas par objet.
-const std::array<renderer::Light, 3> kLights = {
-    // Spot, en hauteur, dirige vers le bas et legerement vers l'avant : c'est lui qui
-    // projette l'ombre de Suzanne sur le sol.
-    renderer::Light{{0.9f, 3.4f, 1.6f},
-                    {1.0f, 0.88f, 0.72f},
-                    90.0f,
-                    renderer::LightType::Spot,
-                    {-0.20f, -1.0f, -0.35f},
-                    core::radians(17.0f),
-                    core::radians(27.0f),
-                    14.0f,
-                    true},
-    renderer::Light{{-2.4f, 0.9f, 1.4f}, {0.35f, 0.50f, 1.0f}, 12.0f},  // appoint froid
-    renderer::Light{{0.4f, -0.5f, -2.4f}, {1.0f, 0.22f, 0.16f}, 8.0f},  // contre-jour rouge
-};
+// Ajoute un quadrilatere a la piece. Les sommets sont donnes dans l'ordre anti-horaire vu
+// depuis l'INTERIEUR : c'est de la que la camera regarde, et le culling eliminerait les
+// faces prises a l'envers.
+void addQuad(std::vector<rhi::Vertex>& vertices, std::vector<core::u32>& indices,
+             const core::Vec3& a, const core::Vec3& b, const core::Vec3& c,
+             const core::Vec3& d, const core::Vec3& normal, core::f32 uScale,
+             core::f32 vScale) {
+    const auto base = static_cast<core::u32>(vertices.size());
+    const core::Vec3 n = normal;
+    vertices.push_back({{a.x, a.y, a.z}, {n.x, n.y, n.z}, {0.0f, 0.0f}});
+    vertices.push_back({{b.x, b.y, b.z}, {n.x, n.y, n.z}, {uScale, 0.0f}});
+    vertices.push_back({{c.x, c.y, c.z}, {n.x, n.y, n.z}, {uScale, vScale}});
+    vertices.push_back({{d.x, d.y, d.z}, {n.x, n.y, n.z}, {0.0f, vScale}});
+    for (core::u32 index : {0u, 1u, 2u, 0u, 2u, 3u}) {
+        indices.push_back(base + index);
+    }
+}
+
+// Faisceau de lampe torche, en niveaux de gris : blanc = la lumiere passe, noir = elle est
+// bloquee. Un disque parfait trahirait immediatement l'artifice, d'ou le point chaud
+// decentre et les stries du reflecteur.
+std::vector<core::u8> makeFlashlightCookie() {
+    std::vector<core::u8> pixels(static_cast<std::size_t>(kCookieSize) * kCookieSize * 4);
+    const core::f32 half = static_cast<core::f32>(kCookieSize) * 0.5f;
+
+    for (core::u32 y = 0; y < kCookieSize; ++y) {
+        for (core::u32 x = 0; x < kCookieSize; ++x) {
+            // Centre du faisceau legerement decale : l'ampoule d'une vraie lampe n'est
+            // jamais parfaitement alignee avec le reflecteur.
+            const core::f32 dx = (static_cast<core::f32>(x) - half * 0.94f) / half;
+            const core::f32 dy = (static_cast<core::f32>(y) - half * 1.04f) / half;
+            const core::f32 distance = std::sqrt(dx * dx + dy * dy);
+
+            // Bord doux : le faisceau s'eteint entre 0,55 et 1,0 du rayon.
+            core::f32 intensity = 1.0f - glm::smoothstep(0.55f, 1.0f, distance);
+            // Stries radiales du reflecteur, tres legeres.
+            const core::f32 angle = std::atan2(dy, dx);
+            intensity *= 0.90f + 0.10f * std::cos(angle * 7.0f);
+            // Assombrissement general vers l'exterieur, pour un centre plus chaud.
+            intensity *= 1.0f - 0.35f * distance;
+
+            const auto value = static_cast<core::u8>(
+                glm::clamp(intensity, 0.0f, 1.0f) * 255.0f);
+            const std::size_t index = (static_cast<std::size_t>(y) * kCookieSize + x) * 4;
+            pixels[index + 0] = value;
+            pixels[index + 1] = value;
+            pixels[index + 2] = value;
+            pixels[index + 3] = 255;
+        }
+    }
+    return pixels;
+}
 
 std::vector<core::u8> makeCheckerboard() {
     std::vector<core::u8> pixels(static_cast<std::size_t>(kCheckerSize) * kCheckerSize * 4);
@@ -107,14 +144,23 @@ protected:
         if (!m_renderer.create(window().width(), window().height())) {
             return false;
         }
-        return loadModel() && loadFloor();
+        m_flashlight.snapTo(m_camera);
+        return loadModel() && loadRoom();
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
     void onFrame(core::f64 frameDeltaSeconds) override {
-        (void)frameDeltaSeconds; // un deplacement souris est deja une quantite, pas un taux
+        // Un deplacement souris est deja une quantite, pas un taux : il ne se multiplie
+        // pas par le temps ecoule. Le rattrapage de la lampe, lui, en depend.
         m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
                              -input().mouseDeltaY() * kLookSensitivity);
+        m_flashlight.update(m_camera, frameDeltaSeconds);
+
+        const bool fDown = input().isKeyDown(platform::Key::F);
+        if (fDown && !m_fWasDown) {
+            m_flashlight.toggle();
+        }
+        m_fWasDown = fDown;
 
         // Tab fait defiler les vues du G-buffer. On ne reagit qu'a l'instant ou la touche
         // s'enfonce : sinon la vue changerait soixante fois par seconde.
@@ -173,13 +219,23 @@ protected:
             renderer::DrawItem{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness},
             renderer::DrawItem{&m_floorMesh, &m_floorBaseColor, &m_floorMaterial},
         };
-        m_renderer.render(m_device, m_camera, items, kLights, window().width(),
+
+        // La lampe torche en premier : c'est elle qui porte l'ombre, et le renderer
+        // retient la premiere lumiere a ombre de la liste.
+        std::array<renderer::Light, 1 + kAmbientLights.size()> lights{};
+        lights[0] = m_flashlight.light();
+        for (std::size_t i = 0; i < kAmbientLights.size(); ++i) {
+            lights[i + 1] = kAmbientLights[i];
+        }
+
+        m_renderer.render(m_device, m_camera, items, lights, window().width(),
                           window().height());
     }
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
         m_renderer.destroy();
+        m_cookie.destroy();
         m_floorMaterial.destroy();
         m_floorBaseColor.destroy();
         m_floorMesh.destroy();
@@ -221,11 +277,32 @@ private:
                                                rhi::TextureFormat::LinearData);
     }
 
-    bool loadFloor() {
-        if (!m_floorMesh.create(kFloorVertices,
-                                static_cast<core::u32>(std::size(kFloorVertices)),
-                                kFloorIndices,
-                                static_cast<core::u32>(std::size(kFloorIndices)))) {
+    bool loadRoom() {
+        const core::f32 w = kRoomHalfWidth;
+        const core::f32 floorY = kRoomFloorY;
+        const core::f32 ceilY = kRoomCeilingY;
+        const core::f32 uv = 2.0f * w * kWallUvScale;
+        const core::f32 uvHeight = (ceilY - floorY) * kWallUvScale;
+
+        std::vector<rhi::Vertex> vertices;
+        std::vector<core::u32> indices;
+        // Sol, plafond, puis les quatre murs. Toutes les normales pointent vers
+        // l'interieur de la piece.
+        addQuad(vertices, indices, {-w, floorY, -w}, {-w, floorY, w}, {w, floorY, w},
+                {w, floorY, -w}, {0.0f, 1.0f, 0.0f}, uv, uv);
+        addQuad(vertices, indices, {-w, ceilY, -w}, {w, ceilY, -w}, {w, ceilY, w},
+                {-w, ceilY, w}, {0.0f, -1.0f, 0.0f}, uv, uv);
+        addQuad(vertices, indices, {-w, floorY, -w}, {w, floorY, -w}, {w, ceilY, -w},
+                {-w, ceilY, -w}, {0.0f, 0.0f, 1.0f}, uv, uvHeight);
+        addQuad(vertices, indices, {w, floorY, w}, {-w, floorY, w}, {-w, ceilY, w},
+                {w, ceilY, w}, {0.0f, 0.0f, -1.0f}, uv, uvHeight);
+        addQuad(vertices, indices, {-w, floorY, w}, {-w, floorY, -w}, {-w, ceilY, -w},
+                {-w, ceilY, w}, {1.0f, 0.0f, 0.0f}, uv, uvHeight);
+        addQuad(vertices, indices, {w, floorY, -w}, {w, floorY, w}, {w, ceilY, w},
+                {w, ceilY, -w}, {-1.0f, 0.0f, 0.0f}, uv, uvHeight);
+
+        if (!m_floorMesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
+                                indices.data(), static_cast<core::u32>(indices.size()))) {
             return false;
         }
 
@@ -239,7 +316,19 @@ private:
         // la rugosite et le bleu la metallicite. Le shader ne fait aucune difference avec
         // une vraie carte, et on evite d'ajouter des parametres de matiere partout.
         const core::u8 material[4] = {0, 200, 0, 255}; // rugueux, non metallique
-        return m_floorMaterial.create(1, 1, material, rhi::TextureFormat::LinearData);
+        if (!m_floorMaterial.create(1, 1, material, rhi::TextureFormat::LinearData)) {
+            return false;
+        }
+
+        // Le cookie module l'intensite de la lampe : ce sont des mesures, pas une couleur
+        // a regarder, donc aucune conversion sRGB.
+        const std::vector<core::u8> cookie = makeFlashlightCookie();
+        if (!m_cookie.create(kCookieSize, kCookieSize, cookie.data(),
+                             rhi::TextureFormat::LinearData)) {
+            return false;
+        }
+        m_renderer.setSpotCookie(&m_cookie);
+        return true;
     }
 
     rhi::Device m_device;
@@ -253,8 +342,12 @@ private:
     rhi::Mesh m_floorMesh;
     rhi::Texture m_floorBaseColor;
     rhi::Texture m_floorMaterial;
+    rhi::Texture m_cookie;
+
+    renderer::Flashlight m_flashlight;
 
     bool m_tabWasDown = false;
+    bool m_fWasDown = false;
 };
 
 } // namespace

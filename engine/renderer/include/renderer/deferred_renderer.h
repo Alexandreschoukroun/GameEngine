@@ -59,6 +59,12 @@ public:
     void setDebugView(DebugView view) { m_debugView = view; }
     DebugView debugView() const { return m_debugView; }
 
+    // Texture projetee par la lumiere a ombre, qui module son faisceau. Le terme vient du
+    // cinema : un cookie est un cache decoupe place devant un projecteur. Sans elle, le
+    // cone est un disque parfait, ce qu'aucune vraie lampe ne produit.
+    // nullptr pour n'en projeter aucune.
+    void setSpotCookie(const rhi::Texture* cookie) { m_spotCookie = cookie; }
+
     // Les lumieres au-dela de kMaxLights sont ignorees.
     void render(rhi::Device& device, const Camera& camera, std::span<const DrawItem> items,
                 std::span<const Light> lights, core::u32 screenWidth,
@@ -76,6 +82,7 @@ private:
     rhi::ShaderProgram m_lightingProgram;
     rhi::ShaderProgram m_shadowProgram;
     core::Mat4 m_shadowViewProjection{1.0f};
+    const rhi::Texture* m_spotCookie = nullptr;
     DebugView m_debugView = DebugView::Lit;
 };
 

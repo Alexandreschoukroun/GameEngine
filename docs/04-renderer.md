@@ -511,3 +511,83 @@ C'est le poste « ombres » de 3,5 ms du budget du SPEC, et c'est lui qui limite
 **Ce qui n'existe pas encore** : une seule lumière à ombre à la fois, et uniquement de type spot. Les lumières ponctuelles n'en ont pas. La résolution de la carte est fixe, quelle que soit la portée de la lampe.
 
 **Ce qui vient après (étape 6)** : la lampe torche — et c'est le livrable de M2. Un spot attaché à la caméra, avec son cône, son ombre, et les détails qui font qu'elle paraît tenue à la main plutôt que vissée sur le front.
+
+---
+
+# 8. Étape 6 — la lampe torche
+
+## 8.1 Le problème
+
+Un spot attaché à la caméra n'est pas une lampe torche : c'est un projecteur vissé au crâne. Le faisceau reste parfaitement immobile au centre de l'écran, son cône est un disque impeccable, et le cerveau n'y croit pas.
+
+Une vraie lampe est **tenue à la main** : décalée par rapport à l'œil, en **retard** quand on tourne la tête, et son faisceau est **sale** — le réflecteur a des défauts, l'ampoule n'est pas centrée.
+
+## 8.2 Les décisions
+
+**Le retard : lissage exponentiel plutôt que ressort.** Un modèle masse-ressort donnerait un léger dépassement, joli, mais avec trois paramètres et un risque d'oscillation. Le lissage exponentiel n'en a qu'un — la vitesse de rattrapage — et ne dépasse jamais.
+
+**La formule à connaître par cœur.** Écrire `valeur += (cible - valeur) * 0.1` à chaque frame donne un rattrapage **deux fois plus rapide à 120 fps qu'à 60**. La forme correcte fait intervenir le temps écoulé :
+
+```
+   facteur = 1 - exp(-vitesse × dt)
+```
+
+Deux vitesses différentes ici : la position suit vite (la main), la direction plus lentement (le poignet). C'est ce décalage qui produit le balayage caractéristique.
+
+**Le cookie : une texture plutôt qu'une formule.** Un faisceau irrégulier pourrait se calculer mathématiquement, mais une texture est plus souple, se change sans recompiler, et permettra plus tard des motifs précis — barreaux, feuillage, grille d'aération. Elle est générée par le code, comme le damier, avec un point chaud décentré et de légères stries radiales.
+
+**Le cookie se projette avec la matrice de l'ombre.** La lumière regarde sa texture exactement comme elle regarde sa carte de profondeur : une seule matrice, deux usages.
+
+**Une pièce fermée.** Le livrable du SPEC parle d'une *pièce* : sans murs, le faisceau part dans le vide et on ne voit rien de son cône. La salle de 12 × 4 × 12 m est générée par le code, normales tournées vers l'intérieur.
+
+**Ce qui est remis à M8** : la batterie qui décline et le tremblement lié à la marche. Ils appartiennent à l'ambiance, et surtout aux options d'accessibilité — le SPEC exige que tout mouvement de caméra soit désactivable.
+
+## 8.3 Une leçon sur les unités
+
+La première version était bien trop sombre. L'atténuation suivant 1/d², une lampe d'intensité 34 ne donne plus que 34/81 ≈ 0,4 sur un mur à 9 m. Il a fallu monter à 160.
+
+C'est contre-intuitif quand on vient d'un modèle d'éclairage arbitraire, où l'intensité est un curseur de 0 à 1. En PBR, ce sont des **unités physiques** : les grands nombres sont normaux, et c'est la distance qui les mange.
+
+## 8.4 Vocabulaire
+
+- **Cookie** (ou *gobo*) : texture projetée par une lumière, qui module son faisceau. Le terme vient du cinéma, où c'est un cache découpé placé devant un projecteur.
+- **Hotspot** : le point le plus intense du faisceau, rarement au centre exact.
+- **Lissage exponentiel** : rattraper une cible d'une fraction de la distance restante à chaque instant.
+- **Indépendance au framerate** : la propriété qu'un comportement soit identique à 30 et à 240 fps.
+
+## 8.5 Coût
+
+Une lecture de texture supplémentaire par pixel éclairé par la lampe, et deux interpolations par frame côté CPU. La pièce ajoute douze triangles.
+
+## 8.6 Ce qui marche / ce qui ne marche pas
+
+**Vérifié à l'écran** : faisceau décentré par rapport au regard, bord doux, stries visibles sur le mur, ombre portée, et la lueur rouge d'ambiance au plafond. La touche **F** allume et éteint la lampe.
+
+**Ce qui n'existe pas encore** : ni batterie, ni tremblement, ni brouillard volumétrique — donc le faisceau ne se voit pas *dans l'air*, seulement là où il touche une surface. C'est M8.
+
+---
+
+# 9. Bilan de M2
+
+Le jalon est terminé. Le livrable du SPEC, « une pièce éclairée par une lampe torche », est atteint.
+
+| Brique | État |
+|---|---|
+| Profondeur, géométrie indexée, faces arrière | ✅ |
+| Chargement glTF et images, résolution des chemins de données | ✅ |
+| Shaders en fichiers, modifiables sans recompiler | ✅ |
+| G-buffer et rendu différé en deux passes | ✅ |
+| Éclairage PBR, chaîne linéaire, tonemapping | ✅ |
+| Plusieurs lumières, ponctuelles et spots | ✅ |
+| Ombres portées par shadow map | ✅ |
+| Lampe torche avec cookie et inertie | ✅ |
+
+**Les dettes assumées, à traiter plus tard :**
+
+- **Pas d'éclairage d'environnement** : les métaux sont presque noirs, faute de quoi que ce soit à réfléchir. Question à rouvrir à M8.
+- **Mouchetures de *specular aliasing*** aux angles rasants et aux coutures d'UV.
+- **Une seule lumière à ombre**, et uniquement de type spot. Les ponctuelles demanderaient six cartes chacune.
+- **Le chargeur glTF ignore les matériaux** : une seule paire de textures par objet, fournie à la main.
+- **Profondeur [-1,1]**, convention OpenGL, à changer le jour où Vulkan arrivera.
+
+**Ce qui vient après (M3 — Scène)** : EnTT, hiérarchie de transforms, sérialisation JSON déterministe, et le **graphe de secteurs/portails** — la fondation que réutiliseront le culling, l'occlusion audio de M5 et l'ouïe de l'IA de M7.

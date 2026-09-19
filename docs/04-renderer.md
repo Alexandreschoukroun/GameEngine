@@ -370,3 +370,55 @@ Aucun coût mémoire supplémentaire, grâce à l'empaquetage. Par pixel d'écra
 **Ce qui n'existe pas encore** : une seule lumière, aucune ombre — tout objet est éclairé même s'il est derrière un mur. Aucun éclairage d'environnement. Le code d'orchestration est toujours dans le jeu.
 
 **Ce qui vient après (étape 4b)** : plusieurs lumières, et le déménagement des passes dans `renderer/` — l'éclairage multiple lui donnera enfin une raison d'exister.
+
+---
+
+# 6. Étape 4b — plusieurs lumières, et le renderer prend sa place
+
+## 6.1 Le problème
+
+Trois choses convergent.
+
+**Une seule lumière ne démontre rien.** Tout l'intérêt du rendu différé est que le coût de l'éclairage ne dépend pas de la géométrie. Avec une lampe, c'est une affirmation théorique.
+
+**La scène n'a rien à éclairer.** Un objet flottant dans le vide ne montre ni la portée d'une lampe ni son atténuation. Et une ombre sans sol pour la recevoir est invisible — ce sera bloquant dès l'étape 5.
+
+**Le code d'orchestration a atteint sa limite.** Quinze lignes dans `onRender` restaient lisibles. Avec une liste de lumières à téléverser, plusieurs objets à parcourir et bientôt des ombres, ça ne l'est plus.
+
+## 6.2 Les décisions
+
+**Tableau d'uniformes plutôt que buffer de stockage.** Un tableau fixé à **8 lumières** — la valeur exacte du budget du SPEC — se téléverse en deux envois et se lit directement dans le shader. Un SSBO permettrait des milliers de lumières, mais n'a d'intérêt qu'accompagné d'un découpage de l'écran en tuiles, qu'on n'a aucune raison d'écrire aujourd'hui. Remplacer ce plafond touchera deux fichiers.
+
+*Piège à connaître* : un tableau d'uniformes occupe autant d'emplacements consécutifs qu'il a d'éléments. `uLightPositions` déclaré à l'emplacement 7 consomme les emplacements 7 à 14 ; les couleurs commencent donc à 15. Se tromper ici écrase silencieusement une autre variable.
+
+**La frontière du renderer.** Le jeu décrit **quoi** dessiner et **quelles** lumières existent ; le renderer décide **comment** — passes, cibles, uniformes, ordre des opérations. `onRender` du jeu tient maintenant en une liste et un appel. C'est le déménagement annoncé à l'étape 3b, fait au moment où il se justifie et pas avant.
+
+**Le renderer charge ses propres shaders.** Il dépend donc de `assets` et `platform`, mais en `PRIVATE` : ceux qui l'utilisent n'ont pas à connaître le système de fichiers. `rhi` est en revanche `PUBLIC`, puisque son API manipule des maillages et des textures.
+
+**Un matériau constant tient dans une texture de 1×1 pixel.** Le sol n'a pas de carte de matière : plutôt que d'ajouter des paramètres de matériau à toute la chaîne, sa rugosité et sa métallicité sont stockées dans une texture d'un seul pixel. Le shader ne fait aucune différence, et c'est une technique courante dans les vrais moteurs.
+
+## 6.3 Vocabulaire
+
+- **Draw item** : le couple géométrie + textures transmis au renderer. L'ancêtre de ce que la scène de M3 produira automatiquement depuis les entités.
+- **Tableau d'uniformes** : variable de shader indexée, de taille fixée à la compilation.
+- **Rendu par tuiles / clustered** : découpage de l'écran pour ne tester que les lumières pertinentes par zone. Hors sujet à 8 lumières, indispensable à 500.
+
+## 6.4 Ce que l'image démontre
+
+Trois lumières de couleurs différentes — ambre, bleue, rouge — posent trois flaques distinctes sur le sol en damier, avec une atténuation douce et des recouvrements crédibles. Suzanne, métallique, reste sombre avec ses reflets : cohérent avec la découverte de l'étape 4a.
+
+Le point important n'est pas esthétique : **passer de une à trois lumières n'a rien changé au nombre d'objets dessinés**. La passe de géométrie est identique ; seule la boucle de la passe d'éclairage s'est allongée. C'est exactement la propriété qu'on cherchait.
+
+## 6.5 Coût
+
+Chaque lumière ajoute une trentaine d'opérations par pixel d'écran. À 8 lumières en 1080p, environ 500 millions d'opérations par frame : c'est le poste « éclairage » de 3,5 ms du budget du SPEC. Les deux passes sont maintenant instrumentées séparément dans Tracy (`gbuffer pass` et `lighting pass`), ce qui permettra de voir laquelle grossit.
+
+## 6.6 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : trois lumières colorées, un sol diélectrique qui rend enfin le diffus lisible, et les vues de débogage toujours accessibles par Tab.
+
+**L'artefact de mouchetures blanches** signalé à l'étape 4a réapparaît sur le sol, aux angles rasants. C'est bien du *specular aliasing* : à faible rugosité apparente et en incidence rasante, un seul pixel peut recevoir un reflet extrêmement intense. Toujours noté, toujours pas corrigé.
+
+**Ce qui n'existe pas encore** : aucune ombre. Les lumières traversent Suzanne comme si elle n'existait pas, et c'est très visible sur le sol.
+
+**Ce qui vient après (étape 5)** : les ombres. C'est le défaut le plus criant de l'image actuelle, et le dernier obstacle avant la lampe torche.

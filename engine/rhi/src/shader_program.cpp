@@ -133,6 +133,15 @@ void ShaderProgram::setVec4(core::u32 location, const core::Vec4& value) {
                        value.w);
 }
 
+void ShaderProgram::setVec4Array(core::u32 location, const core::Vec4* values,
+                                 core::u32 count) {
+    if (m_program == 0 || values == nullptr || count == 0) {
+        return;
+    }
+    glProgramUniform4fv(m_program, static_cast<GLint>(location), static_cast<GLsizei>(count),
+                        &values[0][0]);
+}
+
 void ShaderProgram::destroy() {
     if (m_program != 0) {
         glDeleteProgram(m_program);

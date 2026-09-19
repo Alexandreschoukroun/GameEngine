@@ -8,12 +8,17 @@ layout(binding = 0) uniform sampler2D uAlbedoRoughness;
 layout(binding = 1) uniform sampler2D uNormalMetallic;
 layout(binding = 2) uniform sampler2D uDepth;
 
+const int kMaxLights = 8; // le budget du SPEC : ~8 lumieres visibles simultanement
+
 layout(location = 0) uniform int uView;             // 0 = eclaire, 1..3 = debogage
 layout(location = 1) uniform vec2 uNearFar;
 layout(location = 2) uniform mat4 uInverseViewProjection;
 layout(location = 3) uniform vec3 uCameraPosition;
-layout(location = 4) uniform vec3 uLightPosition;
-layout(location = 5) uniform vec4 uLightColorIntensity; // rgb = couleur, a = puissance
+layout(location = 6) uniform int uLightCount;
+// Un tableau de 8 vec4 occupe 8 emplacements consecutifs : les positions prennent 7 a 14,
+// d'ou les couleurs a partir de 15.
+layout(location = 7) uniform vec4 uLightPositions[kMaxLights];  // xyz = position
+layout(location = 15) uniform vec4 uLightColors[kMaxLights];    // rgb = couleur, a = puissance
 
 in vec2 vTexCoord;
 out vec4 outColor;
@@ -112,34 +117,41 @@ void main() {
 
     vec3 position = worldPositionFromDepth(storedDepth);
     vec3 view = normalize(uCameraPosition - position);
-    vec3 toLight = uLightPosition - position;
-    float lightDistance = length(toLight);
-    vec3 light = toLight / max(lightDistance, 0.0001);
-    vec3 halfway = normalize(view + light);
-
-    // La lumiere se dilue sur une sphere dont la surface croit comme le carre du rayon :
-    // d'ou la decroissance en 1/d^2, qui est la realite physique et non un reglage.
-    float attenuation = 1.0 / (lightDistance * lightDistance);
-    vec3 radiance = uLightColorIntensity.rgb * uLightColorIntensity.a * attenuation;
 
     // Les dielectriques reflechissent environ 4 % de la lumiere de face ; un metal
     // reflechit sa propre couleur. C'est la seule difference de fond entre les deux.
     vec3 f0 = mix(vec3(0.04), albedo, metallic);
 
-    float nDotL = max(dot(normal, light), 0.0);
-    vec3 fresnel = fresnelSchlick(max(dot(halfway, view), 0.0), f0);
-    float distribution = distributionGGX(normal, halfway, roughness);
-    float geometry = geometrySmith(normal, view, light, roughness);
+    // Chaque lumiere ajoute sa contribution. Le cout de cette boucle est le vrai prix de
+    // l'eclairage : il se paie une fois par pixel de l'ecran, quel que soit le nombre
+    // d'objets de la scene. C'est tout l'interet du rendu differe.
+    vec3 color = vec3(0.0);
+    for (int i = 0; i < uLightCount && i < kMaxLights; ++i) {
+        vec3 toLight = uLightPositions[i].xyz - position;
+        float lightDistance = length(toLight);
+        vec3 light = toLight / max(lightDistance, 0.0001);
+        vec3 halfway = normalize(view + light);
 
-    vec3 specular = (distribution * geometry * fresnel) /
-                    max(4.0 * max(dot(normal, view), 0.0) * nDotL, 0.0001);
+        // La lumiere se dilue sur une sphere dont la surface croit comme le carre du
+        // rayon : d'ou la decroissance en 1/d^2, realite physique et non reglage.
+        float attenuation = 1.0 / (lightDistance * lightDistance);
+        vec3 radiance = uLightColors[i].rgb * uLightColors[i].a * attenuation;
 
-    // Conservation de l'energie : ce qui part en reflet ne peut pas repartir en diffus.
-    // Et un metal n'a pas de composante diffuse du tout.
-    vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
-    vec3 diffuse = diffuseWeight * albedo / kPi;
+        float nDotL = max(dot(normal, light), 0.0);
+        vec3 fresnel = fresnelSchlick(max(dot(halfway, view), 0.0), f0);
+        float distribution = distributionGGX(normal, halfway, roughness);
+        float geometry = geometrySmith(normal, view, light, roughness);
 
-    vec3 color = (diffuse + specular) * radiance * nDotL;
+        vec3 specular = (distribution * geometry * fresnel) /
+                        max(4.0 * max(dot(normal, view), 0.0) * nDotL, 0.0001);
+
+        // Conservation de l'energie : ce qui part en reflet ne peut pas repartir en
+        // diffus. Et un metal n'a pas de composante diffuse du tout.
+        vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
+        vec3 diffuse = diffuseWeight * albedo / kPi;
+
+        color += (diffuse + specular) * radiance * nDotL;
+    }
 
     // Ambiante tres faible : dans un jeu d'horreur, l'obscurite doit rester noire, mais
     // pas au point qu'on ne devine plus rien.

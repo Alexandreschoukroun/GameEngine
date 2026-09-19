@@ -31,12 +31,23 @@ void createPhysicsBodies(Scene& scene, physics::World& world) {
             transform != nullptr ? transform->rotation : core::Quat(1.0f, 0.0f, 0.0f, 0.0f);
 
         const physics::BodyHandle handle =
-            world.addBox(position, rotation, collider.halfExtents, collider.isStatic);
+            world.addBox(position, rotation, collider.halfExtents, collider.isStatic,
+                         collider.density);
         if (handle == physics::kInvalidBody) {
             core::logError("creation du corps physique echouee pour une entite");
             continue;
         }
         registry.emplace<PhysicsBody>(entity, PhysicsBody{handle});
+
+        // La charniere vient apres le corps : elle l'accroche au monde.
+        if (const Hinge* hinge = registry.try_get<Hinge>(entity); hinge != nullptr) {
+            // L'ancrage est donne dans le repere de l'entite : on le passe en coordonnees
+            // du monde, sans quoi toutes les portes pivoteraient autour de l'origine.
+            const core::Vec3 anchor = core::Vec3(world4 * core::Vec4(hinge->localAnchor, 1.0f));
+            const core::Vec3 axis = rotation * hinge->axis;
+            world.addHinge(handle, anchor, axis, hinge->minAngle, hinge->maxAngle,
+                           hinge->friction);
+        }
     }
 }
 

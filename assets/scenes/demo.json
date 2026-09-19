@@ -457,6 +457,58 @@
       }
     },
     {
+      "id": "0x00000000000f0001",
+      "name": "porte",
+      "transform": {
+        "position": [
+          2.6,
+          -0.3,
+          -2.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.9,
+          2.0,
+          0.08
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "baseColor": "damier",
+        "metallicRoughness": "mat_rugueux"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.45,
+          1.0,
+          0.04
+        ],
+        "static": false,
+        "density": 150.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.45,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 6.0
+      }
+    },
+    {
       "id": "0x08b6af78e6f9f7cf",
       "name": "satellite",
       "parent": "0x9514ba977cedc264",

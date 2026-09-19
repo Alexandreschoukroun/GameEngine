@@ -1,8 +1,10 @@
 # 06 — Physique (M4)
 
-*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3). Brique 4a : attraper et pousser (section 4).*
+*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3). Brique 4a : attraper et pousser (section 4). Brique 4b : les portes à charnière (section 5).*
 
 Le jalon M4 apporte la physique : colliders, contrôleur de personnage, saisie d'objets et portes. Cette première brique pose le socle — et force au passage une décision restée en suspens depuis M3.
+
+**M4 est terminé.**
 
 # 1. Brique 1 — le monde physique
 
@@ -250,7 +252,9 @@ Un rayon court, à hauteur de hanche, dans la direction de marche. S'il touche u
 
 ## 4.6 Commandes
 
-**E** pour attraper et lâcher. L'objet flotte à 1,40 m devant les yeux et suit le regard — en restant physique : il heurte les murs, et il repousse les autres caisses.
+**Clic gauche maintenu** pour attraper, relâché pour lâcher. L'objet flotte à 1,40 m devant les yeux et suit le regard — en restant physique : il heurte les murs, et il repousse les autres caisses.
+
+Le premier essai utilisait la touche **E** en bascule : un appui pour prendre, un autre pour lâcher. Le geste juste est le maintien, et il ne s'agit pas d'un détail de confort. Une bascule dit « cet objet est à moi jusqu'à nouvel ordre » ; un maintien dit « je tire dessus **en ce moment** ». Pour une porte qu'on entrouvre de dix centimètres pour regarder derrière, c'est tout le sujet du genre. C'est le geste d'*Amnesia*, et le SPEC le demandait déjà.
 
 ## 4.7 Coût
 
@@ -265,3 +269,90 @@ Un lancer de rayon par frame pour la saisie, un autre pendant la marche. Un rayo
 **Ce qui n'existe pas encore** : l'objet tenu ne tourne pas avec le regard, on ne peut pas le lancer, et aucun retour visuel n'indique ce qu'on vise. La poussée ignore la masse.
 
 **Ce qui vient après (brique 4b)** : les portes à charnière — le dernier morceau de M4, et celui que le SPEC décrit avec le plus de précision.
+
+
+---
+
+# 5. Brique 4b — les portes à charnière
+
+## 5.1 Le problème
+
+Une porte n'est pas une caisse. Une caisse est libre : six degrés de liberté, elle va où on la pousse. Une porte n'en a **qu'un seul** — une rotation autour de ses gonds, bornée par le chambranle d'un côté et par le mur de l'autre.
+
+Rien de ce qui a été construit en brique 4a ne sait exprimer ça. Imposer une vitesse à une porte, comme on le fait pour une caisse, reviendrait à lui demander de quitter ses gonds.
+
+## 5.2 La décision : une contrainte, pas un scénario
+
+Deux façons de faire une porte :
+
+**L'animer.** Un état ouvert, un état fermé, une interpolation entre les deux. C'est ce que font la plupart des jeux, et c'est bien moins cher. Mais la porte devient un décor scripté : elle ne peut pas être entrouverte de douze centimètres, elle ne résiste pas quand une caisse la bloque, et un monstre ne peut pas la pousser pendant que le joueur la retient.
+
+**La contraindre.** On déclare à la physique que ce corps ne peut tourner qu'autour d'un axe donné, entre deux butées, et on le laisse vivre. C'est le choix retenu, parce que la porte manipulée à la main est un **élément de gameplay** dans ce genre, pas un habillage.
+
+Jolt appelle ça une `HingeConstraint`. Elle prend un point d'ancrage, un axe, deux angles limites et un couple de frottement. Le second corps de la contrainte est `Body::sFixedToWorld` : la porte est accrochée au monde lui-même.
+
+## 5.3 Le couple, ou pourquoi on tire sur une poignée
+
+Pour faire pivoter la porte, l'API physique gagne `applyImpulseAtPoint`. La distinction avec une impulsion ordinaire est la clé de toute la brique :
+
+- Une impulsion appliquée **au centre de masse** ne produit qu'une translation. Sur une porte à charnière, la contrainte l'annule entièrement — la porte ne bouge pas.
+- La même impulsion appliquée **à distance du centre** produit un couple, proportionnel au bras de levier. C'est ce qui la fait tourner.
+
+C'est exactement pourquoi les poignées de porte sont à l'opposé des gonds. Le moteur reproduit la physique réelle parce qu'il la simule vraiment, et non parce qu'on l'a programmée à ressembler à une porte.
+
+Le jeu s'en sert ainsi : au clic, le rayon renvoie le **point** touché. On mémorise son décalage par rapport au centre du corps, et chaque frame on applique une impulsion vers l'endroit que vise le regard, **au point saisi**. Tirer sur le bord libre ouvre grand ; pousser près des gonds ne fait presque rien.
+
+Le point saisi est recalculé à chaque frame depuis la position du corps, sinon on continuerait de tirer sur un endroit que la porte a quitté.
+
+## 5.4 Ce qui distingue une porte d'une caisse, côté code
+
+Une seule question : `isBodyHinged()`. Le monde physique tient la liste des corps contraints, et le jeu la consulte pour choisir sa manière de manipuler l'objet visé — impulsion au point pour une porte, vitesse imposée pour une caisse.
+
+Une conséquence moins évidente : une porte tenue **reste solide pour le joueur**. Une caisse tenue passe dans une couche de collision qui ignore son porteur (voir 4.3), sans quoi elle le propulse. Une porte, non : traverser une porte qu'on est en train d'ouvrir n'aurait aucun sens.
+
+## 5.5 Une porte, ça pesait 144 kg
+
+Les premiers tests de charnière ont tous échoué, et la leçon vaut d'être écrite.
+
+Une impulsion de 1,5 N·s sur le bord du battant ne le faisait pas bouger d'un centimètre. Le calcul explique tout : un panneau de 0,9 × 2 × 0,08 m avec la masse volumique par défaut de Jolt — **1000 kg/m³, celle de l'eau**, donc un solide plein — pèse **144 kg**, et son moment d'inertie autour des gonds avoisine **39 kg·m²**.
+
+La première réaction a été de monter les impulsions dans les tests jusqu'à ce qu'ils passent. C'était traiter le symptôme : les tests décrivaient alors une porte en béton, et **en jeu la traction à la main restait sans effet** — clic maintenu, aucun mouvement visible.
+
+Le vrai correctif est une **masse volumique par corps**, remontée jusqu'au fichier de scène. Jolt la déduit de la forme : `BoxShapeSettings::SetDensity()`, et masse comme inertie en découlent. Une porte en bois creux est à 150 kg/m³, soit **21 kg** pour ce battant, et **5,8 kg·m²** d'inertie — quelque chose qu'un bras humain peut ouvrir.
+
+Deux réglages ont suivi la nouvelle échelle : le frottement des gonds, ramené de 40 à **6 N·m**, et la traction du joueur, montée à 25 avec un plafond — sans quoi viser loin sur le côté enverrait la porte claquer contre sa butée.
+
+Un dernier détail, instructif : le calcul annonçait un arrêt en une seconde, la mesure en donne **deux**. Le frottement du solveur de Jolt n'est pas exactement un couple constant. Le test a été réécrit autour de la **valeur mesurée**, avec deux vérifications qui, elles, ne dépendent d'aucun réglage fin : la porte a réellement tourné, et elle s'est arrêtée **avant** ses butées — sinon c'est le chambranle qu'on testerait, pas le frottement.
+
+Ce qu'il faut retenir : **en physique, un test qui échoue accuse souvent les ordres de grandeur, pas le code.** Le réflexe utile est de calculer la masse et l'inertie avant de toucher au moteur — et de se méfier d'un réglage qu'on augmente jusqu'à ce que le test passe.
+
+## 5.6 La charnière est une donnée de la scène
+
+Comme les colliders en brique 2, la charnière est un composant sérialisé — ancrage, axe, butées, frottement :
+
+```json
+"collider": { "shape": "box", "halfExtents": [0.45, 1.0, 0.04],
+              "static": false, "density": 150.0 },
+"hinge": { "anchor": [-0.45, 0, 0], "axis": [0, 1, 0],
+           "minAngle": -1.6, "maxAngle": 0.0, "friction": 6.0 }
+```
+
+La masse volumique n'est écrite que pour les corps dynamiques : un mur a une masse infinie par définition, et l'indiquer ne décrirait rien.
+
+L'ancrage est exprimé **dans le repère de l'entité** — un demi-battant sur le côté, là où se trouveraient les gonds — puis converti en coordonnées du monde à la création du corps. Sans cette conversion, toutes les portes du niveau pivoteraient autour de l'origine de la scène.
+
+Les butées asymétriques `[-1,6 ; 0]` décrivent une porte qui ne s'ouvre que **dans un sens**, comme celle d'une pièce dont le mur bloque l'autre côté.
+
+## 5.7 Coût
+
+Une contrainte résolue par itération du solveur, pour quelques dizaines de portes dans un niveau : négligeable. `isBodyHinged` est une recherche linéaire dans un petit vecteur — à revoir si un niveau comptait des centaines de corps contraints, pas avant.
+
+## 5.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : la porte de la scène de démonstration s'ouvre en tirant sur son bord libre, s'arrête sur sa butée, et reste solide.
+
+**Six tests** s'ajoutent : tirer sur le bord libre fait pivoter le battant, la charnière le retient malgré une impulsion violente, les butées l'arrêtent, le frottement finit par l'immobiliser sans l'aide des butées, un corps contraint est reconnu comme tel, et une caisse libre ne l'est pas. **45 tests, 128 assertions** au total.
+
+**Ce qui n'existe pas encore** : pas de tiroirs (une glissière, donc une contrainte différente), pas de porte verrouillée ni de clé, pas de poignée qu'on abaisse, et aucun son au contact — c'est M5 qui l'apportera. La masse volumique est réglée objet par objet, alors qu'elle devrait découler d'un **matériau** — la même donnée servira au son des pas et à l'occlusion audio.
+
+**M4 est terminé.** La suite, c'est l'audio — le système central de ce moteur.

@@ -28,9 +28,16 @@ enum class Key : core::u32 {
     F5,
 };
 
+enum class MouseButton : core::u32 {
+    Left = 0,
+    Right = 1,
+    Count = 2,
+};
+
 class InputState {
 public:
     bool isKeyDown(Key key) const;
+    bool isMouseButtonDown(MouseButton button) const;
     bool quitRequested() const { return m_quitRequested; }
 
     // Deplacement de la souris depuis la frame precedente, en pixels. En mode relatif, il
@@ -47,6 +54,7 @@ private:
     friend class Input;
 
     std::array<bool, kMaxKeys> m_keysDown{};
+    std::array<bool, static_cast<core::u32>(MouseButton::Count)> m_mouseDown{};
     bool m_quitRequested = false;
     core::f32 m_mouseDeltaX = 0.0f;
     core::f32 m_mouseDeltaY = 0.0f;

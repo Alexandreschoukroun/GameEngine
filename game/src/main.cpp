@@ -57,6 +57,16 @@ constexpr core::f32 kBreakDistance = 2.6f;
 // Impulsion transmise aux corps qu'on bouscule. Un controleur virtuel ne pousse rien tout
 // seul : il faut le lui apprendre.
 constexpr core::f32 kPushImpulse = 2.2f;
+// Traction sur une porte : une impulsion appliquee au point saisi, donc hors des gonds.
+// C'est ce couple qui la fait pivoter - pousser en son milieu ne ferait presque rien.
+//
+// L'echelle vient du corps qu'on tire : pour une porte de 20 kg saisie a 40 cm des gonds,
+// il faut quelques newtons-secondes par frame pour un mouvement franc. C'etait le defaut
+// du premier essai - 0,9 sur un battant de 144 kg ne se voyait tout simplement pas.
+constexpr core::f32 kDoorPull = 25.0f;
+// Plafond de traction : sans lui, viser loin sur le cote enverrait la porte claquer
+// contre sa butee a une vitesse absurde.
+constexpr core::f32 kMaxDoorPull = 12.0f;
 
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
@@ -453,22 +463,37 @@ private:
     // heurte les murs, se coince dans une porte et repousse ce qu'il touche. C'est ce qui
     // distingue une manipulation physique d'un objet colle a l'ecran.
     void updateGrab() {
-        const bool useDown = input().isKeyDown(platform::Key::E);
-        const bool justPressed = useDown && !m_useWasDown;
-        m_useWasDown = useDown;
+        // Maintien du clic plutot qu'une touche a basculer : on saisit, on glisse, on
+        // relache. C'est le geste d'Amnesia, et il rend la manipulation continue - la
+        // porte suit la main tant qu'on tient, et s'arrete des qu'on lache.
+        const bool grabDown = input().isMouseButtonDown(platform::MouseButton::Left);
+        const bool justPressed = grabDown && !m_useWasDown;
+        const bool justReleased = !grabDown && m_useWasDown;
+        m_useWasDown = grabDown;
+
+        if (justReleased) {
+            releaseHeldBody();
+            return;
+        }
 
         if (justPressed) {
-            if (m_heldBody != physics::kInvalidBody) {
-                releaseHeldBody(); // deuxieme appui : on lache
-            } else {
+            if (m_heldBody == physics::kInvalidBody) {
                 // On vise depuis l'oeil, dans l'axe du regard : exactement ce que voit le
                 // joueur, et non une zone approximative autour de lui.
                 const physics::RayHit hit = m_physics.raycast(
                     m_camera.position(), m_camera.forward(), kGrabRange);
                 if (hit.hit && m_physics.isBodyDynamic(hit.body)) {
                     m_heldBody = hit.body;
-                    // L'objet cesse de heurter le joueur tant qu'il est tenu.
-                    m_physics.setBodyHeld(m_heldBody, true);
+                    m_grabPoint = hit.point;
+                    // Decalage du point saisi par rapport au centre du corps : c'est lui
+                    // qui donne le bras de levier, donc la difference entre tirer sur une
+                    // poignee et pousser au milieu d'un battant.
+                    m_grabOffset = hit.point - m_physics.bodyPosition(hit.body);
+                    // Une porte reste solide pour le joueur : la traverser en la tenant
+                    // n'aurait aucun sens. Seuls les objets libres sont neutralises.
+                    if (!m_physics.isBodyHinged(m_heldBody)) {
+                        m_physics.setBodyHeld(m_heldBody, true);
+                    }
                 }
             }
         }
@@ -479,6 +504,23 @@ private:
 
         const core::Vec3 target =
             m_camera.position() + m_camera.forward() * kHoldDistance;
+
+        // Une porte ne se manipule pas comme une caisse : elle est accrochee a ses gonds.
+        // Lui imposer une vitesse se battrait contre la charniere ; on applique donc une
+        // impulsion au POINT saisi, et la rotation en decoule.
+        if (m_physics.isBodyHinged(m_heldBody)) {
+            core::Vec3 pull = (target - m_grabPoint) * kDoorPull;
+            const core::f32 pullStrength = glm::length(pull);
+            if (pullStrength > kMaxDoorPull) {
+                pull *= kMaxDoorPull / pullStrength;
+            }
+            m_physics.applyImpulseAtPoint(m_heldBody, pull, m_grabPoint);
+            // Le point saisi suit la porte : on le recalcule depuis le corps, sinon on
+            // tirerait indefiniment sur une position que la porte a quittee.
+            m_grabPoint = m_physics.bodyPosition(m_heldBody) + m_grabOffset;
+            return;
+        }
+
         const core::Vec3 toTarget = target - m_physics.bodyPosition(m_heldBody);
 
         // L'objet s'est coince : le ramener de force le ferait traverser l'obstacle.
@@ -500,7 +542,9 @@ private:
 
     void releaseHeldBody() {
         if (m_heldBody != physics::kInvalidBody) {
-            m_physics.setBodyHeld(m_heldBody, false);
+            if (!m_physics.isBodyHinged(m_heldBody)) {
+                m_physics.setBodyHeld(m_heldBody, false);
+            }
             m_heldBody = physics::kInvalidBody;
         }
     }
@@ -662,6 +706,8 @@ private:
     physics::World m_physics;
     physics::CharacterHandle m_player = physics::kInvalidCharacter;
     physics::BodyHandle m_heldBody = physics::kInvalidBody;
+    core::Vec3 m_grabPoint{0.0f, 0.0f, 0.0f};
+    core::Vec3 m_grabOffset{0.0f, 0.0f, 0.0f};
     bool m_useWasDown = false;
     rhi::Mesh m_crateMesh;
 

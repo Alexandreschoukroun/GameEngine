@@ -167,7 +167,22 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
             c["shape"] = "box";
             c["halfExtents"] = toJson(collider->halfExtents);
             c["static"] = collider->isStatic;
+            // Seuls les corps dynamiques ont une masse : l'ecrire pour un mur ne
+            // decrirait rien et alourdirait le fichier.
+            if (!collider->isStatic) {
+                c["density"] = rounded(collider->density);
+            }
             node["collider"] = c;
+        }
+
+        if (const Hinge* hinge = registry.try_get<Hinge>(entity); hinge != nullptr) {
+            Json h;
+            h["anchor"] = toJson(hinge->localAnchor);
+            h["axis"] = toJson(hinge->axis);
+            h["minAngle"] = rounded(hinge->minAngle);
+            h["maxAngle"] = rounded(hinge->maxAngle);
+            h["friction"] = rounded(hinge->friction);
+            node["hinge"] = h;
         }
 
         if (const Sector* sector = registry.try_get<Sector>(entity); sector != nullptr) {
@@ -339,7 +354,19 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
             collider.halfExtents =
                 vec3FromJson(c.value("halfExtents", Json()), collider.halfExtents);
             collider.isStatic = c.value("static", collider.isStatic);
+            collider.density = c.value("density", collider.density);
             loaded.registry().emplace<Collider>(entity, collider);
+        }
+
+        if (node.contains("hinge")) {
+            const Json& h = node["hinge"];
+            Hinge hinge;
+            hinge.localAnchor = vec3FromJson(h.value("anchor", Json()), hinge.localAnchor);
+            hinge.axis = vec3FromJson(h.value("axis", Json()), hinge.axis);
+            hinge.minAngle = h.value("minAngle", hinge.minAngle);
+            hinge.maxAngle = h.value("maxAngle", hinge.maxAngle);
+            hinge.friction = h.value("friction", hinge.friction);
+            loaded.registry().emplace<Hinge>(entity, hinge);
         }
 
         if (node.contains("sector")) {

@@ -23,6 +23,25 @@ struct Collider {
     // Statique : ne bouge jamais, ne subit pas la gravite. C'est le cas de tout le decor,
     // et c'est ce qui le rend presque gratuit a simuler.
     bool isStatic = true;
+    // Masse volumique en kg/m3, dont decoulent la masse et l'inertie. 1000 est la valeur
+    // par defaut de Jolt, celle d'un solide plein ; une porte en bois creux est a 150.
+    // Ignoree pour un corps statique, dont la masse est infinie par definition.
+    core::f32 density = 1000.0f;
+};
+
+// Charniere : la porte pivote autour d'un axe, entre deux butees. L'ancrage est donne
+// RELATIVEMENT au centre de l'entite - typiquement un demi-battant sur le cote, la ou se
+// trouveraient les gonds.
+struct Hinge {
+    core::Vec3 localAnchor{0.0f, 0.0f, 0.0f};
+    core::Vec3 axis{0.0f, 1.0f, 0.0f};
+    core::f32 minAngle = -1.6f; // environ -92 degres
+    core::f32 maxAngle = 1.6f;
+    // Couple de frottement des gonds, en N.m. A doser selon l'inertie du battant : pour
+    // une porte de 20 kg (inertie ~5 kg.m2), 6 N.m l'arretent en une seconde environ.
+    // Multiplier sa masse par sept imposerait de multiplier ce couple d'autant. Sans
+    // friction du tout, elle tournerait comme un battant de saloon.
+    core::f32 friction = 6.0f;
 };
 
 // Corps physique associe, cree a l'execution. Volontairement separe du Collider : il n'a

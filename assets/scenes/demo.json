@@ -92,10 +92,10 @@
     },
     {
       "id": "0x00000000000d0001",
-      "name": "col_sol",
+      "name": "col_sol_ouest",
       "transform": {
         "position": [
-          0.0,
+          -3.0,
           -1.8,
           0.0
         ],
@@ -114,11 +114,14 @@
       "collider": {
         "shape": "box",
         "halfExtents": [
-          6.0,
+          3.0,
           0.5,
           6.0
         ],
         "static": true
+      },
+      "surface": {
+        "footstep": "pas_pierre"
       }
     },
     {
@@ -274,6 +277,40 @@
           6.0
         ],
         "static": true
+      }
+    },
+    {
+      "id": "0x00000000000d0007",
+      "name": "col_sol_est",
+      "transform": {
+        "position": [
+          3.0,
+          -1.8,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          3.0,
+          0.5,
+          6.0
+        ],
+        "static": true
+      },
+      "surface": {
+        "footstep": "pas_bois"
       }
     },
     {

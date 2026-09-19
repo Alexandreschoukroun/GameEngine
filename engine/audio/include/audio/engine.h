@@ -55,8 +55,13 @@ public:
 
     // Demarre une voix a une position du monde. Rend kInvalidVoice si le budget est
     // atteint ou si le son est invalide.
+    //
+    // La hauteur (pitch) multiplie la vitesse de lecture : 1 = telle quelle, 1,1 = un peu
+    // plus aigu. Elle sert a varier un son repete - jouer cinquante fois le meme pas
+    // exactement pareil trahit immediatement la machine. C'est moins couteux que de
+    // stocker cinquante variantes du fichier.
     VoiceHandle play(SoundHandle sound, const core::Vec3& position, bool looping = false,
-                     core::f32 volume = 1.0f);
+                     core::f32 volume = 1.0f, core::f32 pitch = 1.0f);
 
     // Deplace une voix deja lancee : une source attachee a un objet qui bouge.
     void setVoicePosition(VoiceHandle voice, const core::Vec3& position);

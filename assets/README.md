@@ -16,6 +16,8 @@ Le moteur le trouve dans cet ordre (voir `engine/platform/src/paths.cpp`) :
 | `models/suzanne/*` | [glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Suzanne), Khronos Group | **CC0 1.0** (domaine public) |
 | `audio/braises.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
 | `audio/souffle.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
+| `audio/pas_pierre.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
+| `audio/pas_bois.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
 
 Le modèle Suzanne est le maillage de test historique de Blender. Il est ici parce qu'il
 est en CC0, donc sans aucune obligation d'attribution ni de citation, et qu'il porte tout
@@ -24,7 +26,7 @@ textures PBR (couleur de base, métallicité/rugosité).
 
 ## Les sons sont générés, pas téléchargés
 
-Les deux fichiers audio sont produits par un script, `tools/generate_audio.py`, à partir de
+Les fichiers audio sont produits par un script, `tools/generate_audio.py`, à partir de
 bruit filtré et d'oscillateurs. Ce n'est pas un choix esthétique : c'est la seule façon
 d'avoir des sons dont la provenance est **certaine**, sans dépendre d'une banque dont la
 licence changera peut-être, et sans alourdir l'historique Git de fichiers binaires qu'on ne

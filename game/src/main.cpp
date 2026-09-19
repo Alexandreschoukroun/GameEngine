@@ -15,6 +15,7 @@
 #include "rhi/texture.h"
 #include "platform/paths.h"
 #include "scene/audio_sync.h"
+#include "scene/footsteps.h"
 #include "scene/resource_table.h"
 #include "scene/physics_sync.h"
 #include "scene/scene.h"
@@ -83,6 +84,14 @@ constexpr const char* kFireSoundName = "braises";
 // Porte fermee, il est etouffe ; on l'entrouvre, il se degage.
 constexpr const char* kDroneSound = "audio/souffle.wav";
 constexpr const char* kDroneSoundName = "souffle";
+// Les pas. Le fichier joue depend de ce que le sol declare sous les pieds du joueur : la
+// scene coupe le sol en deux matieres, pierre a l'ouest et bois a l'est.
+constexpr const char* kStoneStepSound = "audio/pas_pierre.wav";
+constexpr const char* kWoodStepSound = "audio/pas_bois.wav";
+// Longueur d'une foulee. La cadence se regle par la DISTANCE, donc courir rapproche les
+// pas sans qu'on ait rien d'autre a faire.
+constexpr core::f32 kStrideLength = 0.85f;
+constexpr core::f32 kStepVolume = 0.45f;
 
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
@@ -226,6 +235,10 @@ protected:
                                  m_audio.loadSound(platform::assetPath(kFireSound)));
             m_resources.addSound(kDroneSoundName,
                                  m_audio.loadSound(platform::assetPath(kDroneSound)));
+            m_resources.addSound("pas_pierre",
+                                 m_audio.loadSound(platform::assetPath(kStoneStepSound)));
+            m_resources.addSound("pas_bois",
+                                 m_audio.loadSound(platform::assetPath(kWoodStepSound)));
         }
 
         if (!scene::loadSceneFromFile(m_scene, m_resources,
@@ -254,6 +267,7 @@ protected:
         // entite sonne ni a quel volume : c'est ecrit dans le fichier, comme les
         // colliders et les lumieres avant lui.
         scene::startAudioSources(m_scene, m_resources, m_audio);
+        m_footsteps.configure(kStrideLength, kStepVolume);
         return true;
     }
 
@@ -384,10 +398,18 @@ protected:
         updateHeldBody(delta);
         stepPhysics(delta);
 
+        // Les pas : la distance reellement parcourue depuis le pas fixe precedent, a
+        // plat. On mesure le deplacement CONSTATE et non la vitesse demandee - pousser
+        // contre un mur ne doit pas faire marcher sur place.
+        const core::Vec3 feet = m_physics.characterPosition(m_player);
+        const core::Vec3 stride{feet.x - m_lastFeet.x, 0.0f, feet.z - m_lastFeet.z};
+        m_footsteps.update(m_scene, m_physics, m_resources, m_audio, feet,
+                           m_physics.characterOnGround(m_player), glm::length(stride));
+        m_lastFeet = feet;
+
         // Les yeux suivent le corps. Le sens compte : c'est la simulation qui decide ou se
         // trouve le joueur, la camera ne fait que la regarder.
-        m_camera.setPosition(m_physics.characterPosition(m_player) +
-                             core::Vec3{0.0f, kEyeHeight, 0.0f});
+        m_camera.setPosition(feet + core::Vec3{0.0f, kEyeHeight, 0.0f});
     }
 
     void onResize(core::u32 width, core::u32 height) override {
@@ -783,6 +805,8 @@ private:
 
     renderer::Flashlight m_flashlight;
     audio::Engine m_audio;
+    scene::FootstepPlayer m_footsteps;
+    core::Vec3 m_lastFeet = kSpawnPosition;
     physics::World m_physics;
     physics::CharacterHandle m_player = physics::kInvalidCharacter;
     physics::BodyHandle m_heldBody = physics::kInvalidBody;

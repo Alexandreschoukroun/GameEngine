@@ -13,6 +13,7 @@ add_executable(engine_tests
     scene/test_physics_sync.cpp
     scene/test_audio_sync.cpp
     scene/test_occlusion.cpp
+    scene/test_footsteps.cpp
     audio/test_engine.cpp
 )
 

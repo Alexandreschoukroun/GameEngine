@@ -4,6 +4,7 @@
 #include "scene/resource_table.h"
 #include "scene/scene.h"
 #include "scene/audio_sync.h"
+#include "scene/footsteps.h"
 #include "scene/physics_sync.h"
 #include "scene/sector_graph.h"
 
@@ -167,6 +168,13 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
             a["volume"] = rounded(source->volume);
             a["looping"] = source->looping;
             node["audio"] = a;
+        }
+
+        if (const Surface* surface = registry.try_get<Surface>(entity);
+            surface != nullptr) {
+            Json f;
+            f["footstep"] = std::string(resources.soundName(surface->footstep));
+            node["surface"] = f;
         }
 
         if (const Collider* collider = registry.try_get<Collider>(entity);
@@ -375,6 +383,20 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
             source.volume = a.value("volume", source.volume);
             source.looping = a.value("looping", source.looping);
             loaded.registry().emplace<AudioSource>(entity, source);
+        }
+
+        if (node.contains("surface")) {
+            const Json& f = node["surface"];
+            Surface surface;
+            if (f.contains("footstep") && f["footstep"].is_string()) {
+                const std::string name = f["footstep"].get<std::string>();
+                surface.footstep = resources.findSound(name);
+                if (surface.footstep == kInvalidResource) {
+                    core::logWarn("son de pas inconnu, surface muette");
+                    core::logWarn(name);
+                }
+            }
+            loaded.registry().emplace<Surface>(entity, surface);
         }
 
         if (node.contains("collider")) {

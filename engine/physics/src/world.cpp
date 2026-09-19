@@ -16,6 +16,7 @@
 #include <Jolt/Physics/Body/BodyLockInterface.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Constraints/HingeConstraint.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/PhysicsSettings.h>
@@ -25,6 +26,7 @@
 #pragma warning(pop)
 #endif
 
+#include <algorithm>
 #include <cstdarg>
 #include <vector>
 #include <cstdio>
@@ -135,6 +137,10 @@ struct World::Impl {
 
     // Les personnages sont comptes par reference chez Jolt : Ref les libere avec le monde.
     std::vector<JPH::Ref<JPH::CharacterVirtual>> characters;
+
+    // Corps tenus par une charniere. Une liste suffit : il y en aura quelques dizaines
+    // dans un niveau, pas des milliers.
+    std::vector<BodyHandle> hingedBodies;
 };
 
 World::World() = default;
@@ -196,13 +202,17 @@ void World::step(core::f32 fixedDeltaSeconds) {
 }
 
 BodyHandle World::addBox(const core::Vec3& position, const core::Quat& rotation,
-                         const core::Vec3& halfExtents, bool isStatic) {
+                         const core::Vec3& halfExtents, bool isStatic,
+                         core::f32 density) {
     if (m_impl == nullptr) {
         return kInvalidBody;
     }
 
     JPH::BodyInterface& bodies = m_impl->system.GetBodyInterface();
-    const JPH::BoxShapeSettings shapeSettings(toJolt(halfExtents));
+    JPH::BoxShapeSettings shapeSettings(toJolt(halfExtents));
+    // La masse et l'inertie du corps decoulent de la forme : Jolt les calcule a partir du
+    // volume et de cette densite. Inutile donc de donner une masse a la main.
+    shapeSettings.SetDensity(density);
     const JPH::ShapeSettings::ShapeResult shape = shapeSettings.Create();
     if (shape.HasError()) {
         core::logError("forme de collision invalide");
@@ -256,6 +266,58 @@ core::Vec3 World::bodyVelocity(BodyHandle body) const {
         return core::Vec3{0.0f, 0.0f, 0.0f};
     }
     return fromJolt(m_impl->system.GetBodyInterface().GetLinearVelocity(JPH::BodyID(body)));
+}
+
+void World::applyImpulseAtPoint(BodyHandle body, const core::Vec3& impulse,
+                                const core::Vec3& point) {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return;
+    }
+    JPH::BodyInterface& bodies = m_impl->system.GetBodyInterface();
+    const JPH::BodyID id(body);
+    bodies.ActivateBody(id);
+    bodies.AddImpulse(id, toJolt(impulse), toJolt(point));
+}
+
+bool World::addHinge(BodyHandle body, const core::Vec3& anchorPoint, const core::Vec3& axis,
+                     core::f32 minAngle, core::f32 maxAngle, core::f32 friction) {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return false;
+    }
+
+    JPH::BodyLockWrite lock(m_impl->system.GetBodyLockInterface(), JPH::BodyID(body));
+    if (!lock.Succeeded()) {
+        core::logError("charniere : corps introuvable");
+        return false;
+    }
+
+    JPH::HingeConstraintSettings settings;
+    settings.mSpace = JPH::EConstraintSpace::WorldSpace;
+    settings.mPoint1 = settings.mPoint2 = toJolt(anchorPoint);
+    settings.mHingeAxis1 = settings.mHingeAxis2 = toJolt(glm::normalize(axis));
+    // L'axe normal sert de reference pour mesurer l'angle : il doit etre perpendiculaire
+    // a l'axe de rotation, sinon les butees n'ont aucun sens.
+    const JPH::Vec3 normalAxis = toJolt(glm::normalize(axis)).GetNormalizedPerpendicular();
+    settings.mNormalAxis1 = settings.mNormalAxis2 = normalAxis;
+    settings.mLimitsMin = minAngle;
+    settings.mLimitsMax = maxAngle;
+    // Un peu de friction : sans elle, une porte poussee tournerait indefiniment comme une
+    // porte de saloon sans gonds.
+    settings.mMaxFrictionTorque = friction;
+
+    // Deuxieme corps : le monde lui-meme. La porte est accrochee a rien, donc a tout.
+    JPH::Constraint* constraint = settings.Create(JPH::Body::sFixedToWorld, lock.GetBody());
+    m_impl->system.AddConstraint(constraint);
+    m_impl->hingedBodies.push_back(body);
+    return true;
+}
+
+bool World::isBodyHinged(BodyHandle body) const {
+    if (m_impl == nullptr) {
+        return false;
+    }
+    return std::find(m_impl->hingedBodies.begin(), m_impl->hingedBodies.end(), body) !=
+           m_impl->hingedBodies.end();
 }
 
 void World::setBodyHeld(BodyHandle body, bool held) {

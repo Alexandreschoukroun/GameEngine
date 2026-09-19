@@ -30,6 +30,11 @@ bool InputState::isKeyDown(Key key) const {
     return scancode < m_keysDown.size() && m_keysDown[scancode];
 }
 
+bool InputState::isMouseButtonDown(MouseButton button) const {
+    const auto index = static_cast<core::u32>(button);
+    return index < m_mouseDown.size() && m_mouseDown[index];
+}
+
 void Input::update(InputState& state) {
     state.m_quitRequested = false;
     // Les deplacements de souris sont consommes a chaque frame : ils decrivent ce qui
@@ -58,6 +63,18 @@ void Input::update(InputState& state) {
                 const auto scancode = static_cast<core::u32>(event.key.scancode);
                 if (scancode < state.m_keysDown.size()) {
                     state.m_keysDown[scancode] = false;
+                }
+                break;
+            }
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            case SDL_EVENT_MOUSE_BUTTON_UP: {
+                // SDL numerote les boutons a partir de 1 ; on ne retient que les deux
+                // principaux, les autres n'ayant aucun usage dans le moteur.
+                const bool down = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    state.m_mouseDown[static_cast<core::u32>(MouseButton::Left)] = down;
+                } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                    state.m_mouseDown[static_cast<core::u32>(MouseButton::Right)] = down;
                 }
                 break;
             }

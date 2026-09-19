@@ -51,8 +51,13 @@ public:
 
     // Un corps statique ne bouge jamais et ne coute presque rien : murs, sols, decor.
     // Un corps dynamique subit la gravite et les chocs.
+    //
+    // La masse volumique est en kg/m3. Jolt suppose 1000 par defaut - celle de l'eau, donc
+    // un solide plein. Une porte de 0,9 x 2 x 0,08 m pesait ainsi 144 kg, et refusait de
+    // bouger. Le bois creux d'une vraie porte tourne autour de 150.
     BodyHandle addBox(const core::Vec3& position, const core::Quat& rotation,
-                      const core::Vec3& halfExtents, bool isStatic);
+                      const core::Vec3& halfExtents, bool isStatic,
+                      core::f32 density = 1000.0f);
 
     core::Vec3 bodyPosition(BodyHandle body) const;
     core::Quat bodyRotation(BodyHandle body) const;
@@ -65,6 +70,23 @@ public:
 
     // Vrai si le corps est dynamique et peut donc etre saisi ou pousse.
     bool isBodyDynamic(BodyHandle body) const;
+
+    // Applique une impulsion EN UN POINT du corps. Appliquee hors du centre de masse,
+    // elle cree un couple : c'est ce qui fait pivoter une porte quand on tire sur sa
+    // poignee, et non quand on pousse en son milieu.
+    void applyImpulseAtPoint(BodyHandle body, const core::Vec3& impulse,
+                             const core::Vec3& point);
+
+    // Charniere : bloque toutes les libertes du corps sauf une rotation autour d'un axe,
+    // entre deux butees. C'est une porte, un couvercle, un volet.
+    //
+    // Les angles sont en radians, relatifs a la pose du corps au moment de la creation.
+    bool addHinge(BodyHandle body, const core::Vec3& anchorPoint, const core::Vec3& axis,
+                  core::f32 minAngle, core::f32 maxAngle, core::f32 friction);
+
+    // Vrai si le corps est tenu par une charniere. L'appelant s'en sert pour choisir
+    // comment le manipuler : on ne tire pas sur une porte comme sur une caisse libre.
+    bool isBodyHinged(BodyHandle body) const;
 
     // Un objet tenu cesse de heurter le personnage, tout en continuant de heurter les
     // murs et les autres objets. Sans ca, ramener une caisse contre soi la ferait pousser

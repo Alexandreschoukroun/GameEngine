@@ -509,6 +509,33 @@
       }
     },
     {
+      "id": "0x00000000000f0002",
+      "name": "souffle",
+      "transform": {
+        "position": [
+          2.6,
+          -0.3,
+          -2.9
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "audio": {
+        "sound": "souffle",
+        "volume": 0.9,
+        "looping": true
+      }
+    },
+    {
       "id": "0x08b6af78e6f9f7cf",
       "name": "satellite",
       "parent": "0x9514ba977cedc264",

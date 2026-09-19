@@ -6,6 +6,7 @@
 #include "scene/components.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
+#include "scene/serialization.h"
 
 namespace {
 
@@ -112,4 +113,26 @@ TEST_CASE("A voice follows the entity that carries it, through its parent") {
     scene::syncAudioSources(f.scene, f.engine);
 
     CHECK(f.engine.voicePosition(voice->handle).x == doctest::Approx(-2.0f).epsilon(0.01));
+}
+
+TEST_CASE("The demo scene declares sounds the game actually registers") {
+    // Garde-fou sur les DONNEES, pas sur le code : si quelqu'un renomme un son dans
+    // demo.json sans toucher au jeu, la source deviendrait muette en silence. Ici, la CI
+    // le voit. C'est le pendant du repli sur "missing" pour les maillages, qui rend une
+    // erreur visible a l'ecran.
+    scene::ResourceTable resources;
+    resources.addSound("braises", 0);
+    resources.addSound("souffle", 1);
+
+    scene::Scene scene;
+    REQUIRE(scene::loadSceneFromFile(scene, resources,
+                                     platform::assetPath("scenes/demo.json").c_str()));
+
+    core::u32 sources = 0;
+    for (auto [entity, source] : scene.registry().view<const scene::AudioSource>().each()) {
+        (void)entity;
+        CHECK(source.sound != scene::kInvalidResource);
+        ++sources;
+    }
+    CHECK(sources == 2);
 }

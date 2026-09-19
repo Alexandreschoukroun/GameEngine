@@ -22,6 +22,8 @@
 #pragma warning(pop)
 #endif
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -41,6 +43,27 @@ VoiceHandle packVoice(core::u32 index, core::u32 generation) {
 core::u32 voiceIndex(VoiceHandle handle) { return handle & kIndexMask; }
 core::u32 voiceGeneration(VoiceHandle handle) { return handle >> kIndexBits; }
 
+// Frequence de coupure du filtre passe-bas : au-dessus, le son est efface. 18 kHz est
+// au-dela de ce que la plupart des oreilles percoivent, donc "pas de filtre" ; 350 Hz ne
+// laisse plus passer que les graves, exactement ce qu'on entend d'une piece voisine.
+constexpr double kOpenCutoff = 18000.0;
+constexpr double kClosedCutoff = 350.0;
+// Ordre du filtre : le nombre d'etages. Deux donnent une pente de 12 dB par octave, assez
+// franche pour s'entendre sans le cout d'un filtre plus raide.
+constexpr core::u32 kFilterOrder = 2;
+
+// Ce qui reste du volume quand la source est totalement masquee. Pas zero : un mur laisse
+// toujours passer quelque chose, et une source qui disparait completement se remarque.
+constexpr core::f32 kOccludedGain = 0.25f;
+
+// Vitesse a laquelle l'occlusion rejoint sa consigne. Meme lissage exponentiel que
+// l'inertie de la lampe torche : independant de la frequence d'images.
+constexpr core::f32 kOcclusionRate = 8.0f;
+
+// En deca, inutile de reconfigurer le filtre : le changement serait inaudible et
+// reconstruire ses coefficients chaque frame pour rien couterait plus cher que le gain.
+constexpr core::f32 kOcclusionEpsilon = 0.002f;
+
 } // namespace
 
 struct Engine::Impl {
@@ -59,9 +82,16 @@ struct Engine::Impl {
 
     struct Voice {
         ma_sound sound{};
+        // Filtre passe-bas propre a la voix, insere entre elle et la sortie.
+        ma_lpf_node lowPass{};
+        bool filterReady = false;
         bool active = false;
         bool looping = false;
         core::u32 generation = 1;
+        // Volume demande a l'appel : l'occlusion s'applique PAR-DESSUS, sans l'ecraser.
+        core::f32 baseVolume = 1.0f;
+        core::f32 occlusionTarget = 0.0f;
+        core::f32 occlusion = -1.0f; // -1 : jamais applique, force le premier reglage
     };
     std::vector<Voice> voices;
 };
@@ -114,7 +144,13 @@ void Engine::destroy() {
     // L'ordre compte : les voix referencent les prototypes, qui referencent le moteur.
     for (auto& voice : m_impl->voices) {
         if (voice.active) {
+            // La voix d'abord, son filtre ensuite : detruire un noeud encore alimente
+            // laisserait le graphe pointer sur de la memoire liberee.
             ma_sound_uninit(&voice.sound);
+            if (voice.filterReady) {
+                ma_lpf_node_uninit(&voice.lowPass, nullptr);
+                voice.filterReady = false;
+            }
             voice.active = false;
         }
     }
@@ -188,6 +224,25 @@ VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool loo
         return kInvalidVoice;
     }
 
+    // Chaine de traitement : la voix entre dans son filtre, le filtre sort vers le
+    // melangeur. Sans ce branchement, la voix irait directement a la sortie et aucune
+    // occlusion ne serait possible.
+    const ma_uint32 channels = ma_engine_get_channels(&m_impl->engine);
+    const ma_uint32 sampleRate = ma_engine_get_sample_rate(&m_impl->engine);
+    ma_lpf_node_config filterConfig =
+        ma_lpf_node_config_init(channels, sampleRate, kOpenCutoff, kFilterOrder);
+    if (ma_lpf_node_init(ma_engine_get_node_graph(&m_impl->engine), &filterConfig, nullptr,
+                         &voice.lowPass) == MA_SUCCESS) {
+        voice.filterReady = true;
+        ma_node_attach_output_bus(&voice.lowPass, 0,
+                                  ma_engine_get_endpoint(&m_impl->engine), 0);
+        ma_node_attach_output_bus(&voice.sound, 0, &voice.lowPass, 0);
+    } else {
+        // Le son reste jouable, simplement jamais etouffe. Un niveau doit s'entendre meme
+        // si un effet echoue.
+        core::logWarn("audio : filtre d'occlusion indisponible pour cette voix");
+    }
+
     ma_sound_set_position(&voice.sound, position.x, position.y, position.z);
     ma_sound_set_looping(&voice.sound, looping ? MA_TRUE : MA_FALSE);
     ma_sound_set_volume(&voice.sound, volume);
@@ -202,6 +257,9 @@ VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool loo
 
     voice.active = true;
     voice.looping = looping;
+    voice.baseVolume = volume;
+    voice.occlusionTarget = 0.0f;
+    voice.occlusion = -1.0f;
     return packVoice(slot, voice.generation);
 }
 
@@ -240,10 +298,31 @@ void Engine::stop(VoiceHandle voice) {
     }
     Impl::Voice& slot = m_impl->voices[voiceIndex(voice)];
     ma_sound_uninit(&slot.sound);
+    if (slot.filterReady) {
+        ma_lpf_node_uninit(&slot.lowPass, nullptr);
+        slot.filterReady = false;
+    }
     slot.active = false;
     // La generation avance : tous les identifiants deja distribues pour cet emplacement
     // deviennent invalides, et ne pourront plus agir sur le son qui prendra sa place.
     ++slot.generation;
+}
+
+void Engine::setVoiceOcclusion(VoiceHandle voice, core::f32 amount) {
+    if (!isVoicePlaying(voice)) {
+        return;
+    }
+    Impl::Voice& slot = m_impl->voices[voiceIndex(voice)];
+    slot.occlusionTarget = std::clamp(amount, 0.0f, 1.0f);
+}
+
+core::f32 Engine::voiceOcclusion(VoiceHandle voice) const {
+    if (!isVoicePlaying(voice)) {
+        return 0.0f;
+    }
+    const core::f32 applied = m_impl->voices[voiceIndex(voice)].occlusion;
+    // -1 signifie "jamais applique" : pour l'appelant, cela vaut une voix degagee.
+    return applied < 0.0f ? 0.0f : applied;
 }
 
 void Engine::setListener(const core::Vec3& position, const core::Vec3& forward,
@@ -256,15 +335,59 @@ void Engine::setListener(const core::Vec3& position, const core::Vec3& forward,
     ma_engine_listener_set_world_up(&m_impl->engine, 0, up.x, up.y, up.z);
 }
 
-void Engine::update() {
+void Engine::update(core::f32 deltaSeconds) {
     if (m_impl == nullptr) {
         return;
     }
+    const ma_uint32 channels = ma_engine_get_channels(&m_impl->engine);
+    const ma_uint32 sampleRate = ma_engine_get_sample_rate(&m_impl->engine);
+    // Lissage exponentiel, identique a l'inertie de la lampe torche : le resultat ne
+    // depend pas de la frequence d'images.
+    const core::f32 blend = 1.0f - std::exp(-kOcclusionRate * deltaSeconds);
+
     for (auto& voice : m_impl->voices) {
-        if (voice.active && !voice.looping && ma_sound_at_end(&voice.sound) == MA_TRUE) {
+        if (!voice.active) {
+            continue;
+        }
+
+        if (!voice.looping && ma_sound_at_end(&voice.sound) == MA_TRUE) {
             ma_sound_uninit(&voice.sound);
+            if (voice.filterReady) {
+                ma_lpf_node_uninit(&voice.lowPass, nullptr);
+                voice.filterReady = false;
+            }
             voice.active = false;
             ++voice.generation;
+            continue;
+        }
+
+        const core::f32 previous = voice.occlusion;
+        if (previous < 0.0f) {
+            // Premiere application : on prend la consigne telle quelle. Partir de zero
+            // ferait entendre une porte s'ouvrir au lancement du niveau.
+            voice.occlusion = voice.occlusionTarget;
+        } else {
+            voice.occlusion = previous + (voice.occlusionTarget - previous) * blend;
+        }
+
+        if (previous >= 0.0f && std::abs(voice.occlusion - previous) < kOcclusionEpsilon) {
+            continue;
+        }
+
+        const core::f32 amount = voice.occlusion;
+        ma_sound_set_volume(&voice.sound,
+                            voice.baseVolume * (1.0f - amount * (1.0f - kOccludedGain)));
+
+        if (voice.filterReady) {
+            // Interpolation GEOMETRIQUE de la coupure : l'oreille percoit les frequences
+            // en rapports, pas en ecarts. Une interpolation lineaire passerait presque
+            // tout son temps dans les aigus, et l'etouffement arriverait d'un coup a la
+            // toute fin.
+            const double cutoff =
+                kOpenCutoff * std::pow(kClosedCutoff / kOpenCutoff, static_cast<double>(amount));
+            ma_lpf_config filterConfig = ma_lpf_config_init(ma_format_f32, channels,
+                                                            sampleRate, cutoff, kFilterOrder);
+            ma_lpf_node_reinit(&filterConfig, &voice.lowPass);
         }
     }
 }

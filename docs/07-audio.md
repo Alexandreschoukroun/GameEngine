@@ -1,6 +1,6 @@
 # 07 — Audio (M5)
 
-*Brique 1 : le périphérique, les voix, le son positionné (section 1). Brique 2 : les sources sonores deviennent des données de scène (section 2).*
+*Brique 1 : le périphérique, les voix, le son positionné (section 1). Brique 2 : les sources sonores deviennent des données de scène (section 2). Brique 3 : l'occlusion (section 3).*
 
 Le jalon M5 apporte ce que le SPEC appelle « le système le plus important » du moteur. Dans un jeu d'horreur en intérieur sombre, l'oreille porte plus d'information que l'œil : on sait qu'une chose marche dans la pièce d'à côté avant de la voir, et le plus souvent on ne la voit jamais.
 
@@ -150,4 +150,86 @@ Une recopie de position par source et par frame — quelques dizaines d'entités
 
 **Ce qui n'existe pas encore** : aucune occlusion — un son traverse les murs comme s'ils n'existaient pas. Pas de reverb, pas de HRTF, pas de sons de pas, pas de déclenchement à l'événement (tout se joue au chargement), pas de portée réglable par source.
 
-**Ce qui vient après (brique 3)** : l'**occlusion**, le morceau que le SPEC décrit avec le plus d'insistance — *« un son derrière une porte fermée doit être filtré passe-bas et atténué »*. Elle réutilisera le graphe de secteurs de M3 et le lancer de rayon de M4, et la porte à charnière de M4 lui donnera enfin son cas d'usage : entrouvrir la porte devra laisser passer le son progressivement.
+**Ce qui vient après (brique 3)** : l'**occlusion**.
+
+---
+
+# 3. Brique 3 — l'occlusion
+
+## 3.1 Le problème
+
+Un son traverse les murs comme s'ils n'existaient pas. Dans un jeu où l'on s'oriente à l'oreille, c'est le défaut le plus grave possible : le joueur ne peut pas distinguer une menace *dans sa pièce* d'une menace *derrière une cloison*. Toute l'information spatiale que la brique 1 a rendue possible est faussée.
+
+Le SPEC en fait le point central du système : *« un son derrière une porte fermée doit être filtré passe-bas et atténué »*.
+
+## 3.2 Deux effets, pas un seul
+
+Baisser le volume ne suffit pas. Un son lointain est *plus faible* ; un son derrière un mur est **étouffé**, ce qui n'est pas la même chose. L'oreille distingue parfaitement les deux, et se fie à cette différence.
+
+La raison est physique : un obstacle n'absorbe pas toutes les fréquences également. Les graves, dont la longueur d'onde dépasse l'épaisseur d'une cloison, la traversent en la faisant vibrer ; les aigus sont arrêtés. C'est pour ça qu'on entend la basse de la musique du voisin et pas les voix.
+
+Le moteur applique donc :
+
+- une **atténuation**, parce qu'un obstacle absorbe de l'énergie. Pas jusqu'à zéro : un mur laisse toujours passer quelque chose, et une source qui disparaît complètement se remarque ;
+- un **filtre passe-bas**, qui efface les fréquences au-dessus d'une coupure. C'est lui qui fait *reconnaître* une porte fermée.
+
+```
+voix ──> filtre passe-bas ──> mélangeur ──> carte son
+          coupure 18 kHz (dégagé) .. 350 Hz (masqué)
+```
+
+## 3.3 Pourquoi la coupure s'interpole géométriquement
+
+Faire glisser la coupure de 18 000 Hz à 350 Hz **linéairement** serait une erreur audible. L'oreille perçoit les fréquences en **rapports**, pas en écarts : l'octave qui sépare 100 de 200 Hz s'entend comme celle qui sépare 5 000 de 10 000 Hz, alors que l'une fait 100 Hz d'écart et l'autre 5 000.
+
+Une interpolation linéaire passerait donc l'essentiel de sa course dans les aigus — inaudible — et l'étouffement arriverait d'un coup à la toute fin. La coupure est donc interpolée géométriquement :
+
+```
+coupure = 18000 × (350 / 18000) ^ occlusion
+```
+
+Le même raisonnement vaudra pour tout réglage perçu en rapports : le volume en décibels, la luminosité d'une lumière.
+
+## 3.4 Trois rayons plutôt qu'un
+
+Un rayon unique donne une réponse binaire : bloqué ou non. Le résultat bascule brutalement quand le joueur fait un pas, et surtout, **une porte entrouverte se comporterait comme une porte fermée** jusqu'à ce que le rayon central passe enfin.
+
+Le moteur lance donc trois rayons : un direct, deux décalés latéralement de 45 cm. L'occlusion est la **fraction** de rayons bloqués — 0, ⅓, ⅔ ou 1. C'est grossier, et c'est suffisant : ce qu'on veut n'est pas une simulation acoustique, c'est que le joueur *sente* la porte s'ouvrir.
+
+Le décalage est horizontal, parce que dans un intérieur les obstacles sont des murs et des portes : ils se contournent latéralement, pas par le haut.
+
+Une marge de 15 cm est retirée à la longueur du rayon, sinon il toucherait le collider de l'objet qui sonne lui-même — et toute source posée sur une caisse se croirait murée.
+
+## 3.5 Le lissage, et son exception
+
+Un rayon qui clignote entre deux frames — le joueur se balance légèrement, l'obstacle passe d'un côté à l'autre — produirait un cliquetis. L'occlusion appliquée rejoint donc sa consigne par **lissage exponentiel**, le même qu'utilise l'inertie de la lampe torche depuis M2, et pour la même raison : le résultat ne dépend pas de la fréquence d'images.
+
+Une exception : la **première** application prend la consigne telle quelle. Sans elle, toute source déjà masquée au chargement d'un niveau s'entendrait « s'ouvrir » pendant une demi-seconde, comme si une porte venait de bouger.
+
+## 3.6 Ce que la porte de M4 apporte enfin
+
+L'occlusion donne rétrospectivement tout son sens au choix fait en M4 : la porte est une **contrainte physique**, pas une animation. Son angle est une donnée continue, simulée, que le joueur contrôle à la main.
+
+Conséquence directe : entrouvrir la porte de dix centimètres laisse passer *un peu* de son. Une porte animée entre deux états n'aurait jamais pu produire ça — elle aurait été ouverte ou fermée, et le son avec elle.
+
+La scène de démonstration contient donc un **souffle grave placé derrière la porte**. C'est là qu'on entend le système fonctionner : on tire sur le battant, et ce qui respire derrière se dégage progressivement.
+
+## 3.7 Ce que ça ne fait pas
+
+- **Pas de propagation par les portails.** Un son bloqué est atténué là où il est, alors qu'en réalité il contourne l'obstacle et arrive *par la porte ouverte d'à côté*, donc d'une autre direction. Le graphe de secteurs de M3 servira à ça, et le SPEC le prévoit — c'est aussi ce dont l'ouïe de l'antagoniste aura besoin en M7.
+- **Pas de réverbération**, donc aucune sensation de volume de pièce.
+- **Aucune notion de matériau** : une porte en bois et un mur de pierre occluent identiquement.
+
+## 3.8 Coût
+
+Trois lancers de rayon par voix et par frame. Pour les deux sources de la démo, c'est invisible ; pour 64 voix, ce serait 192 rayons par frame, soit de l'ordre du demi-milliseconde — déjà un septième du budget CPU du SPEC.
+
+La parade est connue et viendra quand le besoin sera réel : ne recalculer l'occlusion que toutes les N frames, en répartissant les voix sur plusieurs frames. Le lissage temporel rend d'ailleurs ce découpage inaudible — il est déjà en place.
+
+## 3.9 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écoute** : le souffle derrière la porte est étouffé ; l'entrouvrir le dégage progressivement.
+
+**Cinq tests** s'ajoutent : une ligne dégagée ne modifie rien, un mur large occlut totalement, un obstacle étroit n'occlut que partiellement (c'est ce que les trois rayons permettent d'exprimer), l'occlusion rejoint sa consigne progressivement et non en une frame, et la scène de démonstration déclare des sons que le jeu enregistre réellement — un garde-fou sur les **données**, qui attrape un renommage dans `demo.json` que le compilateur ne verrait pas. **61 tests, 258 assertions** au total.
+
+**Ce qui vient après (brique 4)** : les **matériaux de surface**. Le son d'un pas dépend de ce qu'on foule, et un matériau servira aussi à doser l'occlusion — une porte en bois et un mur de pierre ne masquent pas de la même façon. C'est la même donnée que la masse volumique introduite en M4 pour la porte : bois, pierre, métal.

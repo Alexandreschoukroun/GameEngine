@@ -2,6 +2,7 @@
 
 #include "audio/engine.h"
 #include "core/types.h"
+#include "physics/world.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
 
@@ -39,5 +40,14 @@ void startAudioSources(Scene& scene, const ResourceTable& resources, audio::Engi
 // se contente de suivre la scene. Une source ne pouvant pas deplacer ce qu'elle sonorise,
 // il n'y a ici aucune ambiguite sur qui detient la verite.
 void syncAudioSources(Scene& scene, audio::Engine& engine);
+
+// Calcule ce qui separe chaque source de l'oreille, et le transmet au moteur audio.
+//
+// Trois rayons plutot qu'un seul : un rayon unique donnerait une occlusion binaire, qui
+// basculerait brutalement quand le joueur bouge d'un pas. Les deux rayons lateraux
+// permettent une occlusion PARTIELLE - exactement ce qu'il faut pour une porte entrouverte,
+// ou une partie du son passe et l'autre non.
+void updateAudioOcclusion(Scene& scene, const physics::World& world, audio::Engine& engine,
+                          const core::Vec3& listenerPosition);
 
 } // namespace scene

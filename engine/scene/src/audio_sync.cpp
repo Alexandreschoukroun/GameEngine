@@ -12,6 +12,14 @@ core::Vec3 worldPosition(Scene& scene, Entity entity) {
     return core::Vec3(scene.worldMatrix(entity)[3]);
 }
 
+// Ecartement des rayons lateraux, en metres. Assez large pour qu'une porte entrouverte
+// laisse passer un rayon sur trois, assez etroit pour ne pas traverser un mur voisin.
+constexpr core::f32 kProbeSpread = 0.45f;
+
+// Marge devant la source : sans elle, le rayon toucherait le collider de l'objet qui
+// sonne lui-meme, et toute source posee sur une caisse se croirait murée.
+constexpr core::f32 kSourceMargin = 0.15f;
+
 } // namespace
 
 void startAudioSources(Scene& scene, const ResourceTable& resources, audio::Engine& engine) {
@@ -57,6 +65,68 @@ void syncAudioSources(Scene& scene, audio::Engine& engine) {
             continue;
         }
         engine.setVoicePosition(voice.handle, worldPosition(scene, entity));
+    }
+}
+
+void updateAudioOcclusion(Scene& scene, const physics::World& world, audio::Engine& engine,
+                          const core::Vec3& listenerPosition) {
+    entt::registry& registry = scene.registry();
+
+    for (auto [entity, voice] : registry.view<AudioVoice>().each()) {
+        if (!engine.isVoicePlaying(voice.handle)) {
+            continue;
+        }
+
+        const core::Vec3 source = worldPosition(scene, entity);
+        const core::Vec3 toSource = source - listenerPosition;
+        const core::f32 distance = glm::length(toSource);
+        if (distance <= kSourceMargin) {
+            // La source est dans l'oreille : rien ne peut s'interposer.
+            engine.setVoiceOcclusion(voice.handle, 0.0f);
+            continue;
+        }
+
+        const core::Vec3 direction = toSource / distance;
+        // Un vecteur horizontal perpendiculaire au trajet : les obstacles d'un interieur
+        // sont des murs et des portes, ils se contournent lateralement, pas par le haut.
+        core::Vec3 side = glm::cross(direction, core::Vec3{0.0f, 1.0f, 0.0f});
+        const core::f32 sideLength = glm::length(side);
+        // Trajet vertical : aucune direction laterale ne se distingue, un seul rayon
+        // suffit alors.
+        side = sideLength > 0.001f ? side / sideLength : core::Vec3{0.0f, 0.0f, 0.0f};
+
+        const core::Vec3 offsets[3] = {
+            core::Vec3{0.0f, 0.0f, 0.0f},
+            side * kProbeSpread,
+            side * -kProbeSpread,
+        };
+
+        core::u32 blocked = 0;
+        core::u32 cast = 0;
+        for (const core::Vec3& offset : offsets) {
+            const core::Vec3 origin = listenerPosition + offset;
+            const core::Vec3 target = source + offset;
+            const core::Vec3 ray = target - origin;
+            const core::f32 rayLength = glm::length(ray);
+            if (rayLength <= kSourceMargin) {
+                continue;
+            }
+            ++cast;
+            const physics::RayHit hit =
+                world.raycast(origin, ray / rayLength, rayLength - kSourceMargin);
+            if (hit.hit) {
+                ++blocked;
+            }
+            // Le rayon central seul suffit quand les lateraux sont confondus avec lui.
+            if (sideLength <= 0.001f) {
+                break;
+            }
+        }
+
+        const core::f32 occlusion =
+            cast == 0 ? 0.0f
+                      : static_cast<core::f32>(blocked) / static_cast<core::f32>(cast);
+        engine.setVoiceOcclusion(voice.handle, occlusion);
     }
 }
 

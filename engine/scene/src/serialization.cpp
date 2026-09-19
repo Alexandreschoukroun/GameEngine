@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
+#include "scene/physics_sync.h"
 #include "scene/sector_graph.h"
 
 #include <nlohmann/json.hpp>
@@ -156,6 +157,17 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
             m["metallicRoughness"] =
                 std::string(resources.textureName(mesh->metallicRoughness));
             node["mesh"] = m;
+        }
+
+        if (const Collider* collider = registry.try_get<Collider>(entity);
+            collider != nullptr) {
+            Json c;
+            // Une seule forme aujourd'hui, mais ecrite explicitement : ajouter la capsule
+            // plus tard ne demandera pas de changer la version du format.
+            c["shape"] = "box";
+            c["halfExtents"] = toJson(collider->halfExtents);
+            c["static"] = collider->isStatic;
+            node["collider"] = c;
         }
 
         if (const Sector* sector = registry.try_get<Sector>(entity); sector != nullptr) {
@@ -319,6 +331,15 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
                 m, "metallicRoughness",
                 [&](const std::string& n) { return resources.findTexture(n); }, "texture");
             loaded.registry().emplace<MeshRenderer>(entity, meshRenderer);
+        }
+
+        if (node.contains("collider")) {
+            const Json& c = node["collider"];
+            Collider collider;
+            collider.halfExtents =
+                vec3FromJson(c.value("halfExtents", Json()), collider.halfExtents);
+            collider.isStatic = c.value("static", collider.isStatic);
+            loaded.registry().emplace<Collider>(entity, collider);
         }
 
         if (node.contains("sector")) {

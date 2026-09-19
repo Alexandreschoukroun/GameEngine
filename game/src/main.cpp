@@ -14,6 +14,7 @@
 #include "rhi/texture.h"
 #include "platform/paths.h"
 #include "scene/resource_table.h"
+#include "scene/physics_sync.h"
 #include "scene/scene.h"
 #include "scene/sector_graph.h"
 #include "scene/serialization.h"
@@ -157,6 +158,11 @@ protected:
         if (!loadModel() || !loadRoom()) {
             return false;
         }
+        // Le maillage des caisses doit exister AVANT le chargement : la scene le reclame
+        // par son nom, et un nom inconnu declencherait le repli sur "missing".
+        if (!buildCrateMesh()) {
+            return false;
+        }
         registerResources();
 
         // La scene ne vient plus du code : elle est lue dans un fichier. Modifier
@@ -166,7 +172,16 @@ protected:
             return false;
         }
         m_statue = m_scene.findByName("statue");
-        return m_physics.create() && spawnCrates();
+
+        if (!m_physics.create()) {
+            return false;
+        }
+
+        // Les corps physiques sont crees a partir des composants Collider lus dans le
+        // fichier : decor statique et caisses dynamiques, decrits au meme endroit que le
+        // reste de la scene.
+        scene::createPhysicsBodies(m_scene, m_physics);
+        return true;
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
@@ -343,46 +358,7 @@ private:
         // Remplacement des ressources introuvables : un magenta franc, impossible a
         // confondre avec une texture legitime.
         m_resources.addTexture("missing", &m_missingTexture);
-    }
-
-    // Une pile de caisses lachees en l'air : de quoi voir la gravite, les chocs et le
-    // repos. C'est la demonstration minimale d'un moteur physique qui tourne.
-    bool spawnCrates() {
-        if (!buildCrateMesh()) {
-            return false;
-        }
-        const auto crateMesh = m_resources.addMesh("caisse", &m_crateMesh);
-        const auto crateAlbedo = m_resources.findTexture("damier");
-        const auto crateMaterial = m_resources.findTexture("mat_rugueux");
-
-        // Le sol et les murs sont statiques : ils ne bougent jamais, donc ne coutent
-        // presque rien a la simulation.
-        m_physics.addBox(core::Vec3{0.0f, kRoomFloorY - 0.5f, 0.0f}, core::Quat(1, 0, 0, 0),
-                         core::Vec3{kRoomHalfWidth, 0.5f, kRoomHalfWidth}, true);
-
-        for (core::u32 i = 0; i < kCrateCount; ++i) {
-            const core::f32 height = kRoomFloorY + 1.2f + static_cast<core::f32>(i) * 1.1f;
-            // Legerement decalees les unes des autres : empilees pile a l'aplomb, elles
-            // tomberaient en colonne parfaite, ce qui ne montrerait rien des chocs.
-            const core::Vec3 position{-1.0f + 0.22f * static_cast<core::f32>(i), height,
-                                      -1.4f + 0.14f * static_cast<core::f32>(i)};
-            const physics::BodyHandle body =
-                m_physics.addBox(position, core::Quat(1, 0, 0, 0),
-                                 core::Vec3{kCrateHalfSize, kCrateHalfSize, kCrateHalfSize},
-                                 false);
-            if (body == physics::kInvalidBody) {
-                return false;
-            }
-
-            const scene::Entity entity = m_scene.createEntity("caisse");
-            m_scene.registry().get<scene::Transform>(entity).position = position;
-            m_scene.registry().get<scene::Transform>(entity).scale =
-                core::Vec3{kCrateHalfSize * 2.0f, kCrateHalfSize * 2.0f, kCrateHalfSize * 2.0f};
-            m_scene.registry().emplace<scene::MeshRenderer>(
-                entity, scene::MeshRenderer{crateMesh, crateAlbedo, crateMaterial});
-            m_crates.push_back({entity, body});
-        }
-        return true;
+        m_resources.addMesh("caisse", &m_crateMesh);
     }
 
     // Cube de 1 m de cote, centre sur l'origine : la mise a l'echelle du Transform lui
@@ -407,15 +383,11 @@ private:
                                   indices.data(), static_cast<core::u32>(indices.size()));
     }
 
-    // La physique avance, puis les entites recopient la pose de leur corps. Le sens compte :
-    // la simulation fait autorite sur la position d'un objet dynamique, jamais l'inverse.
+    // La physique avance, puis les entites recopient la pose de leur corps. Le sens
+    // compte : la simulation fait autorite sur la position d'un objet dynamique.
     void stepPhysics(core::f32 fixedDeltaSeconds) {
         m_physics.step(fixedDeltaSeconds);
-        for (const CratePair& crate : m_crates) {
-            auto& transform = m_scene.registry().get<scene::Transform>(crate.entity);
-            transform.position = m_physics.bodyPosition(crate.body);
-            transform.rotation = m_physics.bodyRotation(crate.body);
-        }
+        scene::syncTransformsFromPhysics(m_scene, m_physics);
     }
 
     void updateCurrentSector() {
@@ -553,13 +525,6 @@ private:
     physics::World m_physics;
     rhi::Mesh m_crateMesh;
 
-    // Correspondance entre une entite et son corps physique. Un vrai composant viendra a
-    // la brique suivante, quand les colliders seront decrits dans la scene.
-    struct CratePair {
-        scene::Entity entity;
-        physics::BodyHandle body;
-    };
-    std::vector<CratePair> m_crates;
     core::f32 m_statueAngle = 0.0f;
 
     scene::Scene m_scene;

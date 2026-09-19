@@ -1,6 +1,6 @@
 # 06 — Physique (M4)
 
-*Brique 1 : Jolt intégré, monde physique, corps statiques et dynamiques.*
+*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2).*
 
 Le jalon M4 apporte la physique : colliders, contrôleur de personnage, saisie d'objets et portes. Cette première brique pose le socle — et force au passage une décision restée en suspens depuis M3.
 
@@ -70,3 +70,63 @@ Jolt alloue 16 Mo de mémoire temporaire et un thread par cœur moins un. Le pas
 **Ce qui n'existe pas encore** : les colliders sont créés en code, pas décrits dans la scène. La correspondance entité ↔ corps est une liste tenue à la main. Le décor n'a pas de collision — seul un sol invisible existe. Et la caméra traverse toujours tout.
 
 **Ce qui vient après (brique 2)** : les colliders décrits comme composants, donc sérialisés et éditables comme le reste de la scène.
+
+---
+
+# 2. Brique 2 — les colliders deviennent des données
+
+## 2.1 Le problème
+
+Les caisses étaient créées par du code, et la correspondance entité ↔ corps physique tenue dans une liste au fond du jeu. Le décor, lui, n'avait aucune collision : un sol invisible avait été posé à la main, et les murs n'existaient pas pour la simulation.
+
+Tout cela devait rejoindre le fichier de scène, comme la géométrie et les lumières avant lui.
+
+## 2.2 Deux composants, et pourquoi ils sont séparés
+
+**`Collider`** décrit la collision : forme, demi-dimensions, statique ou dynamique. C'est de la **donnée**, elle part dans le fichier.
+
+**`PhysicsBody`** contient l'identifiant du corps créé dans le moteur physique. Il n'est **jamais sérialisé** : un identifiant de corps n'existe qu'à l'exécution et change à chaque lancement. Un test le vérifie explicitement.
+
+Cette séparation entre *ce qui décrit* et *ce qui vit à l'exécution* reviendra partout : elle est la même que celle entre le nom d'une ressource et sa poignée.
+
+## 2.3 Une couche qui en appelle une autre
+
+Le système qui relie la scène à la physique vit dans la couche `scene`, qui dépend donc de `physics`. C'est conforme au SPEC, qui place scène, physique, audio et IA dans la **même bande** — ces systèmes se parlent par nature.
+
+Ce qui reste interdit, c'est qu'un type Jolt remonte : la frontière est tenue par le PIMPL de la brique 1, et l'API de `physics` ne parle que de `Vec3`, de `Quat` et d'entiers.
+
+## 2.4 Collision et rendu sont deux choses différentes
+
+Le maillage de la pièce est **creux, tourné vers l'intérieur** : il ne peut pas servir de collider tel quel. La collision du décor est donc décrite par six boîtes statiques qui doublent les murs visibles.
+
+Ce n'est pas un contournement, c'est la pratique universelle : la géométrie de collision est toujours plus grossière que celle du rendu. Un mur sculpté de mille triangles se heurte très bien avec une boîte, et le gain de performance est considérable.
+
+## 2.5 Le mécanisme de repli a fait son travail
+
+Au premier essai, la console a affiché :
+
+```
+WARN | ressource inconnue, remplacement par missing
+WARN | maillage
+WARN | caisse
+```
+
+Le fichier réclamait le maillage `caisse`, enregistré **après** le chargement de la scène. Le repli sur `missing` — posé à la brique 3b de M3 — a transformé une erreur silencieuse en message immédiat. Sans lui, les caisses auraient simplement été absentes, et j'aurais cherché du côté de la physique.
+
+Correctif : enregistrer les ressources avant de charger la scène.
+
+## 2.6 Un piège d'ECS
+
+Ajouter un composant pendant qu'on parcourt la vue qui le filtre invalide le parcours. `createPhysicsBodies` collecte donc d'abord les entités concernées, puis crée les corps dans une seconde boucle.
+
+La vue exclut par ailleurs les entités qui ont déjà un `PhysicsBody` : sans ce filtre, chaque appel ajouterait un corps de plus au même endroit. Un test appelle la fonction deux fois et vérifie que le compte ne bouge pas.
+
+## 2.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : les caisses viennent entièrement du fichier — maillage, échelle et collision — tombent et s'immobilisent, sans aucun avertissement.
+
+**Trois tests** s'ajoutent : aller-retour d'un collider par le fichier, création idempotente des corps, et synchronisation qui ne touche que les corps dynamiques. **31 tests, 82 assertions** au total.
+
+**Ce qui n'existe pas encore** : une seule forme de collision, la boîte. Les colliders ignorent l'échelle du `Transform`. Et surtout, **la caméra traverse toujours tout** : elle n'a pas de corps.
+
+**Ce qui vient après (brique 3)** : le contrôleur de personnage — une capsule, la gravité, et des murs qui arrêtent enfin le joueur.

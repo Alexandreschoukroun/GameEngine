@@ -7,6 +7,7 @@ add_executable(engine_tests
     scene/test_serialization.cpp
     scene/test_sector_graph.cpp
     physics/test_world.cpp
+    scene/test_physics_sync.cpp
 )
 
 # Ne sont liees ici que les couches testables sans GPU ni fenetre : c'est ce qui permet

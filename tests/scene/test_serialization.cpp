@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include "scene/audio_sync.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
 #include "scene/serialization.h"
@@ -154,4 +155,35 @@ TEST_CASE("A failed load leaves the previous scene untouched") {
     // Tout ou rien : la scene d'origine doit etre intacte.
     CHECK(scene.findByName("survivant") != scene::kInvalidEntity);
     CHECK(scene.findByName("orphelin") == scene::kInvalidEntity);
+}
+
+TEST_CASE("An audio source survives a save and a load") {
+    scene::ResourceTable resources;
+    // Une poignee de son suffit ici : la table ne fait que la correspondance nom <-> son,
+    // elle n'a besoin d'aucun moteur audio pour cela.
+    const scene::ResourceHandle fire = resources.addSound("braises", 0);
+    REQUIRE(fire != scene::kInvalidResource);
+
+    scene::Scene scene;
+    const scene::Entity ember = makeEntity(scene, "braise", 0x0f0f, core::Vec3{2.0f, 0.4f, 0.0f});
+    scene.registry().emplace<scene::AudioSource>(ember,
+                                                 scene::AudioSource{fire, 0.7f, true});
+
+    const std::string written = scene::saveSceneToString(scene, resources);
+
+    scene::Scene reloaded;
+    REQUIRE(scene::loadSceneFromString(reloaded, resources, written));
+
+    const scene::Entity loadedEmber = reloaded.findByName("braise");
+    REQUIRE(loadedEmber != scene::kInvalidEntity);
+    const auto* source = reloaded.registry().try_get<scene::AudioSource>(loadedEmber);
+    REQUIRE(source != nullptr);
+    // Le fichier cite un NOM logique ; la poignee est retrouvee a la lecture. Renommer le
+    // fichier braises.wav sur le disque ne casserait donc aucune scene.
+    CHECK(source->sound == fire);
+    CHECK(source->volume == doctest::Approx(0.7f));
+    CHECK(source->looping);
+
+    // Et le fichier reecrit est identique : une source audio ne casse pas le determinisme.
+    CHECK(scene::saveSceneToString(reloaded, resources) == written);
 }

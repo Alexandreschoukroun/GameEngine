@@ -47,12 +47,30 @@ ResourceHandle ResourceTable::addTexture(std::string_view name, const rhi::Textu
     return static_cast<ResourceHandle>(m_textures.size() - 1);
 }
 
+ResourceHandle ResourceTable::addSound(std::string_view name, audio::SoundHandle sound) {
+    if (sound == audio::kInvalidSound || name.empty()) {
+        core::logError("ResourceTable : son ou nom manquant");
+        return kInvalidResource;
+    }
+    const ResourceHandle existing = findSound(name);
+    if (existing != kInvalidResource) {
+        m_sounds[existing].sound = sound;
+        return existing;
+    }
+    m_sounds.push_back(SoundEntry{std::string(name), sound});
+    return static_cast<ResourceHandle>(m_sounds.size() - 1);
+}
+
 ResourceHandle ResourceTable::findMesh(std::string_view name) const {
     return findByName(m_meshes, name);
 }
 
 ResourceHandle ResourceTable::findTexture(std::string_view name) const {
     return findByName(m_textures, name);
+}
+
+ResourceHandle ResourceTable::findSound(std::string_view name) const {
+    return findByName(m_sounds, name);
 }
 
 const rhi::Mesh* ResourceTable::mesh(ResourceHandle handle) const {
@@ -63,6 +81,10 @@ const rhi::Texture* ResourceTable::texture(ResourceHandle handle) const {
     return handle < m_textures.size() ? m_textures[handle].texture : nullptr;
 }
 
+audio::SoundHandle ResourceTable::sound(ResourceHandle handle) const {
+    return handle < m_sounds.size() ? m_sounds[handle].sound : audio::kInvalidSound;
+}
+
 std::string_view ResourceTable::meshName(ResourceHandle handle) const {
     return handle < m_meshes.size() ? std::string_view(m_meshes[handle].name)
                                     : std::string_view();
@@ -71,6 +93,11 @@ std::string_view ResourceTable::meshName(ResourceHandle handle) const {
 std::string_view ResourceTable::textureName(ResourceHandle handle) const {
     return handle < m_textures.size() ? std::string_view(m_textures[handle].name)
                                       : std::string_view();
+}
+
+std::string_view ResourceTable::soundName(ResourceHandle handle) const {
+    return handle < m_sounds.size() ? std::string_view(m_sounds[handle].name)
+                                    : std::string_view();
 }
 
 } // namespace scene

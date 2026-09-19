@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
+#include "scene/audio_sync.h"
 #include "scene/physics_sync.h"
 #include "scene/sector_graph.h"
 
@@ -157,6 +158,15 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
             m["metallicRoughness"] =
                 std::string(resources.textureName(mesh->metallicRoughness));
             node["mesh"] = m;
+        }
+
+        if (const AudioSource* source = registry.try_get<AudioSource>(entity);
+            source != nullptr) {
+            Json a;
+            a["sound"] = std::string(resources.soundName(source->sound));
+            a["volume"] = rounded(source->volume);
+            a["looping"] = source->looping;
+            node["audio"] = a;
         }
 
         if (const Collider* collider = registry.try_get<Collider>(entity);
@@ -346,6 +356,25 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
                 m, "metallicRoughness",
                 [&](const std::string& n) { return resources.findTexture(n); }, "texture");
             loaded.registry().emplace<MeshRenderer>(entity, meshRenderer);
+        }
+
+        if (node.contains("audio")) {
+            const Json& a = node["audio"];
+            AudioSource source;
+            // Pas de repli sur "missing" ici : il n'existe pas de son de remplacement, et
+            // en jouer un a la place du bon serait pire que le silence. L'avertissement
+            // suffit.
+            if (a.contains("sound") && a["sound"].is_string()) {
+                const std::string name = a["sound"].get<std::string>();
+                source.sound = resources.findSound(name);
+                if (source.sound == kInvalidResource) {
+                    core::logWarn("son inconnu, source muette");
+                    core::logWarn(name);
+                }
+            }
+            source.volume = a.value("volume", source.volume);
+            source.looping = a.value("looping", source.looping);
+            loaded.registry().emplace<AudioSource>(entity, source);
         }
 
         if (node.contains("collider")) {

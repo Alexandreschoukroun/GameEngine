@@ -2,6 +2,7 @@ find_package(EnTT CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(engine_scene STATIC
+    src/audio_sync.cpp
     src/physics_sync.cpp
     src/resource_table.cpp
     src/scene.cpp
@@ -23,6 +24,7 @@ target_link_libraries(engine_scene
         # physique, audio et IA dans la meme bande, ces systemes se parlent par nature.
         # Ce qui reste interdit, c'est qu'un type Jolt remonte - le PIMPL s'en charge.
         engine::physics
+        engine::audio
         # PUBLIC aussi : entt::entity et entt::registry font partie du vocabulaire expose.
         # Troisieme et derniere exception a la regle 2, assumee comme GLM et Tracy - il n'y
         # aura pas de second ECS a substituer, la stack du SPEC le verrouille.

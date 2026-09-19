@@ -61,6 +61,11 @@ public:
     // Deplace une voix deja lancee : une source attachee a un objet qui bouge.
     void setVoicePosition(VoiceHandle voice, const core::Vec3& position);
 
+    // Position actuelle d'une voix. Symetrique de setVoicePosition : l'editeur de M6
+    // devra dessiner les sources dans le viewport, et un test doit pouvoir verifier
+    // qu'une voix suit bien l'entite qui la porte.
+    core::Vec3 voicePosition(VoiceHandle voice) const;
+
     // Faux si la voix est terminee, arretee, ou si l'identifiant est perime.
     bool isVoicePlaying(VoiceHandle voice) const;
 

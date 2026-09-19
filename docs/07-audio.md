@@ -1,6 +1,6 @@
 # 07 — Audio (M5)
 
-*Brique 1 : le périphérique, les voix, le son positionné (section 1).*
+*Brique 1 : le périphérique, les voix, le son positionné (section 1). Brique 2 : les sources sonores deviennent des données de scène (section 2).*
 
 Le jalon M5 apporte ce que le SPEC appelle « le système le plus important » du moteur. Dans un jeu d'horreur en intérieur sombre, l'oreille porte plus d'information que l'œil : on sait qu'une chose marche dans la pièce d'à côté avant de la voir, et le plus souvent on ne la voit jamais.
 
@@ -80,4 +80,74 @@ Le fichier décodé occupe ~96 Ko par seconde de son mono 48 kHz — 164 Ko pour
 
 **Ce qui n'existe pas encore** : les sources sonores sont posées en code, pas décrites dans la scène. Pas d'occlusion — un son traverse les murs comme s'ils n'existaient pas. Pas de reverb, pas de HRTF, pas de sons de pas, pas de couche de tension. L'audio ne démarre pas non plus le jeu : un poste sans carte son affiche le jeu en silence, et le signale.
 
-**Ce qui vient après (brique 2)** : les sources sonores comme composants de scène, sérialisées au même endroit que les colliders et les lumières — puis l'occlusion, qui réutilisera le graphe de secteurs de M3 et le lancer de rayon de M4.
+**Ce qui vient après (brique 2)** : les sources sonores comme composants de scène, sérialisées au même endroit que les colliders et les lumières.
+
+---
+
+# 2. Brique 2 — les sources sonores deviennent des données
+
+## 2.1 Le problème
+
+Le crépitement de la brique 1 était posé en dur dans le code du jeu : *charger ce fichier, trouver l'entité nommée « braise », jouer à cette position*. Trois défauts, dans l'ordre de gravité :
+
+- ajouter un second son demandait de **recompiler** ;
+- le jeu devait connaître le nom d'une entité de la scène, ce qui est exactement l'inverse du principe posé en M3 ;
+- et surtout, **la position était figée au chargement**.
+
+Ce dernier point a produit un vrai bug, et il est instructif. La braise est **fille de la statue**, qui tourne en continu. Le foyer orbitait donc autour de la pièce pendant que son crépitement restait planté à l'endroit du démarrage. L'œil et l'oreille se contredisaient — et dans un jeu où l'on s'oriente à l'oreille, c'est un défaut de fond, pas un détail.
+
+La correction *ponctuelle* aurait été de replacer la voix chaque frame pour cette entité-là. La correction *structurelle* est de faire des sources des composants, et de synchroniser **toutes** les sources chaque frame. Le bug devient alors impossible à écrire.
+
+## 2.2 Les mêmes deux composants qu'en physique
+
+Le découpage est identique à celui des colliders, et ce n'est pas un hasard : c'est le même problème.
+
+- **`AudioSource`** décrit ce qui sonne — quel son, quel volume, en boucle ou non. C'est de la **donnée**, elle part dans le fichier.
+- **`AudioVoice`** contient l'identifiant de la voix en cours. Il n'est **jamais sérialisé** : une voix n'existe qu'à l'exécution, et son identifiant change à chaque lancement.
+
+Cette frontière entre *ce qui décrit* et *ce qui vit* traverse maintenant tout le moteur : `Collider`/`PhysicsBody`, `MeshRenderer`/poignées de ressources, `AudioSource`/`AudioVoice`.
+
+```json
+"audio": { "sound": "braises", "volume": 0.7, "looping": true }
+```
+
+Le fichier cite un **nom logique**, pas un chemin : renommer `braises.wav` sur le disque ne casse aucune scène. C'est la table de ressources de M3 qui fait le lien, étendue aux sons — elle connaissait les maillages et les textures, elle connaît désormais aussi ce troisième type.
+
+## 2.3 Le flux va dans l'autre sens que celui de la physique
+
+Une différence mérite d'être soulignée, parce qu'elle décide de qui détient la vérité.
+
+```
+physique :  simulation ──> Transform      (le corps fait autorité, la scène recopie)
+audio    :  Transform  ──> voix           (la scène fait autorité, l'audio suit)
+```
+
+Un corps physique **décide** où se trouve l'objet : lui écrire un `Transform` à la main produirait un objet tremblant, tiraillé entre deux vérités. Une source audio ne décide de rien — elle ne peut pas déplacer ce qu'elle sonorise. Il n'y a donc aucune ambiguïté à lever ici, et la synchronisation est une simple recopie, à sens unique.
+
+C'est aussi ce qui la rend sûre à appeler chaque frame : elle ne peut rien casser.
+
+## 2.4 Pas de son de remplacement
+
+Les maillages et les textures ont un repli sur `missing` : un nom inconnu **se voit**, sous la forme d'un damier rose. Un objet silencieusement absent se diagnostique bien plus difficilement.
+
+Pour les sons, ce choix est **inversé** : un nom inconnu laisse la source muette, avec un avertissement dans la console. Jouer un son de remplacement à la place du bon serait pire que le silence — on entendrait quelque chose de faux sans savoir que c'est faux, et dans un jeu où le son porte l'information, un faux signal trompe le joueur. Le silence, lui, ne ment pas.
+
+## 2.5 Un piège déjà rencontré
+
+`startAudioSources` collecte les entités **avant** de leur ajouter un composant : ajouter pendant qu'on parcourt une vue EnTT invaliderait le parcours. Exactement le même piège qu'à la création des corps physiques en M4 — c'est désormais un réflexe.
+
+Elle exclut aussi les entités qui ont déjà une voix. Sans cette exclusion, chaque appel empilerait une voix de plus et le budget de 64 serait consommé en quelques secondes ; un test le vérifie.
+
+## 2.6 Coût
+
+Une recopie de position par source et par frame — quelques dizaines d'entités, une lecture de matrice chacune. Négligeable. Le calcul de la matrice monde, lui, était déjà fait pour le rendu.
+
+## 2.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écoute** : le crépitement tourne avec la braise, puisqu'il suit maintenant son entité à travers la hiérarchie.
+
+**Cinq tests** s'ajoutent : une source de scène démarre une voix à la position de l'entité, une source sans son reste muette sans planter, les sources ne démarrent qu'une fois, une voix suit son entité **à travers son parent** (la braise sur la statue qui tourne), et une source audio survit à une sauvegarde/rechargement sans casser le déterminisme du fichier. **56 tests, 241 assertions** au total.
+
+**Ce qui n'existe pas encore** : aucune occlusion — un son traverse les murs comme s'ils n'existaient pas. Pas de reverb, pas de HRTF, pas de sons de pas, pas de déclenchement à l'événement (tout se joue au chargement), pas de portée réglable par source.
+
+**Ce qui vient après (brique 3)** : l'**occlusion**, le morceau que le SPEC décrit avec le plus d'insistance — *« un son derrière une porte fermée doit être filtré passe-bas et atténué »*. Elle réutilisera le graphe de secteurs de M3 et le lancer de rayon de M4, et la porte à charnière de M4 lui donnera enfin son cas d'usage : entrouvrir la porte devra laisser passer le son progressivement.

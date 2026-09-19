@@ -76,9 +76,25 @@ public:
     void setListener(const core::Vec3& position, const core::Vec3& forward,
                      const core::Vec3& up);
 
-    // A appeler une fois par frame : libere les emplacements des voix terminees. Sans ca,
-    // le budget se remplirait de sons deja finis.
-    void update();
+    // Occlusion d'une voix : 0 = rien entre la source et l'oreille, 1 = totalement
+    // masquee. L'appelant calcule cette valeur (un mur ? une porte entrouverte ?) ; la
+    // couche audio se contente de la traduire en son.
+    //
+    // Deux effets, parce qu'un seul ne suffirait pas a tromper l'oreille :
+    //   - une ATTENUATION, parce qu'un obstacle absorbe de l'energie ;
+    //   - un FILTRE PASSE-BAS, parce qu'un mur laisse passer les graves bien mieux que
+    //     les aigus. C'est ce second effet qui rend un son "etouffe" plutot que
+    //     simplement "moins fort", et c'est lui qui fait reconnaitre une porte fermee.
+    void setVoiceOcclusion(VoiceHandle voice, core::f32 amount);
+
+    // Valeur reellement appliquee, qui rejoint la consigne progressivement. Un rayon qui
+    // clignote entre deux frames produirait sinon un cliquetis audible.
+    core::f32 voiceOcclusion(VoiceHandle voice) const;
+
+    // A appeler une fois par frame : libere les emplacements des voix terminees, et fait
+    // avancer l'occlusion vers sa consigne. Sans ca, le budget se remplirait de sons deja
+    // finis et l'occlusion sauterait d'un etat a l'autre.
+    void update(core::f32 deltaSeconds);
 
     core::u32 activeVoiceCount() const;
     void setMasterVolume(core::f32 volume);

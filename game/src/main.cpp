@@ -79,6 +79,10 @@ constexpr core::f32 kMaxDoorForce = 600.0f;
 // maillage.
 constexpr const char* kFireSound = "audio/braises.wav";
 constexpr const char* kFireSoundName = "braises";
+// Un souffle grave, place DERRIERE la porte : c'est lui qui rend l'occlusion audible.
+// Porte fermee, il est etouffe ; on l'entrouvre, il se degage.
+constexpr const char* kDroneSound = "audio/souffle.wav";
+constexpr const char* kDroneSoundName = "souffle";
 
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
@@ -216,10 +220,12 @@ protected:
         if (!m_audio.create()) {
             core::logWarn("le jeu demarre sans audio");
         } else {
-            const audio::SoundHandle fire = m_audio.loadSound(platform::assetPath(kFireSound));
             // Comme pour les maillages : enregistrer AVANT le chargement, sinon la scene
             // reclamerait un nom que la table ne connait pas encore.
-            m_resources.addSound(kFireSoundName, fire);
+            m_resources.addSound(kFireSoundName,
+                                 m_audio.loadSound(platform::assetPath(kFireSound)));
+            m_resources.addSound(kDroneSoundName,
+                                 m_audio.loadSound(platform::assetPath(kDroneSound)));
         }
 
         if (!scene::loadSceneFromFile(m_scene, m_resources,
@@ -270,7 +276,11 @@ protected:
         // contrediraient.
         m_scene.updateWorldTransforms();
         scene::syncAudioSources(m_scene, m_audio);
-        m_audio.update();
+        // Ce qui separe chaque source de l'oreille. C'est ici que la porte a charniere de
+        // M4 prend tout son sens : l'entrouvrir laisse passer le son progressivement,
+        // parce que son angle est une donnee simulee et non une animation.
+        scene::updateAudioOcclusion(m_scene, m_physics, m_audio, m_camera.position());
+        m_audio.update(static_cast<core::f32>(frameDeltaSeconds));
 
         // F5 ecrit la scene sur le disque. Deux appuis successifs produisent exactement
         // le meme fichier : c'est l'exigence de determinisme du SPEC.

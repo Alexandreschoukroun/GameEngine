@@ -422,3 +422,92 @@ Chaque lumière ajoute une trentaine d'opérations par pixel d'écran. À 8 lumi
 **Ce qui n'existe pas encore** : aucune ombre. Les lumières traversent Suzanne comme si elle n'existait pas, et c'est très visible sur le sol.
 
 **Ce qui vient après (étape 5)** : les ombres. C'est le défaut le plus criant de l'image actuelle, et le dernier obstacle avant la lampe torche.
+
+---
+
+# 7. Étape 5 — les ombres portées
+
+## 7.1 Deux choses différentes s'appellent « ombre »
+
+**L'ombre propre** fonctionnait déjà : une surface qui ne fait pas face à la lampe ne reçoit rien. C'est le terme `max(dot(normal, light), 0.0)` — dos tourné à la lumière, zéro. C'est pourquoi l'arrière d'un objet est noir.
+
+**L'ombre portée** manquait : une surface qui fait face à la lampe, mais dont quelque chose bloque le chemin. Le sol sous Suzanne regarde bien le projecteur, donc il recevait sa pleine lumière alors que Suzanne était entre les deux. Le shader ne pouvait pas le savoir : il traite chaque pixel isolément, sans rien connaître du reste de la scène.
+
+## 7.2 L'idée : rendre la scène depuis la lumière
+
+On place une caméra **à l'endroit de la lampe**, on dessine la scène en n'enregistrant que la profondeur, et on obtient une image qui dit « dans cette direction, le premier obstacle est à telle distance ».
+
+Ensuite, pour chaque pixel de l'écran, on transforme sa position du monde dans le repère de la lampe :
+
+```
+   distance réelle du pixel à la lampe   >   distance enregistrée ?
+            │                                        │
+            └─ oui : quelque chose est devant  →  dans l'ombre
+               non : rien ne s'interpose       →  éclairé
+```
+
+La visibilité se ramène à **une comparaison de profondeurs**.
+
+## 7.3 La décision d'ordre : le spot d'abord
+
+Un spot est un cône : **une seule** carte de profondeur suffit. Une lumière ponctuelle éclaire dans toutes les directions et en demanderait **six**, une par face d'un cube — six fois le coût de rendu par lampe, et beaucoup plus de code.
+
+**Choix : le spot d'abord**, parce que c'est exactement ce dont la lampe torche a besoin à l'étape 6, et que le SPEC en fait un citoyen de première classe. Les deux lumières ponctuelles d'ambiance restent sans ombre.
+
+## 7.4 Les trois pièges classiques
+
+**L'acné d'ombre.** La carte a une résolution finie : un texel couvre plusieurs centimètres de sol. Un point comparé à la profondeur enregistrée de son voisin se déclare dans l'ombre de lui-même, et la surface se couvre de rayures. Le remède est un **biais**, qu'on rend **proportionnel à l'inclinaison** de la surface par rapport à la lampe, car c'est là que l'erreur grandit :
+
+```glsl
+float bias = max(0.0015 * (1.0 - nDotL), 0.0004);
+```
+
+**Le peter-panning.** Un biais trop grand décolle l'ombre de l'objet, qui semble flotter — comme l'ombre de Peter Pan. Tout l'art consiste à prendre le plus petit biais qui supprime l'acné.
+
+**Les bords en escalier.** La carte est une texture, ses pixels se voient. Deux remèdes cumulés ici :
+- la **comparaison matérielle** (`sampler2DShadow`) : le GPU effectue le test de profondeur *dans le filtrage de texture*, donc chaque lecture est déjà la moyenne de quatre comparaisons voisines, gratuitement ;
+- le **PCF 3×3** : neuf de ces lectures, moyennées.
+
+## 7.5 Deux détails qui font échouer silencieusement
+
+**Hors du cône, la carte ne sait rien.** La texture est bordée d'une profondeur maximale (`CLAMP_TO_BORDER` avec une bordure à 1), ce qui signifie « rien ne t'obstrue ». Sans ça, tout ce qui déborde du cône serait noir.
+
+**La passe d'ombre n'écrit aucune couleur.** `glNamedFramebufferDrawBuffer(fbo, GL_NONE)` : sans cette ligne, le framebuffer serait jugé *incomplet* et la passe échouerait. Son fragment shader est littéralement vide — le GPU ne remplit que la profondeur, ce qui rend la passe très rapide.
+
+## 7.6 Vocabulaire
+
+- **Shadow map** : la carte de profondeur vue depuis la lampe.
+- **Espace de la lumière** : le repère où la lampe est la caméra.
+- **Biais pentu** (*slope-scaled bias*) : décalage appliqué avant comparaison, proportionnel à l'inclinaison.
+- **PCF** (*percentage-closer filtering*) : moyenne de plusieurs comparaisons voisines.
+- **Spot** : lumière en cône, définie par une direction et deux demi-angles — plein éclairage à l'intérieur du premier, extinction progressive jusqu'au second.
+
+## 7.7 Flux de la frame, désormais à trois passes
+
+```
+   PASSE 0 — ombre                   cible : la shadow map (1024², profondeur seule)
+       la scène redessinée depuis la lampe, sans texture ni éclairage
+                              │
+   PASSE 1 — géométrie               cible : le G-buffer
+       couleur, normale, rugosité, métallicité des surfaces visibles
+                              │
+   PASSE 2 — éclairage               cible : l'écran
+       pour chaque lumière : cône, atténuation, BRDF
+       pour la lumière à ombre : comparaison dans la shadow map
+```
+
+## 7.8 Coût
+
+- **Mémoire** : 3 Mo pour une carte de 1024×1024 en 24 bits. Doubler la résolution **quadruple** la mémoire.
+- **Par frame** : une passe de géométrie supplémentaire par lumière à ombre — sans texture ni éclairage, donc rapide.
+- **Par pixel éclairé** : neuf lectures de texture, chacune déjà filtrée par le matériel.
+
+C'est le poste « ombres » de 3,5 ms du budget du SPEC, et c'est lui qui limitera le nombre de lumières bien avant le calcul d'éclairage.
+
+## 7.9 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : la silhouette de Suzanne se projette sur le damier, bords adoucis, sans rayures d'acné ni décollement.
+
+**Ce qui n'existe pas encore** : une seule lumière à ombre à la fois, et uniquement de type spot. Les lumières ponctuelles n'en ont pas. La résolution de la carte est fixe, quelle que soit la portée de la lampe.
+
+**Ce qui vient après (étape 6)** : la lampe torche — et c'est le livrable de M2. Un spot attaché à la caméra, avec son cône, son ombre, et les détails qui font qu'elle paraît tenue à la main plutôt que vissée sur le front.

@@ -7,6 +7,9 @@
 layout(binding = 0) uniform sampler2D uAlbedoRoughness;
 layout(binding = 1) uniform sampler2D uNormalMetallic;
 layout(binding = 2) uniform sampler2D uDepth;
+// sampler2DShadow et non sampler2D : une lecture ne rend pas la profondeur stockee mais
+// le resultat du test "ce point est-il devant ?", deja moyenne par le materiel.
+layout(binding = 3) uniform sampler2DShadow uShadowMap;
 
 const int kMaxLights = 8; // le budget du SPEC : ~8 lumieres visibles simultanement
 
@@ -19,6 +22,10 @@ layout(location = 6) uniform int uLightCount;
 // d'ou les couleurs a partir de 15.
 layout(location = 7) uniform vec4 uLightPositions[kMaxLights];  // xyz = position
 layout(location = 15) uniform vec4 uLightColors[kMaxLights];    // rgb = couleur, a = puissance
+layout(location = 23) uniform vec4 uLightDirections[kMaxLights]; // xyz = direction, w = cos interieur
+layout(location = 31) uniform vec4 uLightParams[kMaxLights];     // x = cos exterieur, y = type
+layout(location = 39) uniform mat4 uShadowViewProjection;        // occupe 39 a 42
+layout(location = 43) uniform int uShadowLightIndex;             // -1 = aucune ombre
 
 in vec2 vTexCoord;
 out vec4 outColor;
@@ -84,6 +91,38 @@ vec3 tonemapACES(vec3 color) {
     return clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.0, 1.0);
 }
 
+// Proportion de lumiere qui atteint ce point : 1 en pleine lumiere, 0 dans l'ombre.
+float shadowFactor(vec3 position, float nDotL) {
+    vec4 lightSpace = uShadowViewProjection * vec4(position, 1.0);
+    // Division perspective, puis passage de [-1,1] a [0,1] pour lire la texture.
+    vec3 projected = lightSpace.xyz / lightSpace.w;
+    projected = projected * 0.5 + 0.5;
+
+    // Derriere la lumiere, ou au-dela de sa portee : la carte ne sait rien, on n'ombre pas.
+    if (projected.z > 1.0) {
+        return 1.0;
+    }
+
+    // Biais pentu : un texel de la carte couvre plusieurs centimetres, et l'erreur grandit
+    // quand la surface est inclinee par rapport a la lumiere. Sans ce decalage, la surface
+    // se fait de l'ombre a elle-meme et se couvre de rayures (acne d'ombre). Trop grand,
+    // l'ombre se detache de l'objet, qui parait flotter (peter-panning).
+    float bias = max(0.0015 * (1.0 - nDotL), 0.0004);
+
+    // PCF : neuf comparaisons voisines, chacune deja adoucie par le filtrage materiel.
+    // Sans ca, le bord de l'ombre suivrait les pixels de la carte, en escalier.
+    vec2 texelSize = 1.0 / vec2(textureSize(uShadowMap, 0));
+    float visibility = 0.0;
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            vec2 offset = vec2(x, y) * texelSize;
+            visibility += texture(uShadowMap,
+                                  vec3(projected.xy + offset, projected.z - bias));
+        }
+    }
+    return visibility / 9.0;
+}
+
 void main() {
     vec4 albedoRoughness = texture(uAlbedoRoughness, vTexCoord);
     vec4 normalMetallic = texture(uNormalMetallic, vTexCoord);
@@ -135,9 +174,25 @@ void main() {
         // La lumiere se dilue sur une sphere dont la surface croit comme le carre du
         // rayon : d'ou la decroissance en 1/d^2, realite physique et non reglage.
         float attenuation = 1.0 / (lightDistance * lightDistance);
+
+        // Spot : la lumiere s'eteint progressivement entre le cone interieur et le cone
+        // exterieur. Sans ce degrade, le bord serait une decoupe nette et artificielle.
+        if (uLightParams[i].y > 0.5) {
+            float cosAngle = dot(normalize(-light), normalize(uLightDirections[i].xyz));
+            float cosInner = uLightDirections[i].w;
+            float cosOuter = uLightParams[i].x;
+            attenuation *= smoothstep(cosOuter, cosInner, cosAngle);
+        }
+
         vec3 radiance = uLightColors[i].rgb * uLightColors[i].a * attenuation;
 
         float nDotL = max(dot(normal, light), 0.0);
+
+        // Ombre portee : la seule information dont ce shader ne dispose pas localement.
+        // Elle vient de la carte de profondeur rendue depuis la lumiere.
+        if (i == uShadowLightIndex) {
+            radiance *= shadowFactor(position, nDotL);
+        }
         vec3 fresnel = fresnelSchlick(max(dot(halfway, view), 0.0), f0);
         float distribution = distributionGGX(normal, halfway, roughness);
         float geometry = geometrySmith(normal, view, light, roughness);

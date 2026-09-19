@@ -5,6 +5,7 @@
 #include "rhi/mesh.h"
 #include "rhi/render_target.h"
 #include "rhi/shader_program.h"
+#include "rhi/shadow_map.h"
 #include "rhi/texture.h"
 
 #include <glad/glad.h>
@@ -150,6 +151,18 @@ void Device::bindScreen(core::u32 width, core::u32 height) {
     // qu'on utilise, et elle designe l'ecran.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     setViewport(width, height);
+}
+
+void Device::bindShadowMap(const ShadowMap& shadowMap) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMap.m_framebuffer);
+    setViewport(shadowMap.resolution(), shadowMap.resolution());
+    glClear(GL_DEPTH_BUFFER_BIT);
+}
+
+void Device::bindShadowTexture(const ShadowMap& shadowMap, core::u32 unit) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    glBindTextureUnit(static_cast<GLuint>(unit), shadowMap.m_depthTexture);
 }
 
 void Device::bindTexture(const Texture& texture, core::u32 unit) {

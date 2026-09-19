@@ -7,6 +7,7 @@ namespace rhi {
 class Mesh;
 class RenderTarget;
 class ShaderProgram;
+class ShadowMap;
 class Texture;
 
 // Les trois images du G-buffer, telles que la passe d'eclairage veut les lire.
@@ -42,6 +43,11 @@ public:
     // fenetre, et ce sera le cas des shadow maps.
     void bindRenderTarget(const RenderTarget& target);
     void bindScreen(core::u32 width, core::u32 height);
+
+    // Dirige le dessin vers une carte d'ombre et efface sa profondeur. Aucune couleur
+    // n'est ecrite : cette passe ne sert qu'a mesurer des distances.
+    void bindShadowMap(const ShadowMap& shadowMap);
+    void bindShadowTexture(const ShadowMap& shadowMap, core::u32 unit);
 
     // Branche une texture sur une unite numerotee, celle que le shader lira.
     void bindTexture(const Texture& texture, core::u32 unit);

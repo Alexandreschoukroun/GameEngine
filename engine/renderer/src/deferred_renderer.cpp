@@ -8,7 +8,10 @@
 #include "rhi/mesh.h"
 #include "rhi/texture.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <array>
+#include <cmath>
 #include <string>
 
 namespace renderer {
@@ -23,6 +26,14 @@ constexpr core::u32 kUniformCameraPosition = 3;
 constexpr core::u32 kUniformLightCount = 6;
 constexpr core::u32 kUniformLightPositions = 7;
 constexpr core::u32 kUniformLightColors = 15;
+constexpr core::u32 kUniformLightDirections = 23;
+constexpr core::u32 kUniformLightParams = 31;
+constexpr core::u32 kUniformShadowViewProjection = 39; // une mat4 occupe 39 a 42
+constexpr core::u32 kUniformShadowLightIndex = 43;
+
+// 1024 x 1024 en 24 bits : 3 Mo. Doubler la resolution quadruple la memoire.
+constexpr core::u32 kShadowResolution = 1024;
+constexpr core::u32 kShadowTextureUnit = 3;
 
 bool createProgramFromFiles(rhi::ShaderProgram& program, const char* vertexPath,
                             const char* fragmentPath) {
@@ -41,16 +52,62 @@ bool DeferredRenderer::create(core::u32 width, core::u32 height) {
     if (!createProgramFromFiles(m_geometryProgram, "shaders/gbuffer.vert",
                                 "shaders/gbuffer.frag") ||
         !createProgramFromFiles(m_lightingProgram, "shaders/present.vert",
-                                "shaders/lighting.frag")) {
+                                "shaders/lighting.frag") ||
+        !createProgramFromFiles(m_shadowProgram, "shaders/shadow.vert",
+                                "shaders/shadow.frag")) {
         return false;
     }
-    return m_gbuffer.create(width, height);
+    return m_gbuffer.create(width, height) && m_shadowMap.create(kShadowResolution);
 }
 
 void DeferredRenderer::destroy() {
+    m_shadowMap.destroy();
     m_gbuffer.destroy();
+    m_shadowProgram.destroy();
     m_lightingProgram.destroy();
     m_geometryProgram.destroy();
+}
+
+core::i32 DeferredRenderer::renderShadowPass(rhi::Device& device,
+                                             std::span<const DrawItem> items,
+                                             std::span<const Light> lights) {
+    // Une seule lumiere a ombre pour l'instant : la premiere spot marquee comme telle.
+    core::i32 shadowIndex = -1;
+    for (core::u32 i = 0; i < lights.size() && i < kMaxLights; ++i) {
+        if (lights[i].castsShadow && lights[i].type == LightType::Spot) {
+            shadowIndex = static_cast<core::i32>(i);
+            break;
+        }
+    }
+    if (shadowIndex < 0) {
+        return -1;
+    }
+
+    const Light& light = lights[static_cast<std::size_t>(shadowIndex)];
+
+    // La lumiere devient une camera. Le champ de vision couvre tout le cone exterieur,
+    // d'ou le facteur 2 : les angles du spot sont des demi-angles.
+    const core::Vec3 direction = glm::normalize(light.direction);
+    // lookAt a besoin d'un "haut" non colineaire a la direction, sinon la matrice degenere.
+    const core::Vec3 up = std::abs(direction.y) > 0.99f ? core::Vec3{0.0f, 0.0f, 1.0f}
+                                                        : core::Vec3{0.0f, 1.0f, 0.0f};
+    const core::Mat4 view = glm::lookAt(light.position, light.position + direction, up);
+    // Le plan proche ne peut pas etre trop petit : c'est lui qui fixe la precision utile
+    // de la carte de profondeur.
+    const core::Mat4 projection =
+        glm::perspective(light.outerAngleRadians * 2.0f, 1.0f, 0.1f, light.range);
+    m_shadowViewProjection = projection * view;
+
+    ENGINE_PROFILE_SCOPE("shadow pass");
+    device.bindShadowMap(m_shadowMap);
+    m_shadowProgram.setMat4(0, m_shadowViewProjection);
+    for (const DrawItem& item : items) {
+        if (item.mesh != nullptr) {
+            // Ni texture ni matiere : seule la geometrie compte pour mesurer une distance.
+            device.draw(m_shadowProgram, *item.mesh);
+        }
+    }
+    return shadowIndex;
 }
 
 bool DeferredRenderer::resize(core::u32 width, core::u32 height) {
@@ -60,6 +117,9 @@ bool DeferredRenderer::resize(core::u32 width, core::u32 height) {
 void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
                               std::span<const DrawItem> items, std::span<const Light> lights,
                               core::u32 screenWidth, core::u32 screenHeight) {
+    // Passe 0 : la scene vue depuis la lumiere, pour savoir ce qu'elle atteint.
+    const core::i32 shadowLightIndex = renderShadowPass(device, items, lights);
+
     {
         // Passe 1 : chaque objet ecrit couleur, normale, rugosite et metallicite dans le
         // G-buffer. Aucun eclairage ici, donc aucun cout lie au nombre de lumieres.
@@ -105,14 +165,29 @@ void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
                 : kMaxLights;
         std::array<core::Vec4, kMaxLights> positions{};
         std::array<core::Vec4, kMaxLights> colors{};
+        std::array<core::Vec4, kMaxLights> directions{};
+        std::array<core::Vec4, kMaxLights> params{};
         for (core::u32 i = 0; i < lightCount; ++i) {
-            positions[i] = core::Vec4(lights[i].position, 0.0f);
-            colors[i] = core::Vec4(lights[i].color, lights[i].intensity);
+            const Light& light = lights[i];
+            positions[i] = core::Vec4(light.position, 0.0f);
+            colors[i] = core::Vec4(light.color, light.intensity);
+            // Les cosinus sont calcules ici plutot que dans le shader : c'est une fois par
+            // lumiere et par frame, contre une fois par pixel.
+            directions[i] =
+                core::Vec4(glm::normalize(light.direction), std::cos(light.innerAngleRadians));
+            params[i] = core::Vec4(std::cos(light.outerAngleRadians),
+                                   static_cast<core::f32>(light.type), 0.0f, 0.0f);
         }
 
         m_lightingProgram.setInt(kUniformLightCount, static_cast<core::i32>(lightCount));
         m_lightingProgram.setVec4Array(kUniformLightPositions, positions.data(), kMaxLights);
         m_lightingProgram.setVec4Array(kUniformLightColors, colors.data(), kMaxLights);
+        m_lightingProgram.setVec4Array(kUniformLightDirections, directions.data(), kMaxLights);
+        m_lightingProgram.setVec4Array(kUniformLightParams, params.data(), kMaxLights);
+
+        m_lightingProgram.setMat4(kUniformShadowViewProjection, m_shadowViewProjection);
+        m_lightingProgram.setInt(kUniformShadowLightIndex, shadowLightIndex);
+        device.bindShadowTexture(m_shadowMap, kShadowTextureUnit);
 
         device.drawFullscreenTriangle(m_lightingProgram);
     }

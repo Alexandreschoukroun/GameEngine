@@ -25,6 +25,8 @@ public:
     void setMat4(core::u32 location, const core::Mat4& value);
     void setInt(core::u32 location, core::i32 value);
     void setVec2(core::u32 location, const core::Vec2& value);
+    void setVec3(core::u32 location, const core::Vec3& value);
+    void setVec4(core::u32 location, const core::Vec4& value);
 
     // Meme regle que Mesh::destroy : a appeler tant que le contexte GPU est vivant.
     void destroy();

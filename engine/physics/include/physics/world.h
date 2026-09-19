@@ -71,6 +71,11 @@ public:
     // Vrai si le corps est dynamique et peut donc etre saisi ou pousse.
     bool isBodyDynamic(BodyHandle body) const;
 
+    // Vitesse de rotation d'un corps, en radians par seconde autour de chaque axe. Sert
+    // a AMORTIR : sans terme de vitesse, une force repetee chaque pas accelererait un
+    // objet indefiniment.
+    core::Vec3 bodyAngularVelocity(BodyHandle body) const;
+
     // Applique une impulsion EN UN POINT du corps. Appliquee hors du centre de masse,
     // elle cree un couple : c'est ce qui fait pivoter une porte quand on tire sur sa
     // poignee, et non quand on pousse en son milieu.

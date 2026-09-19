@@ -58,21 +58,25 @@ constexpr core::f32 kBreakDistance = 2.6f;
 // Impulsion transmise aux corps qu'on bouscule. Un controleur virtuel ne pousse rien tout
 // seul : il faut le lui apprendre.
 constexpr core::f32 kPushImpulse = 2.2f;
-// Traction sur une porte : une impulsion appliquee au point saisi, donc hors des gonds.
-// C'est ce couple qui la fait pivoter - pousser en son milieu ne ferait presque rien.
+// Traction sur une porte. La main n'est pas un moteur mais un RESSORT AMORTI : elle tire
+// d'autant plus fort que la porte est loin de la ou on la veut (raideur), et elle freine
+// d'autant plus que la porte va vite (amortissement).
 //
-// L'echelle vient du corps qu'on tire : pour une porte de 20 kg saisie a 40 cm des gonds,
-// il faut quelques newtons-secondes par frame pour un mouvement franc. C'etait le defaut
-// du premier essai - 0,9 sur un battant de 144 kg ne se voyait tout simplement pas.
-constexpr core::f32 kDoorPull = 25.0f;
+// Sans le terme d'amortissement, une force repetee chaque pas accelere le battant sans
+// fin : c'est ce qui donnait une porte qui part en tournoyant. Les deux valeurs sont
+// choisies proches de l'amortissement critique pour la masse effective au point saisi
+// (environ 73 kg) : la porte rejoint la main sans osciller ni depasser.
+constexpr core::f32 kDoorStiffness = 400.0f; // N/m
+constexpr core::f32 kDoorDamping = 340.0f;   // N.s/m
+// Plafond de force : viser brusquement loin sur le cote ne doit pas faire claquer la
+// porte contre sa butee.
+constexpr core::f32 kMaxDoorForce = 600.0f;
+
 // Le crepitement du foyer, joue en boucle a la position de la braise. C'est le premier
 // son du moteur, et il sert de repere sonore : en tournant sur soi-meme, on l'entend
 // passer d'une oreille a l'autre.
 constexpr const char* kFireSound = "audio/braises.wav";
 constexpr core::f32 kFireVolume = 0.7f;
-// Plafond de traction : sans lui, viser loin sur le cote enverrait la porte claquer
-// contre sa butee a une vitesse absurde.
-constexpr core::f32 kMaxDoorPull = 12.0f;
 
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
@@ -369,6 +373,7 @@ protected:
 
         // La physique avance au meme rythme, et uniquement ici : elle n'est deterministe
         // qu'a pas constant.
+        updateHeldBody(delta);
         stepPhysics(delta);
 
         // Les yeux suivent le corps. Le sens compte : c'est la simulation qui decide ou se
@@ -538,6 +543,13 @@ private:
             }
         }
 
+    }
+
+    // Les forces exercees sur l'objet tenu sont de la SIMULATION : elles appartiennent au
+    // pas fixe, pas a la frame. Appliquees par frame, elles dependraient de la vitesse de
+    // la machine - une porte deux fois plus rapide sur un ecran a 144 Hz que sur un 60 Hz.
+    // C'est exactement le defaut que le pas fixe de M0 existe pour empecher.
+    void updateHeldBody(core::f32 fixedDeltaSeconds) {
         if (m_heldBody == physics::kInvalidBody) {
             return;
         }
@@ -547,17 +559,9 @@ private:
 
         // Une porte ne se manipule pas comme une caisse : elle est accrochee a ses gonds.
         // Lui imposer une vitesse se battrait contre la charniere ; on applique donc une
-        // impulsion au POINT saisi, et la rotation en decoule.
+        // force au POINT saisi, et la rotation en decoule.
         if (m_physics.isBodyHinged(m_heldBody)) {
-            core::Vec3 pull = (target - m_grabPoint) * kDoorPull;
-            const core::f32 pullStrength = glm::length(pull);
-            if (pullStrength > kMaxDoorPull) {
-                pull *= kMaxDoorPull / pullStrength;
-            }
-            m_physics.applyImpulseAtPoint(m_heldBody, pull, m_grabPoint);
-            // Le point saisi suit la porte : on le recalcule depuis le corps, sinon on
-            // tirerait indefiniment sur une position que la porte a quittee.
-            m_grabPoint = m_physics.bodyPosition(m_heldBody) + m_grabOffset;
+            pullHeldDoor(target, fixedDeltaSeconds);
             return;
         }
 
@@ -578,6 +582,33 @@ private:
             velocity *= kMaxHoldSpeed / speed;
         }
         m_physics.setBodyVelocity(m_heldBody, velocity);
+    }
+
+    void pullHeldDoor(const core::Vec3& target, core::f32 fixedDeltaSeconds) {
+        const core::Vec3 center = m_physics.bodyPosition(m_heldBody);
+        // Le point saisi suit la porte : on le recalcule depuis le corps, sinon on
+        // tirerait indefiniment sur une position que la porte a quittee.
+        m_grabPoint = center + m_grabOffset;
+
+        // Vitesse du point saisi. Un corps en rotation n'a pas une vitesse unique : elle
+        // vaut omega x r, donc elle croit avec la distance a l'axe. C'est cette vitesse-la
+        // que la main freine, pas celle du centre.
+        const core::Vec3 lever = m_grabPoint - center;
+        const core::Vec3 pointVelocity =
+            glm::cross(m_physics.bodyAngularVelocity(m_heldBody), lever);
+
+        // Ressort amorti : on tire vers la cible, on freine proportionnellement a la
+        // vitesse. C'est ce second terme qui manquait et qui laissait la porte s'emballer.
+        core::Vec3 force =
+            (target - m_grabPoint) * kDoorStiffness - pointVelocity * kDoorDamping;
+        const core::f32 strength = glm::length(force);
+        if (strength > kMaxDoorForce) {
+            force *= kMaxDoorForce / strength;
+        }
+
+        // Force x temps = impulsion. Multiplier par le pas rend le resultat independant
+        // de la frequence de simulation.
+        m_physics.applyImpulseAtPoint(m_heldBody, force * fixedDeltaSeconds, m_grabPoint);
     }
 
     void releaseHeldBody() {

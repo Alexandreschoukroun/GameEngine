@@ -2,18 +2,21 @@
 
 #include "core/math.h"
 #include "core/types.h"
+#include "core/uuid.h"
 #include "renderer/light.h"
+#include "scene/resource_table.h"
 
 #include <entt/entity/entity.hpp>
 
 #include <string>
 
-namespace rhi {
-class Mesh;
-class Texture;
-} // namespace rhi
-
 namespace scene {
+
+// Identifiant stable, conserve dans les fichiers de scene. L'identifiant EnTT, lui, est
+// reattribue a chaque execution : il ne peut pas servir de reference durable.
+struct Id {
+    core::Uuid value = core::kInvalidUuid;
+};
 
 // Les composants sont des DONNEES, sans comportement : pas de methode virtuelle, pas de
 // logique. Les traitements vivent dans les systemes, qui parcourent les entites possedant
@@ -55,10 +58,12 @@ struct WorldTransform {
 
 // Ce qu'il faut pour dessiner l'entite. Les ressources sont designees par pointeur : la
 // scene ne les possede pas, elle s'y refere.
+// Des poignees et non des pointeurs : une adresse memoire change a chaque lancement, donc
+// ne peut pas etre ecrite dans un fichier. La ResourceTable fait la correspondance.
 struct MeshRenderer {
-    const rhi::Mesh* mesh = nullptr;
-    const rhi::Texture* baseColor = nullptr;
-    const rhi::Texture* metallicRoughness = nullptr;
+    ResourceHandle mesh = kInvalidResource;
+    ResourceHandle baseColor = kInvalidResource;
+    ResourceHandle metallicRoughness = kInvalidResource;
 };
 
 // Emission lumineuse. Ni position ni direction ici : elles viennent du Transform.

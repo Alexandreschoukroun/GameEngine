@@ -1,6 +1,6 @@
 # 05 — Scène (M3)
 
-*Brique 1 : les entités et les composants. Brique 2 : la hiérarchie (section 2).*
+*Brique 1 : entités et composants. Brique 2 : hiérarchie (section 2). Brique 3a : écrire une scène (section 3).*
 
 Le jalon M3 fait passer le moteur des variables membres aux **données** : entités, hiérarchie, sérialisation JSON, et le graphe de secteurs/portails. C'est le jalon qui rend un niveau chargeable depuis un fichier.
 
@@ -122,3 +122,70 @@ Une multiplication de matrices par entité et par frame, plus un parcours linéa
 **Ce qui n'existe pas encore** : détruire un parent laisse ses enfants avec un lien vers une entité invalide — le calcul les traite alors comme des racines, ce qui est acceptable mais n'a pas été décidé. La scène se construit toujours par du code.
 
 **Ce qui vient après (brique 3)** : la sérialisation JSON déterministe. C'est le basculement du jalon — les niveaux cesseront d'être écrits en C++ pour devenir des fichiers.
+
+---
+
+# 3. Brique 3a — écrire une scène
+
+## 3.1 Le problème
+
+La scène était construite par `buildScene()`, en C++. Trois conséquences : aucun niveau ne peut exister sans recompiler, donc l'éditeur de M6 serait impossible ; rien n'est partageable ; et Git verrait du code là où il devrait voir du contenu.
+
+## 3.2 Ce que le SPEC exige
+
+> « Sérialisation déterministe dès le jour 1. IDs stables, clés triées, sortie identique pour une même scène. C'est le fix du problème de merge des assets binaires, impossible à rattraper plus tard. »
+
+**Déterministe** veut dire : sauvegarder deux fois la même scène produit **exactement les mêmes octets**. Sans ça, chaque sauvegarde crée un faux changement, les diffs deviennent illisibles, et deux personnes travaillant sur des pièces différentes d'un même niveau entrent en conflit sur tout le fichier.
+
+## 3.3 Les trois sources de non-déterminisme, et leur traitement
+
+**L'ordre des entités.** EnTT ne garantit aucun ordre de parcours : il dépend de l'historique des créations et des destructions. Les entités sont donc **triées par identifiant** avant écriture.
+
+**L'ordre des clés.** `nlohmann::ordered_json` conserve l'ordre d'insertion. Le JSON standard trierait par ordre alphabétique — déterministe aussi, mais `scale` apparaîtrait avant `position`, ce qui rend un fichier pénible à relire.
+
+**L'écriture des flottants.** Un `float` converti en `double` s'écrit `0.34999999403953552`. Exact, mais illisible dans un diff. Les valeurs sont **arrondies au micromètre** : très en dessous de tout ce qui a un sens dans un jeu, et l'opération est **idempotente** — relire puis réécrire donne le même texte. Le zéro négatif est normalisé au passage, sans quoi `-0.0` apparaîtrait comme un faux changement.
+
+## 3.4 Deux décisions de format
+
+**Les identifiants sont écrits en hexadécimal, comme chaînes.** Un entier 64 bits dépasse la précision exacte des nombres JSON, que beaucoup d'outils lisent en `double`. Écrit comme nombre, un identifiant serait silencieusement modifié en passant par un formateur ou un éditeur.
+
+**Le parent est désigné par l'identifiant du parent**, jamais par son rang dans le fichier. Le test le vérifie sur un cas piégeux : un enfant dont l'identifiant est plus petit que celui de son parent est écrit **avant** lui.
+
+## 3.5 Les ressources : des poignées, pas des pointeurs
+
+Un `MeshRenderer` contenait des pointeurs. Une adresse mémoire change à chaque lancement : elle ne peut pas être écrite dans un fichier.
+
+Le composant porte désormais des **poignées** vers une `ResourceTable`, qui fait la correspondance entre un **nom logique** (`suzanne`, `damier`) et la ressource chargée. Conséquences : renommer un fichier sur le disque ne casse aucune scène, et l'éditeur de M6 pourra lister ce qui est disponible en parcourant la table.
+
+## 3.6 Les identifiants : aléatoires plutôt qu'incrémentés
+
+Chaque entité reçoit un nombre tiré au hasard sur 64 bits. Avec un compteur, deux personnes créant des objets chacune de leur côté utiliseraient toutes deux 1, 2, 3 — fusionner leurs pièces demanderait de tout renuméroter, et **toute référence entre entités casserait**. Avec des identifiants aléatoires, la collision est négligeable : il faudrait environ 5 milliards d'entités pour atteindre une chance sur un milliard.
+
+## 3.7 La vérification la plus parlante
+
+Deux sauvegardes successives, en jeu, pendant que la statue tourne. Résultat du diff :
+
+```
+68c68
+<           0.344166,
+---
+>           0.857499,
+```
+
+**Une seule valeur diffère** : la rotation de la statue, qui a effectivement tourné de 0,51 radian entre les deux sauvegardes — cohérent avec 0,35 rad/s pendant une seconde et demie. Tout le reste est identique octet pour octet.
+
+C'est précisément ce que le SPEC cherche : dans un diff Git, **seul ce qui a vraiment changé apparaît**.
+
+Cinq tests unitaires couvrent le reste, et tournent en CI puisqu'ils ne demandent aucun GPU : même scène deux fois, ordres de création inversés, référence de parent, arrondi des flottants, présence du numéro de version.
+
+## 3.8 Le numéro de version
+
+Le fichier porte `"version": 1`. Un fichier écrit par une version ultérieure sera **refusé** plutôt que mal interprété : mieux vaut un message clair qu'un niveau silencieusement cassé. La migration viendra quand il y aura quelque chose à migrer.
+
+## 3.9 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié** : F5 écrit `assets/scenes/demo.json`, lisible, déterministe, avec noms de ressources et liens de parenté.
+
+**Ce qui n'existe pas encore** : rien ne relit ce fichier. La scène est toujours construite par du code au démarrage.
+
+**Ce qui vient après (brique 3b)** : la lecture. Modifier le JSON à la main et voir la scène changer au lancement — le moment où les niveaux cessent d'être du C++.

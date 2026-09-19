@@ -3,6 +3,7 @@ find_package(glm CONFIG REQUIRED)
 add_library(engine_core STATIC
     src/log.cpp
     src/time.cpp
+    src/uuid.cpp
 )
 
 target_include_directories(engine_core PUBLIC

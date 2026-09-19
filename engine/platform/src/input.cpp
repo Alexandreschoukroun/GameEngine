@@ -17,6 +17,7 @@ SDL_Scancode toScancode(Key key) {
         case Key::LeftShift: return SDL_SCANCODE_LSHIFT;
         case Key::Tab: return SDL_SCANCODE_TAB;
         case Key::F: return SDL_SCANCODE_F;
+        case Key::F5: return SDL_SCANCODE_F5;
     }
     return SDL_SCANCODE_UNKNOWN;
 }

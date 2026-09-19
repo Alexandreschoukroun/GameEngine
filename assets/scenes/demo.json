@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "entities": [
+    {
+      "id": "0x08b6af78e6f9f7cf",
+      "name": "satellite",
+      "parent": "0x9514ba977cedc264",
+      "transform": {
+        "position": [
+          2.6,
+          -0.5,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          0.45,
+          0.45,
+          0.45
+        ]
+      },
+      "mesh": {
+        "mesh": "suzanne",
+        "baseColor": "suzanne_couleur",
+        "metallicRoughness": "suzanne_matiere"
+      }
+    },
+    {
+      "id": "0x7f62ed37ec549e9c",
+      "name": "piece",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "piece",
+        "baseColor": "damier",
+        "metallicRoughness": "mat_rugueux"
+      }
+    },
+    {
+      "id": "0x9514ba977cedc264",
+      "name": "statue",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "suzanne",
+        "baseColor": "suzanne_couleur",
+        "metallicRoughness": "suzanne_matiere"
+      }
+    },
+    {
+      "id": "0xa3b6f8a31afc5372",
+      "name": "braise",
+      "parent": "0x9514ba977cedc264",
+      "transform": {
+        "position": [
+          2.6,
+          0.4,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "type": "point",
+        "color": [
+          1.0,
+          0.3,
+          0.12
+        ],
+        "intensity": 9.0,
+        "innerAngle": 0.279253,
+        "outerAngle": 0.453786,
+        "range": 20.0,
+        "castsShadow": false
+      }
+    }
+  ]
+}

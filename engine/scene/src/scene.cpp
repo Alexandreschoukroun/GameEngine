@@ -1,6 +1,7 @@
 #include "scene/scene.h"
 
 #include "core/log.h"
+#include "core/uuid.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -27,6 +28,8 @@ Entity Scene::createEntity(std::string_view name) {
     // Tout objet a une place dans le monde : le Transform n'est pas optionnel.
     m_registry.emplace<Transform>(entity);
     m_registry.emplace<Name>(entity, std::string(name));
+    // Identifiant stable des la creation : c'est lui qui survit a la sauvegarde.
+    m_registry.emplace<Id>(entity, core::generateUuid());
     return entity;
 }
 

@@ -24,6 +24,7 @@ enum class Key : core::u32 {
     LeftShift,
     Tab,
     F,
+    F5,
 };
 
 class InputState {

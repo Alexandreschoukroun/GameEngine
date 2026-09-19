@@ -28,9 +28,11 @@ struct Id {
 // propre : elle a un Transform. Sinon deux verites coexistent, et un jour elles divergent.
 struct Transform {
     core::Vec3 position{0.0f, 0.0f, 0.0f};
-    // Angles d'Euler en radians (tangage, lacet, roulis). Un quaternion serait plus robuste
-    // pour des rotations composees ; on y viendra si le besoin apparait, pas avant.
-    core::Vec3 rotation{0.0f, 0.0f, 0.0f};
+    // Quaternion, et non plus des angles d'Euler : la physique en produit, et c'est la
+    // seule representation qui compose proprement et s'interpole sans blocage de cardan.
+    // L'editeur de M6 affichera des degres tout en stockant ceci, comme les moteurs du
+    // commerce.
+    core::Quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
     core::Vec3 scale{1.0f, 1.0f, 1.0f};
 
     core::Mat4 matrix() const;

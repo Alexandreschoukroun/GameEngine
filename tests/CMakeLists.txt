@@ -6,11 +6,12 @@ add_executable(engine_tests
     renderer/test_camera.cpp
     scene/test_serialization.cpp
     scene/test_sector_graph.cpp
+    physics/test_world.cpp
 )
 
 # Ne sont liees ici que les couches testables sans GPU ni fenetre : c'est ce qui permet
 # a la CI de lancer ces tests sur une machine sans carte graphique.
-target_link_libraries(engine_tests PRIVATE engine::core engine::renderer engine::scene doctest::doctest)
+target_link_libraries(engine_tests PRIVATE engine::core engine::renderer engine::scene engine::physics doctest::doctest)
 
 set_project_warnings(engine_tests)
 

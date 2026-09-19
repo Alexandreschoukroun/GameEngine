@@ -3,6 +3,7 @@
 #include "core/types.h"
 
 #include <glm/geometric.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/matrix.hpp>
@@ -28,6 +29,10 @@ namespace core {
 using Vec2 = glm::vec2;
 using Vec3 = glm::vec3;
 using Vec4 = glm::vec4;
+// Rotation. Un quaternion compose proprement, s'interpole sans blocage de cardan, et
+// c'est ce que produit un moteur physique. glm range le scalaire EN PREMIER : Quat(w, x, y, z).
+using Quat = glm::quat;
+
 using Mat3 = glm::mat3;
 using Mat4 = glm::mat4;
 

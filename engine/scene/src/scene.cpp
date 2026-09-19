@@ -12,10 +12,10 @@ namespace scene {
 core::Mat4 Transform::matrix() const {
     // Ordre classique : on met a l'echelle, puis on tourne, puis on translate. Lu de
     // droite a gauche dans le produit, comme toujours avec les matrices colonne.
-    core::Mat4 result = glm::translate(core::Mat4(1.0f), position);
-    result = glm::rotate(result, rotation.y, core::Vec3{0.0f, 1.0f, 0.0f});
-    result = glm::rotate(result, rotation.x, core::Vec3{1.0f, 0.0f, 0.0f});
-    result = glm::rotate(result, rotation.z, core::Vec3{0.0f, 0.0f, 1.0f});
+    // Une seule conversion depuis le quaternion remplace les trois rotations successives
+    // qu'exigeaient les angles d'Euler - et supprime la question de leur ordre.
+    const core::Mat4 result = glm::translate(core::Mat4(1.0f), position) *
+                              glm::mat4_cast(rotation);
     return glm::scale(result, scale);
 }
 

@@ -41,12 +41,22 @@ constexpr rhi::Vertex kFloorVertices[] = {
 // avant : sinon le sol serait invisible depuis le dessus.
 constexpr core::u32 kFloorIndices[] = {0, 2, 1, 0, 3, 2};
 
-// Trois lumieres pour rendre visible ce que le rendu differe permet : leur cout se paie
-// par pixel d'ecran, pas par objet.
-constexpr std::array<renderer::Light, 3> kLights = {
-    renderer::Light{{1.8f, 1.6f, 2.2f}, {1.0f, 0.86f, 0.68f}, 26.0f}, // ampoule chaude
-    renderer::Light{{-2.4f, 1.2f, 1.0f}, {0.40f, 0.55f, 1.0f}, 18.0f}, // appoint froid
-    renderer::Light{{0.0f, -0.6f, -2.2f}, {1.0f, 0.25f, 0.18f}, 12.0f}, // contre-jour rouge
+// Trois lumieres : un projecteur au plafond qui porte l'ombre, et deux ponctuelles
+// d'ambiance. Leur cout se paie par pixel d'ecran, pas par objet.
+const std::array<renderer::Light, 3> kLights = {
+    // Spot, en hauteur, dirige vers le bas et legerement vers l'avant : c'est lui qui
+    // projette l'ombre de Suzanne sur le sol.
+    renderer::Light{{0.9f, 3.4f, 1.6f},
+                    {1.0f, 0.88f, 0.72f},
+                    90.0f,
+                    renderer::LightType::Spot,
+                    {-0.20f, -1.0f, -0.35f},
+                    core::radians(17.0f),
+                    core::radians(27.0f),
+                    14.0f,
+                    true},
+    renderer::Light{{-2.4f, 0.9f, 1.4f}, {0.35f, 0.50f, 1.0f}, 12.0f},  // appoint froid
+    renderer::Light{{0.4f, -0.5f, -2.4f}, {1.0f, 0.22f, 0.16f}, 8.0f},  // contre-jour rouge
 };
 
 std::vector<core::u8> makeCheckerboard() {

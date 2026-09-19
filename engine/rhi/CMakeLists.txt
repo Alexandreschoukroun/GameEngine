@@ -5,6 +5,7 @@ add_library(engine_rhi STATIC
     src/mesh.cpp
     src/render_target.cpp
     src/shader_program.cpp
+    src/shadow_map.cpp
     src/texture.cpp
 )
 

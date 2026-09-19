@@ -5,6 +5,7 @@
 #include "rhi/device.h"
 #include "rhi/render_target.h"
 #include "rhi/shader_program.h"
+#include "rhi/shadow_map.h"
 
 #include <span>
 
@@ -64,9 +65,17 @@ public:
                 core::u32 screenHeight);
 
 private:
+    // Rend la scene depuis la lumiere a ombre, si la liste en contient une. Renvoie son
+    // indice, ou -1 s'il n'y en a pas.
+    core::i32 renderShadowPass(rhi::Device& device, std::span<const DrawItem> items,
+                               std::span<const Light> lights);
+
     rhi::RenderTarget m_gbuffer;
+    rhi::ShadowMap m_shadowMap;
     rhi::ShaderProgram m_geometryProgram;
     rhi::ShaderProgram m_lightingProgram;
+    rhi::ShaderProgram m_shadowProgram;
+    core::Mat4 m_shadowViewProjection{1.0f};
     DebugView m_debugView = DebugView::Lit;
 };
 

@@ -18,6 +18,7 @@ Le moteur le trouve dans cet ordre (voir `engine/platform/src/paths.cpp`) :
 | `audio/souffle.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
 | `audio/pas_pierre.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
 | `audio/pas_bois.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
+| `audio/tension_*.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
 
 Le modèle Suzanne est le maillage de test historique de Blender. Il est ici parce qu'il
 est en CC0, donc sans aucune obligation d'attribution ni de citation, et qu'il porte tout

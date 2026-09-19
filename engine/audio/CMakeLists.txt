@@ -2,6 +2,7 @@ find_path(MINIAUDIO_INCLUDE_DIRS "miniaudio.h" REQUIRED)
 
 add_library(engine_audio STATIC
     src/engine.cpp
+    src/tension.cpp
 )
 
 target_include_directories(engine_audio PUBLIC

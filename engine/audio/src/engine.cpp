@@ -196,8 +196,19 @@ SoundHandle Engine::loadSound(std::string_view path) {
     return static_cast<SoundHandle>(m_impl->prototypes.size() - 1);
 }
 
+VoiceHandle Engine::playAmbient(SoundHandle sound, bool looping, core::f32 volume) {
+    // Une ambiance n'a pas de position : on passe le drapeau qui desactive la
+    // spatialisation, et la position fournie n'est jamais consultee.
+    return startVoice(sound, core::Vec3{0.0f, 0.0f, 0.0f}, looping, volume, 1.0f, false);
+}
+
 VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool looping,
                          core::f32 volume, core::f32 pitch) {
+    return startVoice(sound, position, looping, volume, pitch, true);
+}
+
+VoiceHandle Engine::startVoice(SoundHandle sound, const core::Vec3& position, bool looping,
+                               core::f32 volume, core::f32 pitch, bool spatialized) {
     if (m_impl == nullptr || sound >= m_impl->prototypes.size()) {
         return kInvalidVoice;
     }
@@ -217,9 +228,10 @@ VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool loo
     }
 
     Impl::Voice& voice = m_impl->voices[slot];
+    const ma_uint32 soundFlags = spatialized ? 0u : MA_SOUND_FLAG_NO_SPATIALIZATION;
     // Copie du prototype : aucune relecture du fichier, les echantillons sont partages.
-    if (ma_sound_init_copy(&m_impl->engine, &m_impl->prototypes[sound]->sound, 0, nullptr,
-                           &voice.sound) != MA_SUCCESS) {
+    if (ma_sound_init_copy(&m_impl->engine, &m_impl->prototypes[sound]->sound, soundFlags,
+                           nullptr, &voice.sound) != MA_SUCCESS) {
         core::logError("audio : impossible de demarrer une voix");
         return kInvalidVoice;
     }
@@ -243,7 +255,9 @@ VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool loo
         core::logWarn("audio : filtre d'occlusion indisponible pour cette voix");
     }
 
-    ma_sound_set_position(&voice.sound, position.x, position.y, position.z);
+    if (spatialized) {
+        ma_sound_set_position(&voice.sound, position.x, position.y, position.z);
+    }
     ma_sound_set_looping(&voice.sound, looping ? MA_TRUE : MA_FALSE);
     ma_sound_set_volume(&voice.sound, volume);
     // Une hauteur nulle ou negative arreterait la lecture : on refuse silencieusement.
@@ -263,6 +277,26 @@ VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool loo
     voice.occlusionTarget = 0.0f;
     voice.occlusion = -1.0f;
     return packVoice(slot, voice.generation);
+}
+
+void Engine::setVoiceVolume(VoiceHandle voice, core::f32 volume) {
+    if (!isVoicePlaying(voice)) {
+        return;
+    }
+    Impl::Voice& slot = m_impl->voices[voiceIndex(voice)];
+    // On ecrit le volume DEMANDE, puis on reapplique l'occlusion par-dessus : sans ca,
+    // regler le volume d'une source masquee la ferait ressortir d'un coup.
+    slot.baseVolume = volume;
+    const core::f32 occlusion = slot.occlusion < 0.0f ? 0.0f : slot.occlusion;
+    ma_sound_set_volume(&slot.sound,
+                        slot.baseVolume * (1.0f - occlusion * (1.0f - kOccludedGain)));
+}
+
+core::f32 Engine::voiceVolume(VoiceHandle voice) const {
+    if (!isVoicePlaying(voice)) {
+        return 0.0f;
+    }
+    return m_impl->voices[voiceIndex(voice)].baseVolume;
 }
 
 void Engine::setVoicePosition(VoiceHandle voice, const core::Vec3& position) {

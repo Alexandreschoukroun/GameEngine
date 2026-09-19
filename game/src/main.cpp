@@ -1,5 +1,6 @@
 #include "assets/image.h"
 #include "audio/engine.h"
+#include "audio/tension.h"
 #include "assets/mesh_data.h"
 #include "core/math.h"
 #include "core/log.h"
@@ -22,6 +23,7 @@
 #include "scene/sector_graph.h"
 #include "scene/serialization.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -92,6 +94,18 @@ constexpr const char* kWoodStepSound = "audio/pas_bois.wav";
 // pas sans qu'on ait rien d'autre a faire.
 constexpr core::f32 kStrideLength = 0.85f;
 constexpr core::f32 kStepVolume = 0.45f;
+// Les trois couches de la musique de tension, jouees en permanence et melangees selon une
+// seule variable.
+constexpr const char* kTensionSounds[3] = {
+    "audio/tension_calme.wav",
+    "audio/tension_pouls.wav",
+    "audio/tension_aigu.wav",
+};
+// PROVISOIRE : en attendant l'AI Director de M7, la tension monte dans le noir et retombe
+// lampe allumee. C'est un pilote de demonstration, pas une regle de jeu - il sert a rendre
+// le systeme audible, et il sera remplace par la proximite de l'antagoniste.
+constexpr core::f32 kTensionRise = 0.09f;  // par seconde, lampe eteinte
+constexpr core::f32 kTensionFall = 0.35f;  // par seconde, lampe allumee
 
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
@@ -239,6 +253,12 @@ protected:
                                  m_audio.loadSound(platform::assetPath(kStoneStepSound)));
             m_resources.addSound("pas_bois",
                                  m_audio.loadSound(platform::assetPath(kWoodStepSound)));
+
+            std::array<audio::SoundHandle, 3> tension{};
+            for (core::u32 i = 0; i < tension.size(); ++i) {
+                tension[i] = m_audio.loadSound(platform::assetPath(kTensionSounds[i]));
+            }
+            m_tension.start(m_audio, tension);
         }
 
         if (!scene::loadSceneFromFile(m_scene, m_resources,
@@ -288,13 +308,20 @@ protected:
         // sans cette ligne, le crepitement resterait fige la ou la braise se trouvait au
         // chargement, pendant que la lueur s'en eloigne. L'oreille et l'oeil se
         // contrediraient.
+        // La tension suit l'obscurite, faute d'antagoniste pour la piloter.
+        const core::f32 frameDelta = static_cast<core::f32>(frameDeltaSeconds);
+        m_tensionLevel += (m_flashlight.isEnabled() ? -kTensionFall : kTensionRise) * frameDelta;
+        m_tensionLevel = std::clamp(m_tensionLevel, 0.0f, 1.0f);
+        m_tension.setTension(m_tensionLevel);
+        m_tension.update(m_audio, frameDelta);
+
         m_scene.updateWorldTransforms();
         scene::syncAudioSources(m_scene, m_audio);
         // Ce qui separe chaque source de l'oreille. C'est ici que la porte a charniere de
         // M4 prend tout son sens : l'entrouvrir laisse passer le son progressivement,
         // parce que son angle est une donnee simulee et non une animation.
         scene::updateAudioOcclusion(m_scene, m_physics, m_audio, m_camera.position());
-        m_audio.update(static_cast<core::f32>(frameDeltaSeconds));
+        m_audio.update(frameDelta);
 
         // F5 ecrit la scene sur le disque. Deux appuis successifs produisent exactement
         // le meme fichier : c'est l'exigence de determinisme du SPEC.
@@ -473,6 +500,7 @@ protected:
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
+        m_tension.stop(m_audio);
         m_audio.destroy();
         m_physics.destroy();
         m_crateMesh.destroy();
@@ -806,6 +834,8 @@ private:
     renderer::Flashlight m_flashlight;
     audio::Engine m_audio;
     scene::FootstepPlayer m_footsteps;
+    audio::TensionLayer m_tension;
+    core::f32 m_tensionLevel = 0.0f;
     core::Vec3 m_lastFeet = kSpawnPosition;
     physics::World m_physics;
     physics::CharacterHandle m_player = physics::kInvalidCharacter;

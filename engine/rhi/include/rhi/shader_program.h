@@ -27,6 +27,9 @@ public:
     void setVec2(core::u32 location, const core::Vec2& value);
     void setVec3(core::u32 location, const core::Vec3& value);
     void setVec4(core::u32 location, const core::Vec4& value);
+    // Un tableau d'uniformes part en un seul envoi. Attention : il occupe autant
+    // d'emplacements consecutifs qu'il a d'elements.
+    void setVec4Array(core::u32 location, const core::Vec4* values, core::u32 count);
 
     // Meme regle que Mesh::destroy : a appeler tant que le contexte GPU est vivant.
     void destroy();

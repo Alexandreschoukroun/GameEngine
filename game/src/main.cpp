@@ -1,56 +1,67 @@
 #include "assets/image.h"
 #include "assets/mesh_data.h"
-#include "assets/text_file.h"
 #include "core/math.h"
 #include "core/types.h"
 #include "platform/application.h"
 #include "platform/paths.h"
 #include "renderer/camera.h"
+#include "renderer/deferred_renderer.h"
+#include "renderer/light.h"
 #include "rhi/device.h"
 #include "rhi/mesh.h"
-#include "rhi/render_target.h"
-#include "rhi/shader_program.h"
 #include "rhi/texture.h"
 
-#include <string>
+#include <array>
 #include <vector>
 
 namespace {
 
 constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
 constexpr const char* kBaseColorPath = "models/suzanne/Suzanne_BaseColor.png";
-constexpr const char* kGBufferVertexPath = "shaders/gbuffer.vert";
-constexpr const char* kGBufferFragmentPath = "shaders/gbuffer.frag";
-constexpr const char* kLightingVertexPath = "shaders/present.vert";
-constexpr const char* kLightingFragmentPath = "shaders/lighting.frag";
 constexpr const char* kMetallicRoughnessPath = "models/suzanne/Suzanne_MetallicRoughness.png";
 
-// Vues parcourues avec Tab : image eclairee, puis les trois couches brutes du G-buffer.
-constexpr core::i32 kViewCount = 4;
+constexpr core::f32 kLookSensitivity = 0.0022f; // radians par pixel de souris
+constexpr core::f32 kMoveSpeed = 3.0f;          // metres par seconde
 
-// Une seule lumiere pour l'instant, posee a cote de la camera de depart. La lampe torche
-// et les lumieres multiples viendront aux etapes suivantes.
-constexpr core::Vec3 kLightPosition{1.6f, 1.4f, 2.2f};
-// Couleur chaude, legerement ambree : une ampoule, pas un neon. La puissance compense la
-// decroissance en 1/d^2, qui divise deja par 9 a 3 metres.
-constexpr core::Vec4 kLightColorIntensity{1.0f, 0.88f, 0.72f, 24.0f};
+constexpr core::f32 kFloorSize = 12.0f;
+constexpr core::f32 kFloorHeight = -1.3f;
+constexpr core::u32 kCheckerSize = 256;
+constexpr core::u32 kCheckerSquare = 32;
 
-// Sensibilite du regard, en radians par pixel de deplacement souris. Reglable par le
-// joueur le jour ou il y aura des options (M8).
-constexpr core::f32 kLookSensitivity = 0.0022f;
-constexpr core::f32 kMoveSpeed = 3.0f; // metres par seconde
+// Sol : un quadrilatere horizontal, normale vers le haut, UV repetees pour que le damier
+// se lise. C'est une surface DIELECTRIQUE, contrairement a Suzanne qui est un metal : elle
+// rend enfin l'eclairage diffus lisible, et recevra les ombres a l'etape 5.
+constexpr rhi::Vertex kFloorVertices[] = {
+    {{-kFloorSize, kFloorHeight, -kFloorSize}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{kFloorSize, kFloorHeight, -kFloorSize}, {0.0f, 1.0f, 0.0f}, {8.0f, 0.0f}},
+    {{kFloorSize, kFloorHeight, kFloorSize}, {0.0f, 1.0f, 0.0f}, {8.0f, 8.0f}},
+    {{-kFloorSize, kFloorHeight, kFloorSize}, {0.0f, 1.0f, 0.0f}, {0.0f, 8.0f}},
+};
+// Vu de dessus, l'ordre doit etre anti-horaire pour que la face soit consideree comme
+// avant : sinon le sol serait invisible depuis le dessus.
+constexpr core::u32 kFloorIndices[] = {0, 2, 1, 0, 3, 2};
 
-// Les shaders sont des donnees du jeu, au meme titre qu'une texture : ils vivent dans
-// assets/shaders/ et se modifient sans recompiler le C++.
-bool createProgramFromFiles(rhi::ShaderProgram& program, const char* vertexPath,
-                            const char* fragmentPath) {
-    std::string vertexSource;
-    std::string fragmentSource;
-    if (!assets::loadTextFile(platform::assetPath(vertexPath).c_str(), vertexSource) ||
-        !assets::loadTextFile(platform::assetPath(fragmentPath).c_str(), fragmentSource)) {
-        return false;
+// Trois lumieres pour rendre visible ce que le rendu differe permet : leur cout se paie
+// par pixel d'ecran, pas par objet.
+constexpr std::array<renderer::Light, 3> kLights = {
+    renderer::Light{{1.8f, 1.6f, 2.2f}, {1.0f, 0.86f, 0.68f}, 26.0f}, // ampoule chaude
+    renderer::Light{{-2.4f, 1.2f, 1.0f}, {0.40f, 0.55f, 1.0f}, 18.0f}, // appoint froid
+    renderer::Light{{0.0f, -0.6f, -2.2f}, {1.0f, 0.25f, 0.18f}, 12.0f}, // contre-jour rouge
+};
+
+std::vector<core::u8> makeCheckerboard() {
+    std::vector<core::u8> pixels(static_cast<std::size_t>(kCheckerSize) * kCheckerSize * 4);
+    for (core::u32 y = 0; y < kCheckerSize; ++y) {
+        for (core::u32 x = 0; x < kCheckerSize; ++x) {
+            const bool light = ((x / kCheckerSquare) + (y / kCheckerSquare)) % 2 == 0;
+            const std::size_t index = (static_cast<std::size_t>(y) * kCheckerSize + x) * 4;
+            pixels[index + 0] = light ? 190 : 60;
+            pixels[index + 1] = light ? 184 : 56;
+            pixels[index + 2] = light ? 176 : 54;
+            pixels[index + 3] = 255;
+        }
     }
-    return program.create(vertexSource, fragmentSource);
+    return pixels;
 }
 
 // Les donnees du fichier sont neutres : c'est ici qu'elles prennent la forme attendue par
@@ -76,69 +87,32 @@ protected:
         if (!m_device.create(window().glProcAddressLoader())) {
             return false;
         }
-        m_device.setViewport(window().width(), window().height());
 
         const core::f32 aspect = static_cast<core::f32>(window().width()) /
                                  static_cast<core::f32>(window().height());
         m_camera.setPerspective(core::radians(60.0f), aspect, 0.05f, 100.0f);
-        // Recule de 3 m : le modele est a l'origine, la camera le regarde depuis +Z.
         m_camera.setPosition(core::Vec3{0.0f, 0.0f, 3.0f});
-
         window().setRelativeMouseMode(true);
 
-        if (!createProgramFromFiles(m_gbufferProgram, kGBufferVertexPath,
-                                    kGBufferFragmentPath) ||
-            !createProgramFromFiles(m_lightingProgram, kLightingVertexPath,
-                                    kLightingFragmentPath)) {
+        if (!m_renderer.create(window().width(), window().height())) {
             return false;
         }
-
-        if (!m_gbuffer.create(window().width(), window().height())) {
-            return false;
-        }
-
-        assets::MeshData meshData;
-        if (!assets::loadGltfMesh(platform::assetPath(kModelPath).c_str(), meshData)) {
-            return false;
-        }
-        const std::vector<rhi::Vertex> vertices = toVertices(meshData);
-        if (!m_mesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
-                           meshData.indices.data(),
-                           static_cast<core::u32>(meshData.indices.size()))) {
-            return false;
-        }
-
-        assets::ImageData baseColor;
-        assets::ImageData metallicRoughness;
-        if (!assets::loadImage(platform::assetPath(kBaseColorPath).c_str(), baseColor) ||
-            !assets::loadImage(platform::assetPath(kMetallicRoughnessPath).c_str(),
-                               metallicRoughness)) {
-            return false;
-        }
-
-        // La couleur de base est une couleur : le GPU doit la ramener en lineaire a chaque
-        // lecture. La carte metallicite/rugosite contient des mesures : aucune conversion,
-        // sinon les valeurs seraient faussees.
-        return m_baseColor.create(baseColor.width, baseColor.height, baseColor.pixels.data(),
-                                  rhi::TextureFormat::SrgbColor) &&
-               m_metallicRoughness.create(metallicRoughness.width, metallicRoughness.height,
-                                          metallicRoughness.pixels.data(),
-                                          rhi::TextureFormat::LinearData);
+        return loadModel() && loadFloor();
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
     void onFrame(core::f64 frameDeltaSeconds) override {
         (void)frameDeltaSeconds; // un deplacement souris est deja une quantite, pas un taux
-        // Souris vers la droite (dx > 0) => on tourne vers +X, soit la droite de la vue
-        // initiale. Souris vers le haut (dy < 0) => on leve les yeux, donc pitch positif.
         m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
                              -input().mouseDeltaY() * kLookSensitivity);
 
         // Tab fait defiler les vues du G-buffer. On ne reagit qu'a l'instant ou la touche
-        // s'enfonce : sinon la vue changerait soixante fois par seconde tant qu'on appuie.
+        // s'enfonce : sinon la vue changerait soixante fois par seconde.
         const bool tabDown = input().isKeyDown(platform::Key::Tab);
         if (tabDown && !m_tabWasDown) {
-            m_view = (m_view + 1) % kViewCount;
+            const auto next = (static_cast<core::i32>(m_renderer.debugView()) + 1) %
+                              static_cast<core::i32>(renderer::DebugView::Count);
+            m_renderer.setDebugView(static_cast<renderer::DebugView>(next));
         }
         m_tabWasDown = tabDown;
     }
@@ -179,61 +153,97 @@ protected:
         if (width == 0 || height == 0) {
             return; // fenetre reduite : on ignore, sinon on divise par zero
         }
-        m_device.setViewport(width, height);
         m_camera.setAspect(static_cast<core::f32>(width) / static_cast<core::f32>(height));
-        // Le G-buffer a la taille de l'ecran : il faut le recreer a chaque
-        // redimensionnement, une texture ne se redimensionne pas.
-        m_gbuffer.create(width, height);
+        m_renderer.resize(width, height);
     }
 
     void onRender() override {
-        // Passe 1 : la geometrie ecrit ses proprietes de surface dans le G-buffer.
-        // Aucun eclairage ici.
-        m_device.bindRenderTarget(m_gbuffer);
-        m_device.clear(0.0f, 0.0f, 0.0f, 0.0f);
-        m_gbufferProgram.setMat4(0, m_camera.viewProjectionMatrix());
-        m_device.bindTexture(m_baseColor, 0);
-        m_device.bindTexture(m_metallicRoughness, 1);
-        m_device.draw(m_gbufferProgram, m_mesh);
-
-        // Passe 2 : un seul triangle couvre l'ecran, relit le G-buffer et calcule la
-        // lumiere. Son cout ne depend pas du nombre d'objets de la scene.
-        m_device.bindScreen(window().width(), window().height());
-        m_device.clear(0.0f, 0.0f, 0.0f, 1.0f);
-        m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Albedo, 0);
-        m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Normal, 1);
-        m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Depth, 2);
-        m_lightingProgram.setInt(0, m_view);
-        m_lightingProgram.setVec2(1, core::Vec2{m_camera.nearZ(), m_camera.farZ()});
-        // L'inverse de la matrice de camera permet de retrouver la position du monde a
-        // partir de la seule profondeur, donc de ne pas la stocker dans le G-buffer.
-        m_lightingProgram.setMat4(2, glm::inverse(m_camera.viewProjectionMatrix()));
-        m_lightingProgram.setVec3(3, m_camera.position());
-        m_lightingProgram.setVec3(4, kLightPosition);
-        m_lightingProgram.setVec4(5, kLightColorIntensity);
-        m_device.drawFullscreenTriangle(m_lightingProgram);
+        // Le jeu decrit la scene ; le renderer decide comment la dessiner.
+        const std::array<renderer::DrawItem, 2> items = {
+            renderer::DrawItem{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness},
+            renderer::DrawItem{&m_floorMesh, &m_floorBaseColor, &m_floorMaterial},
+        };
+        m_renderer.render(m_device, m_camera, items, kLights, window().width(),
+                          window().height());
     }
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
-        m_gbuffer.destroy();
-        m_metallicRoughness.destroy();
-        m_baseColor.destroy();
-        m_mesh.destroy();
-        m_lightingProgram.destroy();
-        m_gbufferProgram.destroy();
+        m_renderer.destroy();
+        m_floorMaterial.destroy();
+        m_floorBaseColor.destroy();
+        m_floorMesh.destroy();
+        m_modelMetallicRoughness.destroy();
+        m_modelBaseColor.destroy();
+        m_modelMesh.destroy();
     }
 
 private:
+    bool loadModel() {
+        assets::MeshData meshData;
+        if (!assets::loadGltfMesh(platform::assetPath(kModelPath).c_str(), meshData)) {
+            return false;
+        }
+        const std::vector<rhi::Vertex> vertices = toVertices(meshData);
+        if (!m_modelMesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
+                                meshData.indices.data(),
+                                static_cast<core::u32>(meshData.indices.size()))) {
+            return false;
+        }
+
+        assets::ImageData baseColor;
+        assets::ImageData metallicRoughness;
+        if (!assets::loadImage(platform::assetPath(kBaseColorPath).c_str(), baseColor) ||
+            !assets::loadImage(platform::assetPath(kMetallicRoughnessPath).c_str(),
+                               metallicRoughness)) {
+            return false;
+        }
+
+        // La couleur de base est une couleur : le GPU doit la ramener en lineaire a chaque
+        // lecture. La carte metallicite/rugosite contient des mesures : aucune conversion,
+        // sinon les valeurs seraient faussees.
+        return m_modelBaseColor.create(baseColor.width, baseColor.height,
+                                       baseColor.pixels.data(),
+                                       rhi::TextureFormat::SrgbColor) &&
+               m_modelMetallicRoughness.create(metallicRoughness.width,
+                                               metallicRoughness.height,
+                                               metallicRoughness.pixels.data(),
+                                               rhi::TextureFormat::LinearData);
+    }
+
+    bool loadFloor() {
+        if (!m_floorMesh.create(kFloorVertices,
+                                static_cast<core::u32>(std::size(kFloorVertices)),
+                                kFloorIndices,
+                                static_cast<core::u32>(std::size(kFloorIndices)))) {
+            return false;
+        }
+
+        const std::vector<core::u8> pixels = makeCheckerboard();
+        if (!m_floorBaseColor.create(kCheckerSize, kCheckerSize, pixels.data(),
+                                     rhi::TextureFormat::SrgbColor)) {
+            return false;
+        }
+
+        // Materiau constant en une texture de 1x1 pixel : convention glTF, le vert porte
+        // la rugosite et le bleu la metallicite. Le shader ne fait aucune difference avec
+        // une vraie carte, et on evite d'ajouter des parametres de matiere partout.
+        const core::u8 material[4] = {0, 200, 0, 255}; // rugueux, non metallique
+        return m_floorMaterial.create(1, 1, material, rhi::TextureFormat::LinearData);
+    }
+
     rhi::Device m_device;
-    rhi::ShaderProgram m_gbufferProgram;
-    rhi::ShaderProgram m_lightingProgram;
-    rhi::Mesh m_mesh;
-    rhi::Texture m_baseColor;
-    rhi::Texture m_metallicRoughness;
-    rhi::RenderTarget m_gbuffer;
+    renderer::DeferredRenderer m_renderer;
     renderer::Camera m_camera;
-    core::i32 m_view = 0;
+
+    rhi::Mesh m_modelMesh;
+    rhi::Texture m_modelBaseColor;
+    rhi::Texture m_modelMetallicRoughness;
+
+    rhi::Mesh m_floorMesh;
+    rhi::Texture m_floorBaseColor;
+    rhi::Texture m_floorMaterial;
+
     bool m_tabWasDown = false;
 };
 

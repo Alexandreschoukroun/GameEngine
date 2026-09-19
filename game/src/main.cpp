@@ -44,6 +44,20 @@ constexpr core::f32 kPlayerRadius = 0.35f;
 constexpr core::f32 kEyeHeight = 1.65f;
 constexpr core::Vec3 kSpawnPosition{0.0f, -1.2f, 3.0f};
 
+// --- Saisie d'objets --------------------------------------------------------------------
+constexpr core::f32 kGrabRange = 2.6f;     // portee du bras, en metres
+constexpr core::f32 kHoldDistance = 1.4f;  // ou l'objet flotte devant les yeux
+// Nervosite du maintien : plus c'est eleve, plus l'objet colle a la main. Trop eleve, il
+// traverserait les obstacles en une seule etape de simulation.
+constexpr core::f32 kHoldStiffness = 12.0f;
+constexpr core::f32 kMaxHoldSpeed = 7.0f;
+// Au-dela, l'objet est arrache : il s'est coince dans un mur ou derriere une porte, et le
+// garder reviendrait a le faire passer au travers.
+constexpr core::f32 kBreakDistance = 2.6f;
+// Impulsion transmise aux corps qu'on bouscule. Un controleur virtuel ne pousse rien tout
+// seul : il faut le lui apprendre.
+constexpr core::f32 kPushImpulse = 2.2f;
+
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
 // eclairee par une lampe torche.
@@ -216,6 +230,8 @@ protected:
         }
         m_f5WasDown = f5Down;
 
+        updateGrab();
+
         const bool fDown = input().isKeyDown(platform::Key::F);
         if (fDown && !m_fWasDown) {
             m_flashlight.toggle();
@@ -286,6 +302,10 @@ protected:
         }
 
         m_physics.setCharacterVelocity(m_player, newVelocity);
+
+        if (glm::dot(wish, wish) > 0.0f) {
+            pushTouchedBodies();
+        }
 
         // La statue tourne lentement sur elle-meme. Ses deux enfants suivent sans qu'on
         // touche a leur Transform : c'est toute la hierarchie en une ligne.
@@ -429,6 +449,75 @@ private:
         scene::syncTransformsFromPhysics(m_scene, m_physics);
     }
 
+    // Saisie et maintien d'objets. L'objet tenu reste un corps dynamique ordinaire : il
+    // heurte les murs, se coince dans une porte et repousse ce qu'il touche. C'est ce qui
+    // distingue une manipulation physique d'un objet colle a l'ecran.
+    void updateGrab() {
+        const bool useDown = input().isKeyDown(platform::Key::E);
+        const bool justPressed = useDown && !m_useWasDown;
+        m_useWasDown = useDown;
+
+        if (justPressed) {
+            if (m_heldBody != physics::kInvalidBody) {
+                m_heldBody = physics::kInvalidBody; // deuxieme appui : on lache
+            } else {
+                // On vise depuis l'oeil, dans l'axe du regard : exactement ce que voit le
+                // joueur, et non une zone approximative autour de lui.
+                const physics::RayHit hit = m_physics.raycast(
+                    m_camera.position(), m_camera.forward(), kGrabRange);
+                if (hit.hit && m_physics.isBodyDynamic(hit.body)) {
+                    m_heldBody = hit.body;
+                }
+            }
+        }
+
+        if (m_heldBody == physics::kInvalidBody) {
+            return;
+        }
+
+        const core::Vec3 target =
+            m_camera.position() + m_camera.forward() * kHoldDistance;
+        const core::Vec3 toTarget = target - m_physics.bodyPosition(m_heldBody);
+
+        // L'objet s'est coince : le ramener de force le ferait traverser l'obstacle.
+        if (glm::length(toTarget) > kBreakDistance) {
+            m_heldBody = physics::kInvalidBody;
+            return;
+        }
+
+        // Vitesse proportionnelle a l'ecart, plafonnee. C'est un ressort sans masse : il
+        // n'oscille pas, et le plafond garantit qu'aucun pas de simulation ne franchit un
+        // mur d'un bond.
+        core::Vec3 velocity = toTarget * kHoldStiffness;
+        const core::f32 speed = glm::length(velocity);
+        if (speed > kMaxHoldSpeed) {
+            velocity *= kMaxHoldSpeed / speed;
+        }
+        m_physics.setBodyVelocity(m_heldBody, velocity);
+    }
+
+    // Un controleur virtuel detecte les corps dynamiques sans leur transmettre de force :
+    // une caisse arreterait le joueur comme un mur. On la pousse donc explicitement.
+    void pushTouchedBodies() {
+        const core::Vec3 eye = m_camera.position();
+        core::Vec3 direction = m_camera.forward();
+        direction.y = 0.0f;
+        if (glm::dot(direction, direction) <= 0.0f) {
+            return;
+        }
+        direction = glm::normalize(direction);
+
+        // Un rayon a hauteur de hanche, juste devant : de quoi detecter ce qu'on bouscule
+        // en marchant, sans attraper ce qui est au-dessus ou derriere.
+        const physics::RayHit hit =
+            m_physics.raycast(eye - core::Vec3{0.0f, 0.8f, 0.0f}, direction, 0.75f);
+        if (!hit.hit || hit.body == m_heldBody || !m_physics.isBodyDynamic(hit.body)) {
+            return;
+        }
+        const core::Vec3 velocity = m_physics.bodyVelocity(hit.body);
+        m_physics.setBodyVelocity(hit.body, velocity + direction * kPushImpulse);
+    }
+
     void updateCurrentSector() {
         // Les matrices monde doivent etre a jour : un secteur peut etre enfant d'autre
         // chose. La passe est idempotente dans une meme frame grace au champ epoch.
@@ -563,6 +652,8 @@ private:
     renderer::Flashlight m_flashlight;
     physics::World m_physics;
     physics::CharacterHandle m_player = physics::kInvalidCharacter;
+    physics::BodyHandle m_heldBody = physics::kInvalidBody;
+    bool m_useWasDown = false;
     rhi::Mesh m_crateMesh;
 
     core::f32 m_statueAngle = 0.0f;

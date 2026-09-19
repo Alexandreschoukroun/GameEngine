@@ -23,6 +23,7 @@ enum class Key : core::u32 {
     Space,
     LeftShift,
     Tab,
+    E,
     F,
     F5,
 };

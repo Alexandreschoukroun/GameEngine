@@ -80,6 +80,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | **M2** | Renderer PBR deferred, glTF, lumières et ombres, lampe torche | ✅ Terminé |
 | M3 | Scène (EnTT), sérialisation JSON, graphe de secteurs/portails | À venir |
 | M4 | Physique Jolt, character controller, portes, saisie d'objets | À venir |
+| M4.5 | Animation squelettique : squelettes glTF, skinning GPU, lecteur d'animation | À venir |
 | M5 | Audio : spatialisation, occlusion, reverb zones | À venir |
 | M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | À venir |
 | M7 | Lua, triggers, navmesh, perception et IA de l'antagoniste | À venir |

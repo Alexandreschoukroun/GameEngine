@@ -3,6 +3,7 @@
 #include "core/math.h"
 #include "core/log.h"
 #include "core/types.h"
+#include "physics/world.h"
 #include "platform/application.h"
 #include "renderer/camera.h"
 #include "renderer/deferred_renderer.h"
@@ -44,6 +45,8 @@ constexpr core::f32 kWallUvScale = 0.5f; // un carreau de damier par demi-metre
 constexpr core::u32 kCheckerSize = 256;
 constexpr core::u32 kCheckerSquare = 32;
 constexpr core::u32 kCookieSize = 256;
+constexpr core::u32 kCrateCount = 5;
+constexpr core::f32 kCrateHalfSize = 0.3f;
 
 // Nombre maximal de lumieres transmises au renderer en une frame : la torche plus celles
 // de la scene.
@@ -163,7 +166,7 @@ protected:
             return false;
         }
         m_statue = m_scene.findByName("statue");
-        return true;
+        return m_physics.create() && spawnCrates();
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
@@ -231,9 +234,17 @@ protected:
         // La statue tourne lentement sur elle-meme. Ses deux enfants suivent sans qu'on
         // touche a leur Transform : c'est toute la hierarchie en une ligne.
         if (m_scene.isValid(m_statue)) {
-            auto& transform = m_scene.registry().get<scene::Transform>(m_statue);
-            transform.rotation.y += 0.35f * static_cast<core::f32>(fixedDeltaSeconds);
+            m_statueAngle += 0.35f * static_cast<core::f32>(fixedDeltaSeconds);
+            // On reconstruit la rotation depuis un angle plutot que de composer un
+            // quaternion a chaque frame : multiplier mille petites rotations accumulerait
+            // une derive numerique.
+            m_scene.registry().get<scene::Transform>(m_statue).rotation =
+                glm::angleAxis(m_statueAngle, core::Vec3{0.0f, 1.0f, 0.0f});
         }
+
+        // La physique avance au meme rythme, et uniquement ici : elle n'est deterministe
+        // qu'a pas constant.
+        stepPhysics(static_cast<core::f32>(fixedDeltaSeconds));
 
         // Normaliser evite d'aller plus vite en diagonale. Le test protege glm::normalize,
         // qui divise par zero si le vecteur est nul.
@@ -304,6 +315,8 @@ protected:
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
+        m_physics.destroy();
+        m_crateMesh.destroy();
         m_renderer.destroy();
         m_missingTexture.destroy();
         m_cookie.destroy();
@@ -330,6 +343,79 @@ private:
         // Remplacement des ressources introuvables : un magenta franc, impossible a
         // confondre avec une texture legitime.
         m_resources.addTexture("missing", &m_missingTexture);
+    }
+
+    // Une pile de caisses lachees en l'air : de quoi voir la gravite, les chocs et le
+    // repos. C'est la demonstration minimale d'un moteur physique qui tourne.
+    bool spawnCrates() {
+        if (!buildCrateMesh()) {
+            return false;
+        }
+        const auto crateMesh = m_resources.addMesh("caisse", &m_crateMesh);
+        const auto crateAlbedo = m_resources.findTexture("damier");
+        const auto crateMaterial = m_resources.findTexture("mat_rugueux");
+
+        // Le sol et les murs sont statiques : ils ne bougent jamais, donc ne coutent
+        // presque rien a la simulation.
+        m_physics.addBox(core::Vec3{0.0f, kRoomFloorY - 0.5f, 0.0f}, core::Quat(1, 0, 0, 0),
+                         core::Vec3{kRoomHalfWidth, 0.5f, kRoomHalfWidth}, true);
+
+        for (core::u32 i = 0; i < kCrateCount; ++i) {
+            const core::f32 height = kRoomFloorY + 1.2f + static_cast<core::f32>(i) * 1.1f;
+            // Legerement decalees les unes des autres : empilees pile a l'aplomb, elles
+            // tomberaient en colonne parfaite, ce qui ne montrerait rien des chocs.
+            const core::Vec3 position{-1.0f + 0.22f * static_cast<core::f32>(i), height,
+                                      -1.4f + 0.14f * static_cast<core::f32>(i)};
+            const physics::BodyHandle body =
+                m_physics.addBox(position, core::Quat(1, 0, 0, 0),
+                                 core::Vec3{kCrateHalfSize, kCrateHalfSize, kCrateHalfSize},
+                                 false);
+            if (body == physics::kInvalidBody) {
+                return false;
+            }
+
+            const scene::Entity entity = m_scene.createEntity("caisse");
+            m_scene.registry().get<scene::Transform>(entity).position = position;
+            m_scene.registry().get<scene::Transform>(entity).scale =
+                core::Vec3{kCrateHalfSize * 2.0f, kCrateHalfSize * 2.0f, kCrateHalfSize * 2.0f};
+            m_scene.registry().emplace<scene::MeshRenderer>(
+                entity, scene::MeshRenderer{crateMesh, crateAlbedo, crateMaterial});
+            m_crates.push_back({entity, body});
+        }
+        return true;
+    }
+
+    // Cube de 1 m de cote, centre sur l'origine : la mise a l'echelle du Transform lui
+    // donne sa taille finale.
+    bool buildCrateMesh() {
+        std::vector<rhi::Vertex> vertices;
+        std::vector<core::u32> indices;
+        const core::f32 h = 0.5f;
+        addQuad(vertices, indices, {-h, -h, h}, {h, -h, h}, {h, h, h}, {-h, h, h},
+                {0.0f, 0.0f, 1.0f}, 1.0f, 1.0f);
+        addQuad(vertices, indices, {h, -h, -h}, {-h, -h, -h}, {-h, h, -h}, {h, h, -h},
+                {0.0f, 0.0f, -1.0f}, 1.0f, 1.0f);
+        addQuad(vertices, indices, {h, -h, h}, {h, -h, -h}, {h, h, -h}, {h, h, h},
+                {1.0f, 0.0f, 0.0f}, 1.0f, 1.0f);
+        addQuad(vertices, indices, {-h, -h, -h}, {-h, -h, h}, {-h, h, h}, {-h, h, -h},
+                {-1.0f, 0.0f, 0.0f}, 1.0f, 1.0f);
+        addQuad(vertices, indices, {-h, h, h}, {h, h, h}, {h, h, -h}, {-h, h, -h},
+                {0.0f, 1.0f, 0.0f}, 1.0f, 1.0f);
+        addQuad(vertices, indices, {-h, -h, -h}, {h, -h, -h}, {h, -h, h}, {-h, -h, h},
+                {0.0f, -1.0f, 0.0f}, 1.0f, 1.0f);
+        return m_crateMesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
+                                  indices.data(), static_cast<core::u32>(indices.size()));
+    }
+
+    // La physique avance, puis les entites recopient la pose de leur corps. Le sens compte :
+    // la simulation fait autorite sur la position d'un objet dynamique, jamais l'inverse.
+    void stepPhysics(core::f32 fixedDeltaSeconds) {
+        m_physics.step(fixedDeltaSeconds);
+        for (const CratePair& crate : m_crates) {
+            auto& transform = m_scene.registry().get<scene::Transform>(crate.entity);
+            transform.position = m_physics.bodyPosition(crate.body);
+            transform.rotation = m_physics.bodyRotation(crate.body);
+        }
     }
 
     void updateCurrentSector() {
@@ -464,6 +550,18 @@ private:
     rhi::Texture m_missingTexture;
 
     renderer::Flashlight m_flashlight;
+    physics::World m_physics;
+    rhi::Mesh m_crateMesh;
+
+    // Correspondance entre une entite et son corps physique. Un vrai composant viendra a
+    // la brique suivante, quand les colliders seront decrits dans la scene.
+    struct CratePair {
+        scene::Entity entity;
+        physics::BodyHandle body;
+    };
+    std::vector<CratePair> m_crates;
+    core::f32 m_statueAngle = 0.0f;
+
     scene::Scene m_scene;
     scene::ResourceTable m_resources;
     scene::Entity m_statue = scene::kInvalidEntity;

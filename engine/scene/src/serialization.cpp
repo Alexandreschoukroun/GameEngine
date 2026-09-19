@@ -40,6 +40,22 @@ Json toJson(const core::Vec3& v) {
     return Json::array({rounded(v.x), rounded(v.y), rounded(v.z)});
 }
 
+// Ordre x, y, z, w : le scalaire en dernier, comme l'ecrit glTF. Autant suivre la
+// convention du format qu'on charge deja, plutot que celle de la bibliotheque de maths.
+Json toJson(const core::Quat& q) {
+    return Json::array({rounded(q.x), rounded(q.y), rounded(q.z), rounded(q.w)});
+}
+
+core::Quat quatFromJson(const Json& node, const core::Quat& fallback) {
+    if (!node.is_array() || node.size() != 4) {
+        return fallback;
+    }
+    // Relu dans le meme ordre qu'ecrit, puis normalise : un quaternion legerement
+    // denormalise par l'arrondi deformerait les objets.
+    return glm::normalize(core::Quat(node[3].get<core::f32>(), node[0].get<core::f32>(),
+                                     node[1].get<core::f32>(), node[2].get<core::f32>()));
+}
+
 // Les identifiants sont ecrits en hexadecimal, comme chaines. Un entier 64 bits depasse la
 // precision exacte des nombres JSON, que beaucoup d'outils lisent en double : un identifiant
 // serait alors silencieusement modifie en passant par un formateur ou un editeur.
@@ -275,7 +291,7 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
             const Json& t = node["transform"];
             Transform& transform = loaded.registry().get<Transform>(entity);
             transform.position = vec3FromJson(t.value("position", Json()), transform.position);
-            transform.rotation = vec3FromJson(t.value("rotation", Json()), transform.rotation);
+            transform.rotation = quatFromJson(t.value("rotation", Json()), transform.rotation);
             transform.scale = vec3FromJson(t.value("scale", Json()), transform.scale);
         }
 

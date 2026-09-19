@@ -33,6 +33,23 @@ Entity Scene::createEntity(std::string_view name) {
     return entity;
 }
 
+Entity Scene::createEntityWithId(std::string_view name, core::Uuid id) {
+    const Entity entity = m_registry.create();
+    m_registry.emplace<Transform>(entity);
+    m_registry.emplace<Name>(entity, std::string(name));
+    m_registry.emplace<Id>(entity, id);
+    return entity;
+}
+
+Entity Scene::findByName(std::string_view name) const {
+    for (auto [entity, entityName] : m_registry.view<const Name>().each()) {
+        if (entityName.value == name) {
+            return entity;
+        }
+    }
+    return kInvalidEntity;
+}
+
 bool Scene::setParent(Entity child, Entity parent) {
     if (!m_registry.valid(child)) {
         return false;

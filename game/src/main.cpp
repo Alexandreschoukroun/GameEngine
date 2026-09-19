@@ -24,6 +24,7 @@ namespace {
 constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
 constexpr const char* kBaseColorPath = "models/suzanne/Suzanne_BaseColor.png";
 constexpr const char* kMetallicRoughnessPath = "models/suzanne/Suzanne_MetallicRoughness.png";
+constexpr const char* kScenePath = "scenes/demo.json";
 
 constexpr core::f32 kLookSensitivity = 0.0022f; // radians par pixel de souris
 constexpr core::f32 kMoveSpeed = 3.0f;          // metres par seconde
@@ -149,7 +150,15 @@ protected:
         if (!loadModel() || !loadRoom()) {
             return false;
         }
-        buildScene();
+        registerResources();
+
+        // La scene ne vient plus du code : elle est lue dans un fichier. Modifier
+        // demo.json et relancer suffit a changer le niveau, sans recompiler.
+        if (!scene::loadSceneFromFile(m_scene, m_resources,
+                                      platform::assetPath(kScenePath).c_str())) {
+            return false;
+        }
+        m_statue = m_scene.findByName("statue");
         return true;
     }
 
@@ -288,6 +297,7 @@ protected:
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
         m_renderer.destroy();
+        m_missingTexture.destroy();
         m_cookie.destroy();
         m_floorMaterial.destroy();
         m_floorBaseColor.destroy();
@@ -300,48 +310,18 @@ protected:
 private:
     // La scene remplace les variables membres : chaque objet est une entite, decrite par
     // ses composants. C'est ce qui rendra le chargement depuis un fichier possible.
-    void buildScene() {
-        // Les ressources recoivent un nom logique : c'est lui qui sera ecrit dans le
-        // fichier de scene, jamais une adresse memoire ni un chemin de disque.
-        const auto roomMesh = m_resources.addMesh("piece", &m_floorMesh);
-        const auto roomAlbedo = m_resources.addTexture("damier", &m_floorBaseColor);
-        const auto roomMaterial = m_resources.addTexture("mat_rugueux", &m_floorMaterial);
-        const auto statueMesh = m_resources.addMesh("suzanne", &m_modelMesh);
-        const auto statueAlbedo = m_resources.addTexture("suzanne_couleur", &m_modelBaseColor);
-        const auto statueMaterial =
-            m_resources.addTexture("suzanne_matiere", &m_modelMetallicRoughness);
-
-        const scene::Entity room = m_scene.createEntity("piece");
-        m_scene.registry().emplace<scene::MeshRenderer>(
-            room, scene::MeshRenderer{roomMesh, roomAlbedo, roomMaterial});
-
-        // Deux exemplaires du meme maillage, a deux endroits et a deux echelles : c'est
-        // exactement ce qui etait impossible avant, la geometrie etant figee a l'origine.
-        const scene::Entity statue = m_scene.createEntity("statue");
-        m_scene.registry().emplace<scene::MeshRenderer>(
-            statue, scene::MeshRenderer{statueMesh, statueAlbedo, statueMaterial});
-
-        m_statue = statue;
-
-        // Satellite ATTACHE a la statue : sa position est relative, donc faire tourner le
-        // parent le fait orbiter sans qu'on touche a son Transform.
-        const scene::Entity satellite = m_scene.createEntity("satellite");
-        auto& satelliteTransform = m_scene.registry().get<scene::Transform>(satellite);
-        satelliteTransform.position = core::Vec3{2.6f, -0.5f, 0.0f};
-        satelliteTransform.scale = core::Vec3{0.45f, 0.45f, 0.45f};
-        m_scene.registry().emplace<scene::MeshRenderer>(
-            satellite, scene::MeshRenderer{statueMesh, statueAlbedo, statueMaterial});
-        m_scene.setParent(satellite, statue);
-
-        // La braise est elle aussi enfant de la statue : elle orbite avec le satellite, ce
-        // qui rend la propagation visible sur l'eclairage et pas seulement sur la
-        // geometrie.
-        const scene::Entity braise = m_scene.createEntity("braise");
-        m_scene.registry().get<scene::Transform>(braise).position =
-            core::Vec3{2.6f, 0.4f, 0.0f};
-        m_scene.registry().emplace<scene::LightSource>(
-            braise, scene::LightSource{core::Vec3{1.0f, 0.30f, 0.12f}, 9.0f});
-        m_scene.setParent(braise, statue);
+    // Les ressources recoivent un nom logique : c'est lui qu'ecrivent et relisent les
+    // fichiers de scene, jamais une adresse memoire ni un chemin de disque.
+    void registerResources() {
+        m_resources.addMesh("piece", &m_floorMesh);
+        m_resources.addTexture("damier", &m_floorBaseColor);
+        m_resources.addTexture("mat_rugueux", &m_floorMaterial);
+        m_resources.addMesh("suzanne", &m_modelMesh);
+        m_resources.addTexture("suzanne_couleur", &m_modelBaseColor);
+        m_resources.addTexture("suzanne_matiere", &m_modelMetallicRoughness);
+        // Remplacement des ressources introuvables : un magenta franc, impossible a
+        // confondre avec une texture legitime.
+        m_resources.addTexture("missing", &m_missingTexture);
     }
 
     bool loadModel() {
@@ -419,6 +399,11 @@ private:
             return false;
         }
 
+        const core::u8 magenta[4] = {255, 0, 255, 255};
+        if (!m_missingTexture.create(1, 1, magenta, rhi::TextureFormat::SrgbColor)) {
+            return false;
+        }
+
         // Le cookie module l'intensite de la lampe : ce sont des mesures, pas une couleur
         // a regarder, donc aucune conversion sRGB.
         const std::vector<core::u8> cookie = makeFlashlightCookie();
@@ -442,6 +427,7 @@ private:
     rhi::Texture m_floorBaseColor;
     rhi::Texture m_floorMaterial;
     rhi::Texture m_cookie;
+    rhi::Texture m_missingTexture;
 
     renderer::Flashlight m_flashlight;
     scene::Scene m_scene;

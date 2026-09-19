@@ -43,12 +43,19 @@ bool Mesh::create(const Vertex* vertices, core::u32 vertexCount, const core::u32
                               static_cast<GLuint>(offsetof(Vertex, position)));
     glVertexArrayAttribBinding(m_vertexArray, 0, 0);
 
-    // Attribut 1 : les coordonnees de texture, 2 flottants. Les deux attributs partagent
-    // le meme buffer et le meme pas : ils sont entrelaces dans chaque sommet.
+    // Attribut 1 : la normale, l'orientation de la surface. Elle sert au G-buffer, donc a
+    // tout l'eclairage.
     glEnableVertexArrayAttrib(m_vertexArray, 1);
-    glVertexArrayAttribFormat(m_vertexArray, 1, 2, GL_FLOAT, GL_FALSE,
-                              static_cast<GLuint>(offsetof(Vertex, uv)));
+    glVertexArrayAttribFormat(m_vertexArray, 1, 3, GL_FLOAT, GL_FALSE,
+                              static_cast<GLuint>(offsetof(Vertex, normal)));
     glVertexArrayAttribBinding(m_vertexArray, 1, 0);
+
+    // Attribut 2 : les coordonnees de texture, 2 flottants. Les trois attributs partagent
+    // le meme buffer et le meme pas : ils sont entrelaces dans chaque sommet.
+    glEnableVertexArrayAttrib(m_vertexArray, 2);
+    glVertexArrayAttribFormat(m_vertexArray, 2, 2, GL_FLOAT, GL_FALSE,
+                              static_cast<GLuint>(offsetof(Vertex, uv)));
+    glVertexArrayAttribBinding(m_vertexArray, 2, 0);
 
     // Le VAO retient aussi quel buffer d'indices utiliser : un seul objet a lier au moment
     // de dessiner, et non deux.

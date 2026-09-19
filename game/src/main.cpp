@@ -8,6 +8,7 @@
 #include "renderer/camera.h"
 #include "rhi/device.h"
 #include "rhi/mesh.h"
+#include "rhi/render_target.h"
 #include "rhi/shader_program.h"
 #include "rhi/texture.h"
 
@@ -18,8 +19,13 @@ namespace {
 
 constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
 constexpr const char* kBaseColorPath = "models/suzanne/Suzanne_BaseColor.png";
-constexpr const char* kVertexShaderPath = "shaders/unlit.vert";
-constexpr const char* kFragmentShaderPath = "shaders/unlit.frag";
+constexpr const char* kGBufferVertexPath = "shaders/gbuffer.vert";
+constexpr const char* kGBufferFragmentPath = "shaders/gbuffer.frag";
+constexpr const char* kPresentVertexPath = "shaders/present.vert";
+constexpr const char* kPresentFragmentPath = "shaders/present.frag";
+
+// Vues de debogage du G-buffer, parcourues avec la touche Tab.
+constexpr core::i32 kViewCount = 3; // couleur de base, normale, profondeur
 
 // Sensibilite du regard, en radians par pixel de deplacement souris. Reglable par le
 // joueur le jour ou il y aura des options (M8).
@@ -45,8 +51,10 @@ std::vector<rhi::Vertex> toVertices(const assets::MeshData& meshData) {
     std::vector<rhi::Vertex> vertices(meshData.positions.size());
     for (std::size_t i = 0; i < vertices.size(); ++i) {
         const core::Vec3& position = meshData.positions[i];
+        const core::Vec3& normal = meshData.normals[i];
         const core::Vec2& uv = meshData.uvs[i];
-        vertices[i] = rhi::Vertex{{position.x, position.y, position.z}, {uv.x, uv.y}};
+        vertices[i] = rhi::Vertex{
+            {position.x, position.y, position.z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}};
     }
     return vertices;
 }
@@ -70,7 +78,14 @@ protected:
 
         window().setRelativeMouseMode(true);
 
-        if (!createProgramFromFiles(m_program, kVertexShaderPath, kFragmentShaderPath)) {
+        if (!createProgramFromFiles(m_gbufferProgram, kGBufferVertexPath,
+                                    kGBufferFragmentPath) ||
+            !createProgramFromFiles(m_presentProgram, kPresentVertexPath,
+                                    kPresentFragmentPath)) {
+            return false;
+        }
+
+        if (!m_gbuffer.create(window().width(), window().height())) {
             return false;
         }
 
@@ -99,6 +114,14 @@ protected:
         // initiale. Souris vers le haut (dy < 0) => on leve les yeux, donc pitch positif.
         m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
                              -input().mouseDeltaY() * kLookSensitivity);
+
+        // Tab fait defiler les vues du G-buffer. On ne reagit qu'a l'instant ou la touche
+        // s'enfonce : sinon la vue changerait soixante fois par seconde tant qu'on appuie.
+        const bool tabDown = input().isKeyDown(platform::Key::Tab);
+        if (tabDown && !m_tabWasDown) {
+            m_view = (m_view + 1) % kViewCount;
+        }
+        m_tabWasDown = tabDown;
     }
 
     // A pas fixe : le deplacement est de la simulation, il doit etre deterministe.
@@ -139,28 +162,51 @@ protected:
         }
         m_device.setViewport(width, height);
         m_camera.setAspect(static_cast<core::f32>(width) / static_cast<core::f32>(height));
+        // Le G-buffer a la taille de l'ecran : il faut le recreer a chaque
+        // redimensionnement, une texture ne se redimensionne pas.
+        m_gbuffer.create(width, height);
     }
 
     void onRender() override {
-        m_device.clear(0.04f, 0.0f, 0.02f, 1.0f);
-        m_program.setMat4(0, m_camera.viewProjectionMatrix());
+        // Passe 1 : la geometrie ecrit ses proprietes de surface dans le G-buffer.
+        // Aucun eclairage ici.
+        m_device.bindRenderTarget(m_gbuffer);
+        m_device.clear(0.0f, 0.0f, 0.0f, 0.0f);
+        m_gbufferProgram.setMat4(0, m_camera.viewProjectionMatrix());
         m_device.bindTexture(m_texture, 0);
-        m_device.draw(m_program, m_mesh);
+        m_device.draw(m_gbufferProgram, m_mesh);
+
+        // Passe 2 : un seul triangle couvre l'ecran et relit le G-buffer. C'est ici que
+        // l'eclairage prendra place a l'etape 4.
+        m_device.bindScreen(window().width(), window().height());
+        m_device.clear(0.04f, 0.0f, 0.02f, 1.0f);
+        m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Albedo, 0);
+        m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Normal, 1);
+        m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Depth, 2);
+        m_presentProgram.setInt(0, m_view);
+        m_presentProgram.setVec2(1, core::Vec2{m_camera.nearZ(), m_camera.farZ()});
+        m_device.drawFullscreenTriangle(m_presentProgram);
     }
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
+        m_gbuffer.destroy();
         m_texture.destroy();
         m_mesh.destroy();
-        m_program.destroy();
+        m_presentProgram.destroy();
+        m_gbufferProgram.destroy();
     }
 
 private:
     rhi::Device m_device;
-    rhi::ShaderProgram m_program;
+    rhi::ShaderProgram m_gbufferProgram;
+    rhi::ShaderProgram m_presentProgram;
     rhi::Mesh m_mesh;
     rhi::Texture m_texture;
+    rhi::RenderTarget m_gbuffer;
     renderer::Camera m_camera;
+    core::i32 m_view = 0;
+    bool m_tabWasDown = false;
 };
 
 } // namespace

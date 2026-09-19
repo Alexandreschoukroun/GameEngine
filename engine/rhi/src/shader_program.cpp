@@ -104,6 +104,20 @@ void ShaderProgram::setMat4(core::u32 location, const core::Mat4& value) {
                               &value[0][0]);
 }
 
+void ShaderProgram::setInt(core::u32 location, core::i32 value) {
+    if (m_program == 0) {
+        return;
+    }
+    glProgramUniform1i(m_program, static_cast<GLint>(location), value);
+}
+
+void ShaderProgram::setVec2(core::u32 location, const core::Vec2& value) {
+    if (m_program == 0) {
+        return;
+    }
+    glProgramUniform2f(m_program, static_cast<GLint>(location), value.x, value.y);
+}
+
 void ShaderProgram::destroy() {
     if (m_program != 0) {
         glDeleteProgram(m_program);

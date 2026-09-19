@@ -9,6 +9,7 @@ namespace rhi {
 // reellement utilise (regle 5 du SPEC) ; les normales viendront avec l'eclairage en M2.
 struct Vertex {
     core::f32 position[3];
+    core::f32 normal[3];
     core::f32 uv[2];
 };
 

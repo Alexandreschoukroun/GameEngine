@@ -3,6 +3,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "rhi/mesh.h"
+#include "rhi/render_target.h"
 #include "rhi/shader_program.h"
 #include "rhi/texture.h"
 
@@ -118,6 +119,8 @@ bool Device::create(ProcAddressLoader loader) {
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
 
+    glCreateVertexArrays(1, &m_emptyVertexArray);
+
     m_created = true;
     return true;
 }
@@ -135,9 +138,44 @@ void Device::clear(core::f32 red, core::f32 green, core::f32 blue, core::f32 alp
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+void Device::bindRenderTarget(const RenderTarget& target) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    glBindFramebuffer(GL_FRAMEBUFFER, target.m_framebuffer);
+    setViewport(target.width(), target.height());
+}
+
+void Device::bindScreen(core::u32 width, core::u32 height) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    // Le framebuffer 0 est celui de la fenetre : c'est la seule valeur speciale d'OpenGL
+    // qu'on utilise, et elle designe l'ecran.
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    setViewport(width, height);
+}
+
 void Device::bindTexture(const Texture& texture, core::u32 unit) {
     ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
     glBindTextureUnit(static_cast<GLuint>(unit), texture.m_texture);
+}
+
+void Device::bindGBufferTexture(const RenderTarget& target, GBufferSlot slot, core::u32 unit) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    GLuint texture = 0;
+    switch (slot) {
+        case GBufferSlot::Albedo: texture = target.m_albedoTexture; break;
+        case GBufferSlot::Normal: texture = target.m_normalTexture; break;
+        case GBufferSlot::Depth: texture = target.m_depthTexture; break;
+    }
+    glBindTextureUnit(static_cast<GLuint>(unit), texture);
+}
+
+void Device::drawFullscreenTriangle(const ShaderProgram& program) {
+    ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
+    if (program.m_program == 0) {
+        return;
+    }
+    glUseProgram(program.m_program);
+    glBindVertexArray(m_emptyVertexArray);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void Device::draw(const ShaderProgram& program, const Mesh& mesh) {

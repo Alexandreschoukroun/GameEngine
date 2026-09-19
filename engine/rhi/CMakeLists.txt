@@ -3,6 +3,7 @@ find_package(glad CONFIG REQUIRED)
 add_library(engine_rhi STATIC
     src/device.cpp
     src/mesh.cpp
+    src/render_target.cpp
     src/shader_program.cpp
     src/texture.cpp
 )

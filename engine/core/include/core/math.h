@@ -3,7 +3,9 @@
 #include "core/types.h"
 
 #include <glm/geometric.hpp>
+#include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/matrix.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -26,6 +28,7 @@ namespace core {
 using Vec2 = glm::vec2;
 using Vec3 = glm::vec3;
 using Vec4 = glm::vec4;
+using Mat3 = glm::mat3;
 using Mat4 = glm::mat4;
 
 inline constexpr f32 kPi = 3.14159265358979323846f;

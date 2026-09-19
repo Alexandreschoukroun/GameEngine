@@ -199,3 +199,104 @@ Message explicite, chemin complet, fenêtre détruite proprement, code de retour
 ## 3.5 Coût
 
 Deux lectures de fichier au démarrage, quelques kilo-octets. Rien par frame : les shaders sont compilés une fois, à l'initialisation.
+
+---
+
+# 4. Étape 3b — le G-buffer
+
+## 4.1 Le problème
+
+Jusqu'ici, le fragment shader écrivait une couleur directement à l'écran. En ajoutant l'éclairage tel quel — c'est le rendu **forward** — chaque objet devrait évaluer **toutes les lumières** pendant qu'il se dessine :
+
+```
+   coût = (objets) × (lumières) × (pixels couverts, y compris ceux qu'un mur
+                                    recouvrira une milliseconde plus tard)
+```
+
+Dans un couloir de 40 objets avec 8 lumières, cela fait 320 combinaisons, dont la majorité pour des surfaces qui finiront cachées. Le budget du SPEC ne le permet pas.
+
+## 4.2 L'idée du rendu différé
+
+Le travail est coupé en deux passes.
+
+**Passe de géométrie** : chaque objet écrit ses *propriétés de surface* — couleur de base, normale, profondeur — dans des images intermédiaires. Aucun éclairage. Le tampon de profondeur fait son office : à la fin, chaque pixel contient **la surface visible, et elle seule**.
+
+**Passe d'éclairage** : on parcourt l'écran une fois, on relit ces images, on calcule les lumières.
+
+```
+   coût = (pixels de l'écran) × (lumières)
+```
+
+Indépendant du nombre d'objets, et sans aucun calcul perdu pour des surfaces cachées.
+
+## 4.3 Ce que le différé coûte — à connaître
+
+- **La transparence ne passe pas.** Un G-buffer ne retient qu'une surface par pixel ; une vitre en cache une autre. Les objets transparents devront être rendus en forward, séparément, après coup.
+- **Une seule « recette » de matériau.** Tout doit tenir dans le même format d'images. Acceptable ici : des murs, des portes, des objets — ni peau, ni feuillage.
+- **De la bande passante.** Écrire puis relire ces images a un prix, détaillé plus bas.
+
+Pour un jeu d'horreur en intérieur avec beaucoup de lumières locales, le compromis est très favorable.
+
+## 4.4 Les décisions
+
+**Contenu du G-buffer** : couleur de base en RGBA8, normale en RGBA16F, profondeur 24 bits en texture.
+
+- **Les normales entrent enfin dans le pipeline.** Elles étaient dans le fichier glTF, volontairement ignorées faute d'utilisateur. Le G-buffer en est un.
+- **Pourquoi 16 bits flottants pour la normale** : en 8 bits, les surfaces courbes montreraient des bandes. Des encodages plus compacts existent (octaédrique, par exemple) ; on y viendra si le budget le réclame.
+- **La position n'est pas stockée** : elle se reconstruit depuis la profondeur et la matrice de caméra. Trois canaux économisés, et c'est la pratique standard.
+- **La profondeur est une texture, pas un renderbuffer**, précisément pour pouvoir être relue.
+
+**Un triangle plein écran plutôt qu'un rectangle.** Pour relire le G-buffer il faut couvrir l'écran. Un seul grand triangle qui déborde suffit, et ses trois sommets sont calculés dans le shader à partir de `gl_VertexID` : aucun buffer, aucun VAO à remplir, et pas de diagonale où les pixels seraient traités deux fois. Le profil core exige tout de même un VAO lié, même vide : le `Device` en garde un, inutilisé.
+
+**Où vit le code.** `rhi::RenderTarget` est un objet GPU, donc dans `rhi`. L'orchestration des deux passes reste **dans le jeu** : quinze lignes lisibles. Elle déménagera dans `renderer/` à l'étape 4, quand l'éclairage et plusieurs lumières lui donneront une raison d'exister — pas avant.
+
+## 4.5 Vocabulaire
+
+- **Framebuffer** : une cible de dessin. L'écran en est un ; on peut en créer d'autres, qui écrivent dans des textures.
+- **Attachement** : une texture branchée sur un framebuffer.
+- **MRT** (*multiple render targets*) : un fragment shader qui écrit dans plusieurs attachements **en une seule passe**. C'est le cœur du G-buffer, activé par `glNamedFramebufferDrawBuffers`.
+- **Passe de géométrie / passe d'éclairage** : les deux moitiés du rendu différé.
+- **Triangle plein écran** : le triangle unique couvrant l'écran, généré sans données de sommets.
+- **Profondeur non linéaire** : la valeur stockée n'est pas une distance ; la précision est concentrée près de la caméra. Affichée telle quelle, l'image paraît uniformément blanche — d'où la linéarisation dans le shader d'affichage.
+- **Matrice des normales** : la transposée de l'inverse de la matrice monde. Une normale ne se transforme pas comme un point : avec une mise à l'échelle non uniforme, la matrice monde la ferait sortir de la perpendiculaire à la surface.
+
+## 4.6 Flux de données
+
+```
+   PASSE 1 — géométrie                      cible : le G-buffer
+   ┌──────────────────────────────────────────────────────────┐
+   │  gbuffer.vert : monde → espace clip                       │
+   │  gbuffer.frag : écrit DEUX images d'un coup (MRT)         │
+   │      attachement 0  ←  couleur de base (texture du modèle)│
+   │      attachement 1  ←  normale du monde, renormalisée     │
+   │      profondeur     ←  écrite par le test de profondeur   │
+   └──────────────────────────────────────────────────────────┘
+                              │
+        3 textures : albedo, normale, profondeur
+                              │
+   PASSE 2 — affichage                      cible : l'écran
+   ┌──────────────────────────────────────────────────────────┐
+   │  present.vert : 1 triangle déduit de gl_VertexID          │
+   │  present.frag : relit les 3 textures                      │
+   │      Tab fait défiler : couleur → normale → profondeur    │
+   └──────────────────────────────────────────────────────────┘
+```
+
+À l'étape 4, la passe 2 cessera d'afficher une couche brute pour **calculer l'éclairage** à partir des trois.
+
+## 4.7 Coût
+
+- **Mémoire** : 4 octets de couleur + 8 de normale + 4 de profondeur = **16 octets par pixel**, soit environ **33 Mo en 1080p**. C'est le prix d'entrée du rendu différé.
+- **Bande passante** : environ 12 octets écrits et 16 relus par pixel et par frame, soit ~3,5 Go/s à 60 fps en 1080p. Négligeable sur une RTX récente, à surveiller sur la GTX 1060 visée par le SPEC — c'est ce poste qu'il faudra regarder dans Tracy quand les lumières arriveront.
+- **Par frame** : une passe de géométrie (identique au rendu précédent) plus une passe plein écran (un triangle, un échantillonnage par pixel).
+
+## 4.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran, avec Tab pour faire défiler les vues** :
+- *couleur de base* : identique au rendu précédent ;
+- *normales* : le relief complet de Suzanne apparaît — bleu face à la caméra, rose vers +X, vert vers +Y. C'est la preuve que les normales traversent correctement toute la chaîne, du fichier glTF au G-buffer ;
+- *profondeur* : le modèle sombre à 2,5 m, le fond blanc à 100 m, et les oreilles visiblement plus claires que le front parce qu'elles sont plus loin.
+
+**Ce qui n'existe pas encore** : aucun éclairage — la passe d'affichage montre des données brutes. Le G-buffer ne contient ni rugosité ni métallicité, qui arriveront avec le PBR.
+
+**Ce qui vient après (étape 4)** : l'éclairage PBR. La passe 2 calculera la lumière au lieu d'afficher une couche, et la conversion sRGB sera enfin traitée — la dernière dette de M1 qui ait encore un sens.

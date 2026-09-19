@@ -10,6 +10,9 @@ layout(binding = 2) uniform sampler2D uDepth;
 // sampler2DShadow et non sampler2D : une lecture ne rend pas la profondeur stockee mais
 // le resultat du test "ce point est-il devant ?", deja moyenne par le materiel.
 layout(binding = 3) uniform sampler2DShadow uShadowMap;
+// Cookie : la texture que la lumiere projette, qui salit son faisceau. Une vraie lampe
+// n'emet pas un disque parfait - le reflecteur a des defauts, l'ampoule est decentree.
+layout(binding = 4) uniform sampler2D uSpotCookie;
 
 const int kMaxLights = 8; // le budget du SPEC : ~8 lumieres visibles simultanement
 
@@ -26,6 +29,7 @@ layout(location = 23) uniform vec4 uLightDirections[kMaxLights]; // xyz = direct
 layout(location = 31) uniform vec4 uLightParams[kMaxLights];     // x = cos exterieur, y = type
 layout(location = 39) uniform mat4 uShadowViewProjection;        // occupe 39 a 42
 layout(location = 43) uniform int uShadowLightIndex;             // -1 = aucune ombre
+layout(location = 44) uniform int uHasCookie;
 
 in vec2 vTexCoord;
 out vec4 outColor;
@@ -89,6 +93,20 @@ vec3 tonemapACES(vec3 color) {
     const float d = 0.59;
     const float e = 0.14;
     return clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.0, 1.0);
+}
+
+// Le cookie se projette avec la meme matrice que l'ombre : la lumiere regarde sa texture
+// exactement comme elle regarde sa carte de profondeur.
+vec3 cookieTint(vec3 position) {
+    vec4 lightSpace = uShadowViewProjection * vec4(position, 1.0);
+    if (lightSpace.w <= 0.0) {
+        return vec3(1.0); // derriere la lampe
+    }
+    vec2 uv = (lightSpace.xy / lightSpace.w) * 0.5 + 0.5;
+    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) {
+        return vec3(0.0); // hors du cadre projete
+    }
+    return texture(uSpotCookie, uv).rgb;
 }
 
 // Proportion de lumiere qui atteint ce point : 1 en pleine lumiere, 0 dans l'ombre.
@@ -192,6 +210,9 @@ void main() {
         // Elle vient de la carte de profondeur rendue depuis la lumiere.
         if (i == uShadowLightIndex) {
             radiance *= shadowFactor(position, nDotL);
+            if (uHasCookie != 0) {
+                radiance *= cookieTint(position);
+            }
         }
         vec3 fresnel = fresnelSchlick(max(dot(halfway, view), 0.0), f0);
         float distribution = distributionGGX(normal, halfway, roughness);

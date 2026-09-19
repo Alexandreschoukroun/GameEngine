@@ -1,7 +1,10 @@
 find_package(EnTT CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(engine_scene STATIC
+    src/resource_table.cpp
     src/scene.cpp
+    src/serialization.cpp
 )
 
 target_include_directories(engine_scene PUBLIC
@@ -18,6 +21,10 @@ target_link_libraries(engine_scene
         # Troisieme et derniere exception a la regle 2, assumee comme GLM et Tracy - il n'y
         # aura pas de second ECS a substituer, la stack du SPEC le verrouille.
         EnTT::EnTT
+    PRIVATE
+        # PRIVATE : le format des fichiers est un detail d'implementation. Personne
+        # au-dessus de cette couche ne manipule de json.
+        nlohmann_json::nlohmann_json
 )
 
 set_project_warnings(engine_scene)

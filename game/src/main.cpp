@@ -3,7 +3,6 @@
 #include "core/math.h"
 #include "core/types.h"
 #include "platform/application.h"
-#include "platform/paths.h"
 #include "renderer/camera.h"
 #include "renderer/deferred_renderer.h"
 #include "renderer/flashlight.h"
@@ -11,7 +10,10 @@
 #include "rhi/device.h"
 #include "rhi/mesh.h"
 #include "rhi/texture.h"
+#include "platform/paths.h"
+#include "scene/resource_table.h"
 #include "scene/scene.h"
+#include "scene/serialization.h"
 
 #include <array>
 #include <cmath>
@@ -159,6 +161,15 @@ protected:
                              -input().mouseDeltaY() * kLookSensitivity);
         m_flashlight.update(m_camera, frameDeltaSeconds);
 
+        // F5 ecrit la scene sur le disque. Deux appuis successifs produisent exactement
+        // le meme fichier : c'est l'exigence de determinisme du SPEC.
+        const bool f5Down = input().isKeyDown(platform::Key::F5);
+        if (f5Down && !m_f5WasDown) {
+            scene::saveSceneToFile(m_scene, m_resources,
+                                   platform::assetPath("scenes/demo.json").c_str());
+        }
+        m_f5WasDown = f5Down;
+
         const bool fDown = input().isKeyDown(platform::Key::F);
         if (fDown && !m_fWasDown) {
             m_flashlight.toggle();
@@ -233,14 +244,17 @@ protected:
         m_drawItems.clear();
         for (auto [entity, world, mesh] :
              m_scene.registry().view<scene::WorldTransform, scene::MeshRenderer>().each()) {
-            if (mesh.mesh == nullptr) {
+            // La poignee se resout ici, une fois par objet et par frame : c'est une simple
+            // indexation de tableau.
+            const rhi::Mesh* meshResource = m_resources.mesh(mesh.mesh);
+            if (meshResource == nullptr) {
                 continue;
             }
             const core::Mat3 normalMatrix =
                 glm::transpose(glm::inverse(core::Mat3(world.matrix)));
-            m_drawItems.push_back(renderer::DrawItem{mesh.mesh, mesh.baseColor,
-                                                     mesh.metallicRoughness, world.matrix,
-                                                     normalMatrix});
+            m_drawItems.push_back(renderer::DrawItem{
+                meshResource, m_resources.texture(mesh.baseColor),
+                m_resources.texture(mesh.metallicRoughness), world.matrix, normalMatrix});
         }
 
         // La lampe torche en premier : c'est elle qui porte l'ombre, et le renderer retient
@@ -287,16 +301,25 @@ private:
     // La scene remplace les variables membres : chaque objet est une entite, decrite par
     // ses composants. C'est ce qui rendra le chargement depuis un fichier possible.
     void buildScene() {
+        // Les ressources recoivent un nom logique : c'est lui qui sera ecrit dans le
+        // fichier de scene, jamais une adresse memoire ni un chemin de disque.
+        const auto roomMesh = m_resources.addMesh("piece", &m_floorMesh);
+        const auto roomAlbedo = m_resources.addTexture("damier", &m_floorBaseColor);
+        const auto roomMaterial = m_resources.addTexture("mat_rugueux", &m_floorMaterial);
+        const auto statueMesh = m_resources.addMesh("suzanne", &m_modelMesh);
+        const auto statueAlbedo = m_resources.addTexture("suzanne_couleur", &m_modelBaseColor);
+        const auto statueMaterial =
+            m_resources.addTexture("suzanne_matiere", &m_modelMetallicRoughness);
+
         const scene::Entity room = m_scene.createEntity("piece");
         m_scene.registry().emplace<scene::MeshRenderer>(
-            room, scene::MeshRenderer{&m_floorMesh, &m_floorBaseColor, &m_floorMaterial});
+            room, scene::MeshRenderer{roomMesh, roomAlbedo, roomMaterial});
 
         // Deux exemplaires du meme maillage, a deux endroits et a deux echelles : c'est
         // exactement ce qui etait impossible avant, la geometrie etant figee a l'origine.
         const scene::Entity statue = m_scene.createEntity("statue");
         m_scene.registry().emplace<scene::MeshRenderer>(
-            statue,
-            scene::MeshRenderer{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness});
+            statue, scene::MeshRenderer{statueMesh, statueAlbedo, statueMaterial});
 
         m_statue = statue;
 
@@ -307,8 +330,7 @@ private:
         satelliteTransform.position = core::Vec3{2.6f, -0.5f, 0.0f};
         satelliteTransform.scale = core::Vec3{0.45f, 0.45f, 0.45f};
         m_scene.registry().emplace<scene::MeshRenderer>(
-            satellite,
-            scene::MeshRenderer{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness});
+            satellite, scene::MeshRenderer{statueMesh, statueAlbedo, statueMaterial});
         m_scene.setParent(satellite, statue);
 
         // La braise est elle aussi enfant de la statue : elle orbite avec le satellite, ce
@@ -423,6 +445,7 @@ private:
 
     renderer::Flashlight m_flashlight;
     scene::Scene m_scene;
+    scene::ResourceTable m_resources;
     scene::Entity m_statue = scene::kInvalidEntity;
     // Reutilises d'une frame a l'autre : on vide sans liberer, donc aucune allocation dans
     // la boucle de frame une fois le regime etabli (regle 7 du SPEC).
@@ -431,6 +454,7 @@ private:
 
     bool m_tabWasDown = false;
     bool m_fWasDown = false;
+    bool m_f5WasDown = false;
 };
 
 } // namespace

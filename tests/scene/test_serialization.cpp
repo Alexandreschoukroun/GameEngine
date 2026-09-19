@@ -84,3 +84,74 @@ TEST_CASE("The format carries a version number") {
     CHECK(scene::saveSceneToString(scene, resources).find("\"version\": 1") !=
           std::string::npos);
 }
+
+TEST_CASE("Saving, loading and saving again gives the same file") {
+    scene::Scene original;
+    const scene::ResourceTable resources;
+
+    const scene::Entity parent = makeEntity(original, "porte", 0xaaaa, core::Vec3{1.0f, 0.0f, 2.0f});
+    const scene::Entity child = makeEntity(original, "poignee", 0x0001, core::Vec3{0.4f, 1.1f, 0.0f});
+    REQUIRE(original.setParent(child, parent));
+    original.registry().emplace<scene::LightSource>(
+        parent, scene::LightSource{core::Vec3{1.0f, 0.5f, 0.25f}, 12.0f});
+
+    const std::string saved = scene::saveSceneToString(original, resources);
+
+    scene::Scene reloaded;
+    REQUIRE(scene::loadSceneFromString(reloaded, resources, saved));
+
+    // L'aller-retour complet doit etre neutre : c'est ce qui garantit qu'ouvrir un niveau
+    // dans l'editeur et le resauvegarder sans rien toucher ne produit aucun diff.
+    CHECK(scene::saveSceneToString(reloaded, resources) == saved);
+}
+
+TEST_CASE("A child written before its parent is still linked") {
+    scene::Scene original;
+    const scene::ResourceTable resources;
+
+    // L'enfant a le plus petit identifiant : il apparait avant son parent dans le fichier.
+    const scene::Entity parent = makeEntity(original, "parent", 0xff00, core::Vec3{});
+    const scene::Entity child = makeEntity(original, "enfant", 0x0002, core::Vec3{});
+    REQUIRE(original.setParent(child, parent));
+
+    scene::Scene reloaded;
+    REQUIRE(scene::loadSceneFromString(reloaded, resources,
+                                       scene::saveSceneToString(original, resources)));
+
+    const scene::Entity loadedChild = reloaded.findByName("enfant");
+    REQUIRE(loadedChild != scene::kInvalidEntity);
+    const auto* link = reloaded.registry().try_get<scene::Parent>(loadedChild);
+    REQUIRE(link != nullptr);
+    CHECK(reloaded.registry().get<scene::Id>(link->value).value == 0xff00);
+}
+
+TEST_CASE("An unknown format version is refused") {
+    scene::Scene scene;
+    const scene::ResourceTable resources;
+
+    CHECK_FALSE(scene::loadSceneFromString(scene, resources,
+                                           R"({"version": 99, "entities": []})"));
+}
+
+TEST_CASE("Malformed JSON is refused without throwing") {
+    scene::Scene scene;
+    const scene::ResourceTable resources;
+
+    CHECK_FALSE(scene::loadSceneFromString(scene, resources, "{ ceci n est pas du json"));
+}
+
+TEST_CASE("A failed load leaves the previous scene untouched") {
+    scene::Scene scene;
+    const scene::ResourceTable resources;
+    makeEntity(scene, "survivant", 0x1234, core::Vec3{});
+
+    // Parent inexistant : la lecture echoue en seconde passe, donc apres avoir deja cree
+    // des entites dans la scene temporaire.
+    const char* broken = R"({"version": 1, "entities": [
+        {"id": "0x0005", "name": "orphelin", "parent": "0x9999"}]})";
+    CHECK_FALSE(scene::loadSceneFromString(scene, resources, broken));
+
+    // Tout ou rien : la scene d'origine doit etre intacte.
+    CHECK(scene.findByName("survivant") != scene::kInvalidEntity);
+    CHECK(scene.findByName("orphelin") == scene::kInvalidEntity);
+}

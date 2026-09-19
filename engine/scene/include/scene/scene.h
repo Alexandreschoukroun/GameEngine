@@ -27,6 +27,14 @@ public:
 
     bool isValid(Entity entity) const { return m_registry.valid(entity); }
 
+    // Cree une entite avec un identifiant impose : le chargeur en a besoin pour restituer
+    // les liens de parente du fichier.
+    Entity createEntityWithId(std::string_view name, core::Uuid id);
+
+    // Premiere entite portant ce nom, ou kInvalidEntity. Le nom n'est pas unique : c'est
+    // une commodite pour le code de demonstration et les logs, pas une cle.
+    Entity findByName(std::string_view name) const;
+
     // Attache child a parent : sa position devient relative a celle du parent.
     // Passer kInvalidEntity comme parent detache l'entite.
     // Refuse et journalise si le lien creerait un cycle - la passe de mise a jour est

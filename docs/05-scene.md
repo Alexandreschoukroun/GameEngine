@@ -1,6 +1,6 @@
 # 05 — Scène (M3)
 
-*Brique 1 : entités et composants. Brique 2 : hiérarchie (section 2). Brique 3a : écrire une scène (section 3).*
+*Brique 1 : entités et composants. Brique 2 : hiérarchie (section 2). Brique 3a : écrire une scène (section 3). Brique 3b : la relire (section 4).*
 
 Le jalon M3 fait passer le moteur des variables membres aux **données** : entités, hiérarchie, sérialisation JSON, et le graphe de secteurs/portails. C'est le jalon qui rend un niveau chargeable depuis un fichier.
 
@@ -189,3 +189,63 @@ Le fichier porte `"version": 1`. Un fichier écrit par une version ultérieure s
 **Ce qui n'existe pas encore** : rien ne relit ce fichier. La scène est toujours construite par du code au démarrage.
 
 **Ce qui vient après (brique 3b)** : la lecture. Modifier le JSON à la main et voir la scène changer au lancement — le moment où les niveaux cessent d'être du C++.
+
+---
+
+# 4. Brique 3b — relire une scène
+
+## 4.1 Le problème, et une conséquence qu'on n'avait pas vue venir
+
+Écrire ne sert à rien sans lire. Mais un détail est apparu en cours de route, et il éclaire tout le reste.
+
+Tant que la scène est **construite par du code**, chaque lancement crée de nouvelles entités, donc tire de **nouveaux identifiants aléatoires**. Sauvegarder produit alors un fichier entièrement différent du précédent — 119 lignes de diff à chaque fois, alors que rien n'a changé.
+
+La lecture règle ça : les identifiants viennent du fichier et ne bougent plus. C'est seulement à partir de maintenant que la promesse « diff minimal » du SPEC tient réellement.
+
+## 4.2 Les trois décisions
+
+**Tout ou rien.** La scène se construit dans un objet temporaire, et ne remplace celle de l'appelant qu'en cas de succès complet. Un niveau à moitié chargé — la moitié des murs, aucune lumière — se diagnostique bien plus difficilement qu'un échec net. Un test le vérifie : après une lecture échouée, la scène précédente est intacte.
+
+**Deux passes.** On crée d'abord **toutes** les entités avec leurs identifiants, puis on attache les composants et les liens de parenté. Un enfant peut parfaitement être écrit avant son parent — le fichier est trié par identifiant, pas par hiérarchie. Un test couvre ce cas précis.
+
+**Ressource introuvable : un défaut visible.** Un nom inconnu fait chercher une ressource nommée `missing`, un magenta franc impossible à confondre avec une texture légitime. C'est la pratique du métier, et elle repose sur une idée simple : un objet silencieusement absent se diagnostique bien plus mal qu'un objet visiblement faux.
+
+## 4.3 Les exceptions, traitées exactement comme le SPEC le prévoit
+
+`nlohmann::json` lève une exception sur un document malformé, et le SPEC interdit les exceptions dans le moteur. La règle 6 prévoyait précisément ce cas :
+
+> « On ne les interdit pas dans ces libs, mais on catch systématiquement à la frontière du wrapper et on convertit en code d'erreur avant de remonter dans le moteur. »
+
+En pratique, `Json::parse(json, nullptr, false)` demande à la bibliothèque de **ne pas lever** et de rendre un document marqué comme rejeté. L'erreur est convertie en `false` dès la première ligne du chargeur, et rien ne remonte. Un test passe une chaîne délibérément malformée pour le vérifier.
+
+## 4.4 Le numéro de version sert enfin
+
+Un fichier portant une version inconnue est **refusé**, pas interprété au mieux. Un niveau silencieusement cassé coûte bien plus cher qu'un message clair. La migration viendra quand il y aura quelque chose à migrer.
+
+## 4.5 La vérification décisive
+
+Le fichier `demo.json` a été modifié **à la main** — la position de la statue passée de `[0, 0, 0]` à `[-2.2, 0.9, 0]` — puis le jeu relancé **sans recompiler**.
+
+La statue apparaît déplacée, et son satellite l'a suivie, puisque la hiérarchie vient elle aussi du fichier.
+
+Sept tests couvrent le reste, tous sans GPU donc exécutés en CI :
+
+| Test | Ce qu'il empêche |
+|---|---|
+| Aller-retour neutre | Ouvrir un niveau et le refermer sans rien toucher produirait un diff |
+| Enfant avant parent | Un format qui dépendrait de l'ordre d'écriture |
+| Version inconnue refusée | Un niveau interprété de travers par une version antérieure |
+| JSON malformé refusé | Une exception qui traverserait le moteur |
+| Scène intacte après échec | Un niveau à moitié chargé |
+
+## 4.6 Coût
+
+Deux parcours du fichier et une recherche linéaire d'identifiant par lien de parenté. Sur des centaines d'entités, c'est négligeable ; sur des dizaines de milliers, il faudra une table de hachage. Le jour où ça se mesurera.
+
+## 4.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié** : la scène du jeu vient entièrement du fichier. `buildScene()` a disparu du code.
+
+**Ce qui n'existe pas encore** : aucun rechargement à chaud — il faut relancer. Rien ne valide qu'un fichier édité à la main reste cohérent (une échelle nulle, un cône de spot négatif passeront sans broncher). Et le nom d'entité n'est pas unique : `findByName` rend la première trouvée, ce qui convient au code de démonstration mais pas à une référence durable.
+
+**Ce qui vient après (brique 4)** : le graphe de secteurs et portails — la dernière brique de M3, et la fondation que réutiliseront le culling du rendu, l'occlusion audio de M5 et la propagation du son pour l'IA de M7.

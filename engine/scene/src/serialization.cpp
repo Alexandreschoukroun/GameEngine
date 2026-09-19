@@ -9,8 +9,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
+#include <utility>
 #include <vector>
 
 namespace scene {
@@ -47,6 +50,40 @@ std::string toHex(core::Uuid id) {
 
 const char* lightTypeName(renderer::LightType type) {
     return type == renderer::LightType::Spot ? "spot" : "point";
+}
+
+core::Uuid fromHex(const std::string& text) {
+    // strtoull accepte le prefixe 0x et s'arrete au premier caractere invalide : une
+    // chaine malformee donne 0, que l'appelant traite comme un identifiant absent.
+    return static_cast<core::Uuid>(std::strtoull(text.c_str(), nullptr, 16));
+}
+
+core::Vec3 vec3FromJson(const Json& node, const core::Vec3& fallback) {
+    if (!node.is_array() || node.size() != 3) {
+        return fallback;
+    }
+    return core::Vec3{node[0].get<core::f32>(), node[1].get<core::f32>(),
+                      node[2].get<core::f32>()};
+}
+
+// Resout un nom de ressource, avec repli sur "missing". Un nom inconnu doit se VOIR : un
+// objet silencieusement absent se diagnostique bien plus difficilement qu'un objet affiche
+// avec une ressource de remplacement.
+template <typename Finder>
+ResourceHandle resolveResource(const Json& node, const char* key, Finder find,
+                               const char* kind) {
+    if (!node.contains(key) || !node[key].is_string()) {
+        return kInvalidResource;
+    }
+    const std::string name = node[key].get<std::string>();
+    const ResourceHandle handle = find(name);
+    if (handle != kInvalidResource) {
+        return handle;
+    }
+    core::logWarn("ressource inconnue, remplacement par missing");
+    core::logWarn(kind);
+    core::logWarn(name);
+    return find(std::string("missing"));
 }
 
 } // namespace
@@ -151,6 +188,138 @@ bool saveSceneToFile(const Scene& scene, const ResourceTable& resources, const c
         return false;
     }
     core::logInfo("scene sauvegardee");
+    core::logInfo(path);
+    return true;
+}
+
+bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
+                         const std::string& json) {
+    // nlohmann leve une exception sur un document malforme. Le SPEC interdit les
+    // exceptions dans le moteur : on les arrete ici, a la frontiere du wrapper, et on les
+    // convertit en code d'erreur. C'est exactement le cas prevu par la regle 6.
+    Json root = Json::parse(json, nullptr, false);
+    if (root.is_discarded()) {
+        core::logError("fichier de scene illisible : JSON malforme");
+        return false;
+    }
+
+    const core::u32 version = root.value("version", 0u);
+    if (version != kSceneFormatVersion) {
+        // Refus net plutot qu'interpretation approximative : un niveau silencieusement
+        // casse coute bien plus cher qu'un message clair.
+        core::logError("version de scene incompatible");
+        return false;
+    }
+    if (!root.contains("entities") || !root["entities"].is_array()) {
+        core::logError("fichier de scene sans liste d'entites");
+        return false;
+    }
+
+    // Tout ou rien : on construit a cote, et on ne remplace la scene de l'appelant qu'une
+    // fois la lecture entierement reussie.
+    Scene loaded;
+    std::vector<std::pair<core::Uuid, Entity>> created;
+    const Json& entities = root["entities"];
+
+    // Premiere passe : creer toutes les entites. Un enfant peut etre ecrit AVANT son
+    // parent, le fichier etant trie par identifiant et non par hierarchie : les liens ne
+    // peuvent donc pas etre etablis tant que tout n'existe pas.
+    for (const Json& node : entities) {
+        if (!node.contains("id") || !node["id"].is_string()) {
+            core::logError("entite sans identifiant");
+            return false;
+        }
+        const core::Uuid id = fromHex(node["id"].get<std::string>());
+        if (id == core::kInvalidUuid) {
+            core::logError("identifiant d'entite invalide");
+            return false;
+        }
+        const std::string name = node.value("name", std::string("entite"));
+        created.emplace_back(id, loaded.createEntityWithId(name, id));
+    }
+
+    const auto findEntity = [&created](core::Uuid id) {
+        for (const auto& pair : created) {
+            if (pair.first == id) {
+                return pair.second;
+            }
+        }
+        return kInvalidEntity;
+    };
+
+    // Seconde passe : composants et liens de parente.
+    for (std::size_t i = 0; i < entities.size(); ++i) {
+        const Json& node = entities[i];
+        const Entity entity = created[i].second;
+
+        if (node.contains("transform")) {
+            const Json& t = node["transform"];
+            Transform& transform = loaded.registry().get<Transform>(entity);
+            transform.position = vec3FromJson(t.value("position", Json()), transform.position);
+            transform.rotation = vec3FromJson(t.value("rotation", Json()), transform.rotation);
+            transform.scale = vec3FromJson(t.value("scale", Json()), transform.scale);
+        }
+
+        if (node.contains("parent") && node["parent"].is_string()) {
+            const Entity parent = findEntity(fromHex(node["parent"].get<std::string>()));
+            if (parent == kInvalidEntity) {
+                core::logError("parent introuvable dans le fichier de scene");
+                return false;
+            }
+            if (!loaded.setParent(entity, parent)) {
+                return false; // cycle : setParent a deja journalise
+            }
+        }
+
+        if (node.contains("mesh")) {
+            const Json& m = node["mesh"];
+            MeshRenderer meshRenderer;
+            meshRenderer.mesh = resolveResource(
+                m, "mesh", [&](const std::string& n) { return resources.findMesh(n); },
+                "maillage");
+            meshRenderer.baseColor = resolveResource(
+                m, "baseColor", [&](const std::string& n) { return resources.findTexture(n); },
+                "texture");
+            meshRenderer.metallicRoughness = resolveResource(
+                m, "metallicRoughness",
+                [&](const std::string& n) { return resources.findTexture(n); }, "texture");
+            loaded.registry().emplace<MeshRenderer>(entity, meshRenderer);
+        }
+
+        if (node.contains("light")) {
+            const Json& l = node["light"];
+            LightSource light;
+            light.type = l.value("type", std::string("point")) == "spot"
+                             ? renderer::LightType::Spot
+                             : renderer::LightType::Point;
+            light.color = vec3FromJson(l.value("color", Json()), light.color);
+            light.intensity = l.value("intensity", light.intensity);
+            light.innerAngleRadians = l.value("innerAngle", light.innerAngleRadians);
+            light.outerAngleRadians = l.value("outerAngle", light.outerAngleRadians);
+            light.range = l.value("range", light.range);
+            light.castsShadow = l.value("castsShadow", light.castsShadow);
+            loaded.registry().emplace<LightSource>(entity, light);
+        }
+    }
+
+    scene = std::move(loaded);
+    return true;
+}
+
+bool loadSceneFromFile(Scene& scene, const ResourceTable& resources, const char* path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        core::logError("fichier de scene introuvable");
+        core::logError(path);
+        return false;
+    }
+    std::ostringstream contents;
+    contents << file.rdbuf();
+    if (!loadSceneFromString(scene, resources, contents.str())) {
+        core::logError(path);
+        return false;
+    }
+    core::logInfo("scene chargee");
     core::logInfo(path);
     return true;
 }

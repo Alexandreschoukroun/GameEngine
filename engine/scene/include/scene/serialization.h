@@ -25,4 +25,18 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
 // Meme chose, vers un fichier.
 bool saveSceneToFile(const Scene& scene, const ResourceTable& resources, const char* path);
 
+// Reconstruit une scene depuis du JSON.
+//
+// Tout ou rien : la scene se construit a cote, et ne remplace celle passee en parametre
+// qu'en cas de succes complet. Un fichier a moitie charge laisserait un niveau incoherent,
+// bien plus penible a diagnostiquer qu'un echec net.
+//
+// Les ressources sont resolues par NOM via la table. Un nom inconnu fait chercher une
+// ressource nommee "missing" en remplacement : un defaut visible vaut mieux qu'un objet
+// silencieusement absent.
+bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
+                         const std::string& json);
+
+bool loadSceneFromFile(Scene& scene, const ResourceTable& resources, const char* path);
+
 } // namespace scene

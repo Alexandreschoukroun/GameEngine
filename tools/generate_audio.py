@@ -101,9 +101,53 @@ def make_breath(seconds=3.0):
     return normalize(crossfade_loop(samples, RATE // 2), 0.85)
 
 
+def make_footstep(seed, resonances, brightness, decay, seconds=0.28):
+    """Un pas : une frappe breve, plus un peu de resonance de la matiere.
+
+    Un pas reel est un choc - donc une impulsion qui decroit vite - colore par ce que la
+    surface renvoie. La pierre renvoie des frequences hautes et s'eteint aussitot ; le
+    bois creux resonne plus bas et plus longtemps. C'est cette difference que l'oreille
+    utilise pour reconnaitre le sol sous ses pieds.
+    """
+    random.seed(seed)
+    count = int(RATE * seconds)
+    samples = [0.0] * count
+
+    # Le choc : du bruit qui s'eteint exponentiellement.
+    low = 0.0
+    for i in range(count):
+        white = random.uniform(-1.0, 1.0)
+        low += (white - low) * brightness
+        samples[i] = low * math.exp(-i / (RATE * decay))
+
+    # Les resonances de la matiere, elles aussi amorties.
+    for frequency, amplitude, length in resonances:
+        phase = 0.0
+        for i in range(count):
+            phase += 2.0 * math.pi * frequency / RATE
+            samples[i] += math.sin(phase) * amplitude * math.exp(-i / (RATE * length))
+
+    # Une attaque tres courte evite le clic d'un signal qui demarre a pleine amplitude.
+    attack = int(RATE * 0.002)
+    for k in range(attack):
+        samples[k] *= k / attack
+
+    return normalize(samples, 0.9)
+
+
 def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    for name, samples in (("braises.wav", make_embers()), ("souffle.wav", make_breath())):
+    sounds = (
+        ("braises.wav", make_embers()),
+        ("souffle.wav", make_breath()),
+        # Pierre : clair, sec, sans resonance basse. Il s'eteint presque aussitot.
+        ("pas_pierre.wav", make_footstep(21, [(900.0, 0.25, 0.012), (1700.0, 0.12, 0.008)],
+                                         brightness=0.35, decay=0.030)),
+        # Bois creux : plus sourd, et il resonne - c'est le plancher qui vibre sous le pied.
+        ("pas_bois.wav", make_footstep(22, [(180.0, 0.55, 0.070), (320.0, 0.30, 0.045)],
+                                       brightness=0.08, decay=0.055)),
+    )
+    for name, samples in sounds:
         path = OUTPUT / name
         write_wav(path, samples)
         print(f"{path.relative_to(OUTPUT.parent.parent)} : {path.stat().st_size // 1024} Ko")

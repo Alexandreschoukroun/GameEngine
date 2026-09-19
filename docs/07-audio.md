@@ -1,6 +1,6 @@
 # 07 — Audio (M5)
 
-*Brique 1 : le périphérique, les voix, le son positionné (section 1). Brique 2 : les sources sonores deviennent des données de scène (section 2). Brique 3 : l'occlusion (section 3).*
+*Brique 1 : le périphérique, les voix, le son positionné (section 1). Brique 2 : les sources sonores deviennent des données de scène (section 2). Brique 3 : l'occlusion (section 3). Brique 4 : les matériaux de surface et les pas (section 4).*
 
 Le jalon M5 apporte ce que le SPEC appelle « le système le plus important » du moteur. Dans un jeu d'horreur en intérieur sombre, l'oreille porte plus d'information que l'œil : on sait qu'une chose marche dans la pièce d'à côté avant de la voir, et le plus souvent on ne la voit jamais.
 
@@ -232,4 +232,73 @@ La parade est connue et viendra quand le besoin sera réel : ne recalculer l'occ
 
 **Cinq tests** s'ajoutent : une ligne dégagée ne modifie rien, un mur large occlut totalement, un obstacle étroit n'occlut que partiellement (c'est ce que les trois rayons permettent d'exprimer), l'occlusion rejoint sa consigne progressivement et non en une frame, et la scène de démonstration déclare des sons que le jeu enregistre réellement — un garde-fou sur les **données**, qui attrape un renommage dans `demo.json` que le compilateur ne verrait pas. **61 tests, 258 assertions** au total.
 
-**Ce qui vient après (brique 4)** : les **matériaux de surface**. Le son d'un pas dépend de ce qu'on foule, et un matériau servira aussi à doser l'occlusion — une porte en bois et un mur de pierre ne masquent pas de la même façon. C'est la même donnée que la masse volumique introduite en M4 pour la porte : bois, pierre, métal.
+**Ce qui vient après (brique 4)** : les **matériaux de surface**.
+
+---
+
+# 4. Brique 4 — les matériaux de surface et les pas
+
+## 4.1 Le problème
+
+Le joueur se déplace en silence. C'est un manque double.
+
+D'abord, **le silence casse l'immersion** : rien ne relie le corps du joueur au monde, il glisse au-dessus du sol comme une caméra. Ensuite, et c'est le point de fond du genre, **le bruit de ses propres pas est une information de gameplay**. Il renseigne le joueur sur ce qu'il foule — donc sur où il est, dans le noir — et il le renseignera bientôt sur ce que l'antagoniste peut entendre de lui.
+
+## 4.2 Le matériau, une donnée que trois systèmes attendent
+
+Un pas sur de la pierre ne sonne pas comme un pas sur du bois. Il faut donc que le niveau **déclare** la matière de ses surfaces. C'est un nouveau composant, `Surface`, posé à côté du `Collider` :
+
+```json
+"collider": { "shape": "box", "halfExtents": [3.0, 0.5, 6.0], "static": true },
+"surface":  { "footstep": "pas_pierre" }
+```
+
+Il ne porte aujourd'hui que le son des pas, et c'est volontaire — une brique à la fois. Mais c'est la **troisième fois** que la même notion se présente, et il faut le noter :
+
+- en M4, la **masse volumique** de la porte : du bois plein, 300 kg/m³ ;
+- en brique 3, l'occlusion, qui devrait distinguer une porte en bois d'un mur de pierre ;
+- ici, le son des pas.
+
+Ce sont trois vues d'une seule donnée. Le jour où elle sera unifiée en une vraie table de matériaux, ces trois usages y puiseront — et le rendu s'y ajoutera. C'est exactement ce que prépare la brique « vrais assets » : un matériau décrit une matière, pas seulement une apparence.
+
+## 4.3 La cadence se règle par la distance, pas par le temps
+
+Un compteur temporel demanderait de connaître la vitesse pour ajuster l'intervalle : un réglage pour la marche, un autre pour la course, un troisième pour l'accroupi à venir.
+
+Le moteur accumule au contraire la **distance parcourue**, et joue un pas chaque fois qu'une foulée (85 cm) est couverte. Courir rapproche donc les pas tout seul, et s'arrêter les arrête — sans une ligne de code de plus.
+
+Un détail qui compte : c'est le déplacement **constaté** qui est mesuré, pas la vitesse demandée. Pousser contre un mur ne doit pas faire marcher sur place.
+
+## 4.4 Varier la hauteur plutôt que multiplier les fichiers
+
+Cinquante pas rigoureusement identiques trahissent la machine. L'oreille repère une répétition exacte bien mieux qu'une différence : c'est le défaut de mitraillette, audible dans quantité de jeux.
+
+La parade classique est de stocker plusieurs variantes de chaque son. Le moteur fait autrement : il varie la **hauteur** (± 8 %) et le **volume** (± 15 %) à chaque pas. Un seul fichier par matière, une variation qui ne coûte rien, et le tirage vient d'un xorshift local — trois décalages de bits, aucune allocation, une suite parfaitement reproductible.
+
+## 4.5 Remonter du corps physique à l'entité
+
+Le rayon vers le bas renvoie un **corps physique**. Il faut retrouver l'entité qui le possède pour lire son composant `Surface` — l'opération inverse de celle que fait `createPhysicsBodies`.
+
+`entityForBody` est une **recherche linéaire** sur les corps du niveau. C'est assumé : elle n'est appelée qu'au moment d'un pas, soit environ deux fois par seconde. Le jour où elle sera appelée par image et par corps, elle demandera une table — pas avant. Le SPEC interdit d'optimiser sans avoir mesuré.
+
+## 4.6 Le silence plutôt qu'un son par défaut
+
+Un sol sans composant `Surface` ne produit **aucun** son. C'est le même choix que pour les sources sonores en brique 2, et il mérite d'être répété : un son de pas arbitraire annoncerait au joueur une matière que le niveau n'a pas décrite. Dans un jeu où l'oreille informe, un faux signal est pire qu'une absence de signal.
+
+## 4.7 Ce que la scène de démonstration montre
+
+Le sol est coupé en deux, aligné sur les deux secteurs de M3 : **pierre à l'ouest, bois à l'est**. Traverser la pièce fait changer le son sous les pieds. Les deux sons sont générés, et leur différence est mesurable : la pierre est sèche et s'éteint en 85 ms, le bois résonne pendant 199 ms — ce sont les deux fréquences basses ajoutées au bois qui font entendre un plancher creux.
+
+## 4.8 Coût
+
+Un lancer de rayon **par pas**, soit environ deux par seconde, et une recherche linéaire par pas. Rien de mesurable. Chaque pas occupe une voix pendant sa durée, soit deux ou trois voix sur les 64 du budget.
+
+## 4.9 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écoute** : le son des pas change en traversant la pièce, se rapproche en courant, s'arrête à l'arrêt.
+
+**Sept tests** s'ajoutent : un pas tombe quand la foulée est couverte et pas avant, rester immobile n'en joue jamais, la matière sous les pieds décide du son, un sol sans matière reste silencieux, marcher en l'air ne joue rien et l'atterrissage repart d'une foulée neuve, les pas répétés occupent des voix distinctes, et un corps physique remonte bien à son entité. **68 tests, 407 assertions** au total.
+
+**Ce qui n'existe pas encore** : pas de son à l'atterrissage ni au saut, pas d'impacts d'objets, pas de traînées — le SPEC les prévoit et ils réutiliseront le même composant. Le matériau ne joue encore aucun rôle dans l'occlusion. Et les pas ne font pas encore de **bruit au sens de l'IA** : en M7, l'antagoniste devra les entendre, et c'est pour ça que jouer un pas renvoie ce qui a été joué plutôt que rien.
+
+**Ce qui vient après (brique 5)** : la **couche de tension** — un drone paramétrique piloté par une variable `tension` de 0 à 1, plutôt que des morceaux fixes. C'est la dernière brique de M5, et celle qui prépare l'*AI Director* de M7.

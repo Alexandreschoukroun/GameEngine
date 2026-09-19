@@ -6,6 +6,7 @@
 #include "scene/components.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
+#include "scene/footsteps.h"
 #include "scene/serialization.h"
 
 namespace {
@@ -123,6 +124,8 @@ TEST_CASE("The demo scene declares sounds the game actually registers") {
     scene::ResourceTable resources;
     resources.addSound("braises", 0);
     resources.addSound("souffle", 1);
+    resources.addSound("pas_pierre", 2);
+    resources.addSound("pas_bois", 3);
 
     scene::Scene scene;
     REQUIRE(scene::loadSceneFromFile(scene, resources,
@@ -135,4 +138,14 @@ TEST_CASE("The demo scene declares sounds the game actually registers") {
         ++sources;
     }
     CHECK(sources == 2);
+
+    // Meme garde-fou pour les matieres du sol : une surface dont le son est introuvable
+    // rendrait le joueur silencieux sans que rien ne le signale a la compilation.
+    core::u32 surfaces = 0;
+    for (auto [entity, surface] : scene.registry().view<const scene::Surface>().each()) {
+        (void)entity;
+        CHECK(surface.footstep != scene::kInvalidResource);
+        ++surfaces;
+    }
+    CHECK(surfaces == 2);
 }

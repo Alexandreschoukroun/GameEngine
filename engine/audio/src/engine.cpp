@@ -197,7 +197,7 @@ SoundHandle Engine::loadSound(std::string_view path) {
 }
 
 VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool looping,
-                         core::f32 volume) {
+                         core::f32 volume, core::f32 pitch) {
     if (m_impl == nullptr || sound >= m_impl->prototypes.size()) {
         return kInvalidVoice;
     }
@@ -246,6 +246,8 @@ VoiceHandle Engine::play(SoundHandle sound, const core::Vec3& position, bool loo
     ma_sound_set_position(&voice.sound, position.x, position.y, position.z);
     ma_sound_set_looping(&voice.sound, looping ? MA_TRUE : MA_FALSE);
     ma_sound_set_volume(&voice.sound, volume);
+    // Une hauteur nulle ou negative arreterait la lecture : on refuse silencieusement.
+    ma_sound_set_pitch(&voice.sound, pitch > 0.0f ? pitch : 1.0f);
     // Distance minimale : en deca, le son ne monte plus. Sans ce plancher, l'attenuation
     // en 1/d ferait exploser le volume quand la source touche l'oreille.
     ma_sound_set_min_distance(&voice.sound, 1.0f);

@@ -38,10 +38,10 @@ struct Hinge {
     core::f32 minAngle = -1.6f; // environ -92 degres
     core::f32 maxAngle = 1.6f;
     // Couple de frottement des gonds, en N.m. A doser selon l'inertie du battant : pour
-    // une porte de 20 kg (inertie ~5 kg.m2), 6 N.m l'arretent en une seconde environ.
-    // Multiplier sa masse par sept imposerait de multiplier ce couple d'autant. Sans
-    // friction du tout, elle tournerait comme un battant de saloon.
-    core::f32 friction = 6.0f;
+    // une porte de 43 kg (inertie ~12 kg.m2), 15 N.m l'arretent en deux secondes environ.
+    // Doubler sa masse impose de doubler ce couple. Sans friction du tout, elle
+    // tournerait comme un battant de saloon.
+    core::f32 friction = 15.0f;
 };
 
 // Corps physique associe, cree a l'execution. Volontairement separe du Collider : il n'a

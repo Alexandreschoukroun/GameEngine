@@ -490,7 +490,7 @@
           0.04
         ],
         "static": false,
-        "density": 150.0
+        "density": 300.0
       },
       "hinge": {
         "anchor": [
@@ -505,7 +505,7 @@
         ],
         "minAngle": -1.6,
         "maxAngle": 0.0,
-        "friction": 6.0
+        "friction": 15.0
       }
     },
     {

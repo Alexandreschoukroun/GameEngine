@@ -343,11 +343,32 @@ L'ancrage est exprimé **dans le repère de l'entité** — un demi-battant sur 
 
 Les butées asymétriques `[-1,6 ; 0]` décrivent une porte qui ne s'ouvre que **dans un sens**, comme celle d'une pièce dont le mur bloque l'autre côté.
 
-## 5.7 Coût
+## 5.7 Le réglage : la main est un ressort amorti
+
+Signalé en jouant : *« la porte a une physique trop légère, elle va super vite quand je la bouge »*. Trois défauts distincts se cachaient derrière ce ressenti, et le plus grave n'est pas la masse.
+
+**La force était appliquée par frame, pas par pas de simulation.** Une force qui s'exerce dans `onFrame` dépend de la vitesse de la machine : sur un écran à 144 Hz, la porte recevait deux fois et demie plus d'impulsions que sur un 60 Hz. C'est précisément le défaut que la boucle à pas fixe de M0 existe pour empêcher — et l'oubli était structurel, pas cosmétique. La traction vit maintenant dans `onFixedUpdate`, et l'impulsion vaut *force × pas*, donc le même résultat quelle que soit la machine.
+
+**Il n'y avait aucun terme de vitesse.** Une force proportionnelle à l'écart, répétée à chaque pas, **accélère indéfiniment** : rien ne s'oppose à la vitesse acquise. La main réelle ne fonctionne pas ainsi — elle tire d'autant plus fort que la porte est loin de là où on la veut, et elle **freine** d'autant plus que la porte va vite. C'est un ressort amorti :
+
+```
+force = (cible − point_saisi) × raideur  −  vitesse_du_point × amortissement
+        └──────── on tire ────────┘         └──── on freine ────┘
+```
+
+La vitesse du point saisi n'est pas celle du centre : un corps en rotation n'a pas de vitesse unique, elle vaut **ω × r** et croît avec la distance à l'axe. C'est ce qui a demandé un `bodyAngularVelocity()` dans l'API physique.
+
+Les deux coefficients (400 N/m, 340 N·s/m) sont pris proches de l'**amortissement critique** pour la masse effective au point saisi — environ 73 kg, soit *I/r²*. La porte rejoint la main sans osciller ni dépasser.
+
+**Et la masse était trop faible.** Corriger 144 kg en 21 kg était un excès inverse : 21 kg, c'est une porte creuse de placard. À 300 kg/m³ — du bois plein — le battant pèse **43 kg**, et le frottement des gonds suit à 15 N·m.
+
+La leçon prolonge celle de 5.5 : **un mauvais ordre de grandeur se corrige par calcul, pas par tâtonnement** — et quand un objet « va trop vite », il faut d'abord chercher le terme d'amortissement manquant avant d'alourdir l'objet.
+
+## 5.8 Coût
 
 Une contrainte résolue par itération du solveur, pour quelques dizaines de portes dans un niveau : négligeable. `isBodyHinged` est une recherche linéaire dans un petit vecteur — à revoir si un niveau comptait des centaines de corps contraints, pas avant.
 
-## 5.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+## 5.9 Ce qui marche / ce qui ne marche pas / ce qui vient après
 
 **Vérifié à l'écran** : la porte de la scène de démonstration s'ouvre en tirant sur son bord libre, s'arrête sur sa butée, et reste solide.
 

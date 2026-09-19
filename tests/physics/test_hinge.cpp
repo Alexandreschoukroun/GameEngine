@@ -8,10 +8,10 @@ namespace {
 
 constexpr core::f32 kStep = 1.0f / 60.0f;
 
-// Masse volumique du bois creux d'une vraie porte. Avec celle de Jolt par defaut (1000,
-// celle de l'eau), ce battant pesait 144 kg et son inertie avoisinait 39 kg.m2 : il ne
-// bougeait pas d'un centimetre sous une impulsion humaine.
-constexpr core::f32 kDoorDensity = 150.0f; // ~21 kg pour ce battant
+// Masse volumique d'une porte en bois plein. Avec celle de Jolt par defaut (1000, celle
+// de l'eau), ce battant pesait 144 kg et son inertie avoisinait 39 kg.m2 : il ne bougeait
+// pas d'un centimetre sous une impulsion humaine. A l'inverse, a 150 il s'envolait.
+constexpr core::f32 kDoorDensity = 300.0f; // bois plein : ~43 kg pour ce battant
 
 // Battant de 0,9 m de large, 2 m de haut, 8 cm d'epaisseur, charniere sur son bord gauche.
 struct Door {
@@ -48,9 +48,9 @@ TEST_CASE("Pulling on the free edge makes the door swing") {
     // Impulsion au bord LIBRE, a l'oppose des gonds : c'est le bras de levier qui cree le
     // couple. La meme impulsion appliquee sur l'axe ne ferait presque rien.
     //
-    // L'ordre de grandeur se calcule : 21 kg, une inertie d'environ 5,8 kg.m2 autour des
-    // gonds, donc 6 N.s a 45 cm donnent un demi-tour par seconde. Un geste humain.
-    world.applyImpulseAtPoint(door.body, core::Vec3{0.0f, 0.0f, 6.0f},
+    // L'ordre de grandeur se calcule : 43 kg, une inertie d'environ 12 kg.m2 autour des
+    // gonds, donc 12 N.s a 45 cm donnent un demi-tour par seconde. Un geste humain.
+    world.applyImpulseAtPoint(door.body, core::Vec3{0.0f, 0.0f, 12.0f},
                               core::Vec3{0.45f, 0.0f, 0.0f});
     for (core::u32 i = 0; i < 30; ++i) {
         world.step(kStep);
@@ -85,7 +85,7 @@ TEST_CASE("Limits stop the door") {
     // Butees serrees : la porte ne peut s'entrouvrir que d'un quart de tour dans un sens.
     const Door door = makeDoor(world, -0.8f, 0.0f, 0.0f);
 
-    world.applyImpulseAtPoint(door.body, core::Vec3{0.0f, 0.0f, 20.0f},
+    world.applyImpulseAtPoint(door.body, core::Vec3{0.0f, 0.0f, 40.0f},
                               core::Vec3{0.45f, 0.0f, 0.0f});
     for (core::u32 i = 0; i < 180; ++i) {
         world.step(kStep);
@@ -108,8 +108,8 @@ TEST_CASE("Friction brings the door to a stop") {
     world.applyImpulseAtPoint(door.body, core::Vec3{0.0f, 0.0f, 12.0f},
                               core::Vec3{0.45f, 0.0f, 0.0f});
 
-    // Trois secondes : mesure a l'appui, le battant lance a environ 1,5 rad/s s'immobilise
-    // en deux secondes sous 6 N.m. Le calcul theorique en annoncait une - le solveur de
+    // Trois secondes : mesure a l'appui, le battant lance a environ 1,4 rad/s s'immobilise
+    // en deux secondes sous 15 N.m. Le calcul theorique en annoncait une - le solveur de
     // Jolt freine plus doucement qu'un couple constant applique a la main, et c'est la
     // mesure qui fait foi.
     for (core::u32 i = 0; i < 180; ++i) {

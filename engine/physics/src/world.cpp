@@ -268,6 +268,13 @@ core::Vec3 World::bodyVelocity(BodyHandle body) const {
     return fromJolt(m_impl->system.GetBodyInterface().GetLinearVelocity(JPH::BodyID(body)));
 }
 
+core::Vec3 World::bodyAngularVelocity(BodyHandle body) const {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return core::Vec3{0.0f, 0.0f, 0.0f};
+    }
+    return fromJolt(m_impl->system.GetBodyInterface().GetAngularVelocity(JPH::BodyID(body)));
+}
+
 void World::applyImpulseAtPoint(BodyHandle body, const core::Vec3& impulse,
                                 const core::Vec3& point) {
     if (m_impl == nullptr || body == kInvalidBody) {

@@ -12,6 +12,12 @@ namespace physics {
 using BodyHandle = core::u32;
 inline constexpr BodyHandle kInvalidBody = 0xFFFFFFFFu;
 
+// Personnage controle par le joueur ou par l'IA. Il n'est pas un corps rigide ordinaire :
+// il interroge le monde au lieu d'y etre simule, donc il ne bascule jamais et ne rebondit
+// pas. C'est ce qui le rend pilotable.
+using CharacterHandle = core::u32;
+inline constexpr CharacterHandle kInvalidCharacter = 0xFFFFFFFFu;
+
 // Monde physique.
 //
 // Toute la mecanique de Jolt - allocateur, systeme de taches, couches de collision,
@@ -40,6 +46,23 @@ public:
 
     core::Vec3 bodyPosition(BodyHandle body) const;
     core::Quat bodyRotation(BodyHandle body) const;
+
+    // --- Personnages ------------------------------------------------------------------
+    //
+    // La position designe les PIEDS, pas le centre : c'est ce qu'on veut poser sur un sol,
+    // et ca evite de se demander ou passe le milieu de la capsule.
+    CharacterHandle addCharacter(const core::Vec3& feetPosition, core::f32 radius,
+                                 core::f32 height);
+
+    void setCharacterVelocity(CharacterHandle character, const core::Vec3& velocity);
+    core::Vec3 characterVelocity(CharacterHandle character) const;
+    core::Vec3 characterPosition(CharacterHandle character) const;
+
+    // Vrai quand le personnage repose sur une surface praticable. Une pente trop raide ne
+    // compte pas comme un sol : on y glisse.
+    bool characterOnGround(CharacterHandle character) const;
+
+    core::Vec3 gravity() const;
 
 private:
     // PIMPL : la definition du monde Jolt vit dans le .cpp, donc les en-tetes de Jolt ne

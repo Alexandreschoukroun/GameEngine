@@ -1,6 +1,6 @@
 # 06 — Physique (M4)
 
-*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2).*
+*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3).*
 
 Le jalon M4 apporte la physique : colliders, contrôleur de personnage, saisie d'objets et portes. Cette première brique pose le socle — et force au passage une décision restée en suspens depuis M3.
 
@@ -130,3 +130,74 @@ La vue exclut par ailleurs les entités qui ont déjà un `PhysicsBody` : sans c
 **Ce qui n'existe pas encore** : une seule forme de collision, la boîte. Les colliders ignorent l'échelle du `Transform`. Et surtout, **la caméra traverse toujours tout** : elle n'a pas de corps.
 
 **Ce qui vient après (brique 3)** : le contrôleur de personnage — une capsule, la gravité, et des murs qui arrêtent enfin le joueur.
+
+---
+
+# 3. Brique 3 — le contrôleur de personnage
+
+## 3.1 Pourquoi un personnage n'est pas une caisse
+
+La caméra volait librement et traversait tout. La remplacer par un corps rigide ordinaire ne suffirait pas, parce qu'un joueur se comporte autrement qu'un objet :
+
+| Une caisse | Un personnage |
+|---|---|
+| Bascule sur ses arêtes | Reste toujours debout |
+| Glisse sur une pente | Monte jusqu'à un certain angle, glisse au-delà |
+| Bute sur une marche de 10 cm | La monte sans sauter |
+| Rebondit contre un mur | S'arrête net, et glisse s'il le longe |
+
+Chacun de ces comportements demanderait un correctif maison. C'est ainsi qu'on réécrit mal un contrôleur.
+
+## 3.2 La décision
+
+**Le contrôleur virtuel de Jolt.** Il n'est pas un corps de la simulation : il **interroge** le monde et résout lui-même ses déplacements. Il traite la montée de marche, le glissement le long des murs, l'angle de pente praticable et l'adhérence au sol en descente.
+
+Les deux alternatives ont été écartées :
+- *corps rigide à rotation bloquée* : très peu de code, mais les quatre défauts du tableau ci-dessus, chacun à corriger à la main ;
+- *déplacement maison par balayage* : contrôle total du ressenti — ce qui compte dans un jeu d'horreur — mais des jours de mise au point sur les coins, les marches et les plafonds bas, pour égaler ce que Jolt fournit.
+
+## 3.3 Trois réglages qui comptent
+
+**La position désigne les pieds.** Une capsule est centrée sur son milieu ; la forme est donc décalée vers le haut, pour que la position du personnage soit ce qu'on pose sur un sol. Les yeux se placent ensuite à 1,65 m au-dessus.
+
+**L'angle de pente maximal** est fixé à 46°. Au-delà, on glisse — c'est ce qui empêche de gravir un mur en le longeant, défaut classique des contrôleurs improvisés.
+
+**Le plan de support** détermine quels contacts comptent comme du sol. Sans lui, un contact à mi-hauteur de la capsule — le coin d'une caisse, par exemple — ferait croire au personnage qu'il est posé, et il pourrait sauter en l'air.
+
+## 3.4 La gravité n'est pas appliquée par le monde
+
+Le contrôleur ne subit pas la gravité tout seul : c'est l'appelant qui compose sa vitesse à chaque pas. C'est voulu — un personnage doit rester **pilotable**, et la logique « au sol, la vitesse verticale repart de zéro » appartient au jeu, pas au moteur physique.
+
+Ce détail évite un bug pénible : sans remise à zéro au sol, la gravité s'accumulerait pendant la marche, et le premier bord de marche provoquerait une chute à grande vitesse.
+
+Le jeu lit la gravité depuis le monde plutôt que de recopier `-9,81` : une seule vérité pour une seule information.
+
+## 3.5 Le sens de la chaîne
+
+```
+   entrees clavier  →  vitesse voulue  →  contrôleur physique  →  position finale  →  camera
+```
+
+La caméra ne décide plus de rien : elle **regarde** où la simulation a placé le joueur. Inverser ce sens — écrire la position de la caméra dans le contrôleur — redonnerait la traversée des murs.
+
+## 3.6 Une erreur de test instructive
+
+Le test du glissement échouait : le personnage se retrouvait à x = 5,1 alors que le mur est à x = 3. Le code n'était pas en cause — **le test l'était**. En poussant quatre secondes en diagonale, le personnage parcourait 12 m le long du mur, qui n'en fait que 20 de long depuis son centre : il avait simplement **contourné son extrémité**.
+
+Un test qui vérifie la mauvaise chose est plus dangereux qu'un test absent : il donne une confiance injustifiée. Réduit à deux secondes, il mesure bien ce qu'il prétend.
+
+## 3.7 Commandes
+
+Z Q S D pour marcher, **Maj gauche** pour courir, **Espace** pour sauter, souris pour regarder. Le vol libre a disparu : le joueur est désormais soumis à la gravité.
+
+## 3.8 Coût
+
+Un balayage de capsule par pas, plus la résolution des contacts. Négligeable pour un personnage ; à surveiller le jour où l'IA en pilotera plusieurs.
+
+## 3.9 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Trois tests sans GPU** : le personnage tombe et se pose les pieds exactement sur le sol, un mur l'arrête là où il doit, et il glisse le long d'un mur longé en diagonale au lieu de s'y coller. **34 tests, 93 assertions** au total.
+
+**Ce qui n'existe pas encore** : ni accroupissement, ni hauteur de marche réglable, ni bruit de pas — les pas arriveront avec l'audio en M5. Le personnage ne pousse pas les caisses : un contrôleur virtuel n'applique pas de force aux corps qu'il touche, il faudra le faire explicitement.
+
+**Ce qui vient après (brique 4)** : la saisie d'objets et les portes à la manière d'*Amnesia* — on tire sur la poignée, on ne joue pas une animation.

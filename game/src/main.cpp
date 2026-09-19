@@ -33,7 +33,16 @@ constexpr const char* kMetallicRoughnessPath = "models/suzanne/Suzanne_MetallicR
 constexpr const char* kScenePath = "scenes/demo.json";
 
 constexpr core::f32 kLookSensitivity = 0.0022f; // radians par pixel de souris
-constexpr core::f32 kMoveSpeed = 3.0f;          // metres par seconde
+constexpr core::f32 kWalkSpeed = 3.0f;          // metres par seconde
+constexpr core::f32 kSprintSpeed = 5.2f;
+constexpr core::f32 kJumpSpeed = 4.2f;
+
+// Gabarit du personnage : 1,80 m debout, 0,35 m de rayon. Les yeux sont 15 cm sous le
+// sommet du crane, comme chez un humain.
+constexpr core::f32 kPlayerHeight = 1.8f;
+constexpr core::f32 kPlayerRadius = 0.35f;
+constexpr core::f32 kEyeHeight = 1.65f;
+constexpr core::Vec3 kSpawnPosition{0.0f, -1.2f, 3.0f};
 
 // Piece fermee de 12 x 4 x 12 metres. Sans murs, le faisceau de la lampe partirait dans le
 // vide et on ne verrait rien de son cone : le livrable du SPEC parle bien d'une PIECE
@@ -148,7 +157,6 @@ protected:
         const core::f32 aspect = static_cast<core::f32>(window().width()) /
                                  static_cast<core::f32>(window().height());
         m_camera.setPerspective(core::radians(60.0f), aspect, 0.05f, 100.0f);
-        m_camera.setPosition(core::Vec3{0.0f, 0.0f, 3.0f});
         window().setRelativeMouseMode(true);
 
         if (!m_renderer.create(window().width(), window().height())) {
@@ -181,6 +189,13 @@ protected:
         // fichier : decor statique et caisses dynamiques, decrits au meme endroit que le
         // reste de la scene.
         scene::createPhysicsBodies(m_scene, m_physics);
+
+        m_player = m_physics.addCharacter(kSpawnPosition, kPlayerRadius, kPlayerHeight);
+        if (m_player == physics::kInvalidCharacter) {
+            return false;
+        }
+        m_camera.setPosition(kSpawnPosition + core::Vec3{0.0f, kEyeHeight, 0.0f});
+        m_flashlight.snapTo(m_camera);
         return true;
     }
 
@@ -225,31 +240,57 @@ protected:
     // A pas fixe : le deplacement est de la simulation, il doit etre deterministe.
     void onFixedUpdate(core::f64 fixedDeltaSeconds) override {
         using platform::Key;
+        const auto delta = static_cast<core::f32>(fixedDeltaSeconds);
 
-        core::Vec3 direction{0.0f, 0.0f, 0.0f};
+        // Direction voulue, a plat : on projette le regard sur le sol, sinon regarder ses
+        // pieds ralentirait la marche.
+        core::Vec3 forward = m_camera.forward();
+        forward.y = 0.0f;
+        core::Vec3 right = m_camera.right();
+        right.y = 0.0f;
+
+        core::Vec3 wish{0.0f, 0.0f, 0.0f};
         if (input().isKeyDown(Key::W)) {
-            direction += m_camera.forward();
+            wish += forward;
         }
         if (input().isKeyDown(Key::S)) {
-            direction -= m_camera.forward();
+            wish -= forward;
         }
         if (input().isKeyDown(Key::D)) {
-            direction += m_camera.right();
+            wish += right;
         }
         if (input().isKeyDown(Key::A)) {
-            direction -= m_camera.right();
+            wish -= right;
         }
-        if (input().isKeyDown(Key::Space)) {
-            direction.y += 1.0f;
+        if (glm::dot(wish, wish) > 0.0f) {
+            // Normaliser evite d'aller plus vite en diagonale.
+            wish = glm::normalize(wish);
         }
-        if (input().isKeyDown(Key::LeftShift)) {
-            direction.y -= 1.0f;
+
+        const core::f32 speed =
+            input().isKeyDown(Key::LeftShift) ? kSprintSpeed : kWalkSpeed;
+        const bool onGround = m_physics.characterOnGround(m_player);
+        core::Vec3 velocity = m_physics.characterVelocity(m_player);
+
+        // Au sol, la vitesse verticale est remise a zero : sans ca, la gravite
+        // s'accumulerait indefiniment pendant qu'on marche, et le premier bord de marche
+        // provoquerait une chute a grande vitesse.
+        core::Vec3 newVelocity{wish.x * speed, onGround ? 0.0f : velocity.y, wish.z * speed};
+
+        if (onGround && input().isKeyDown(Key::Space)) {
+            newVelocity.y = kJumpSpeed;
+        } else if (!onGround) {
+            // La gravite est celle du monde physique, pas une constante recopiee ici : une
+            // seule verite pour une seule information.
+            newVelocity += m_physics.gravity() * delta;
         }
+
+        m_physics.setCharacterVelocity(m_player, newVelocity);
 
         // La statue tourne lentement sur elle-meme. Ses deux enfants suivent sans qu'on
         // touche a leur Transform : c'est toute la hierarchie en une ligne.
         if (m_scene.isValid(m_statue)) {
-            m_statueAngle += 0.35f * static_cast<core::f32>(fixedDeltaSeconds);
+            m_statueAngle += 0.35f * delta;
             // On reconstruit la rotation depuis un angle plutot que de composer un
             // quaternion a chaque frame : multiplier mille petites rotations accumulerait
             // une derive numerique.
@@ -259,14 +300,12 @@ protected:
 
         // La physique avance au meme rythme, et uniquement ici : elle n'est deterministe
         // qu'a pas constant.
-        stepPhysics(static_cast<core::f32>(fixedDeltaSeconds));
+        stepPhysics(delta);
 
-        // Normaliser evite d'aller plus vite en diagonale. Le test protege glm::normalize,
-        // qui divise par zero si le vecteur est nul.
-        if (glm::dot(direction, direction) > 0.0f) {
-            const core::f32 distance = kMoveSpeed * static_cast<core::f32>(fixedDeltaSeconds);
-            m_camera.setPosition(m_camera.position() + glm::normalize(direction) * distance);
-        }
+        // Les yeux suivent le corps. Le sens compte : c'est la simulation qui decide ou se
+        // trouve le joueur, la camera ne fait que la regarder.
+        m_camera.setPosition(m_physics.characterPosition(m_player) +
+                             core::Vec3{0.0f, kEyeHeight, 0.0f});
     }
 
     void onResize(core::u32 width, core::u32 height) override {
@@ -523,6 +562,7 @@ private:
 
     renderer::Flashlight m_flashlight;
     physics::World m_physics;
+    physics::CharacterHandle m_player = physics::kInvalidCharacter;
     rhi::Mesh m_crateMesh;
 
     core::f32 m_statueAngle = 0.0f;

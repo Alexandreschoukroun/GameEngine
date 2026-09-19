@@ -11,6 +11,9 @@
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -20,6 +23,7 @@
 #endif
 
 #include <cstdarg>
+#include <vector>
 #include <cstdio>
 
 namespace physics {
@@ -109,6 +113,9 @@ struct World::Impl {
     ObjectVsBroadPhaseLayerFilter objectVsBroadPhase;
     ObjectLayerPairFilter objectPairs;
     JPH::PhysicsSystem system;
+
+    // Les personnages sont comptes par reference chez Jolt : Ref les libere avec le monde.
+    std::vector<JPH::Ref<JPH::CharacterVirtual>> characters;
 };
 
 World::World() = default;
@@ -154,6 +161,17 @@ void World::step(core::f32 fixedDeltaSeconds) {
     // Une seule sous-etape : le pas est deja fixe a 1/60 s, ce que Jolt considere comme
     // sa cadence de reference.
     m_impl->system.Update(fixedDeltaSeconds, 1, &m_impl->tempAllocator, &m_impl->jobSystem);
+
+    // Les personnages avancent APRES la simulation, sur un monde deja resolu : ils voient
+    // donc les objets a leur position finale, et non a celle du debut du pas.
+    const JPH::Vec3 gravityVector = m_impl->system.GetGravity();
+    for (const JPH::Ref<JPH::CharacterVirtual>& character : m_impl->characters) {
+        JPH::CharacterVirtual::ExtendedUpdateSettings settings;
+        character->ExtendedUpdate(fixedDeltaSeconds, gravityVector, settings,
+                                  m_impl->system.GetDefaultBroadPhaseLayerFilter(Layers::kMoving),
+                                  m_impl->system.GetDefaultLayerFilter(Layers::kMoving), {}, {},
+                                  m_impl->tempAllocator);
+    }
 }
 
 BodyHandle World::addBox(const core::Vec3& position, const core::Quat& rotation,
@@ -198,6 +216,86 @@ core::Quat World::bodyRotation(BodyHandle body) const {
         return core::Quat(1.0f, 0.0f, 0.0f, 0.0f);
     }
     return fromJolt(m_impl->system.GetBodyInterface().GetRotation(JPH::BodyID(body)));
+}
+
+namespace {
+
+JPH::CharacterVirtual* characterAt(const std::vector<JPH::Ref<JPH::CharacterVirtual>>& list,
+                                   CharacterHandle handle) {
+    return handle < list.size() ? list[handle].GetPtr() : nullptr;
+}
+
+} // namespace
+
+CharacterHandle World::addCharacter(const core::Vec3& feetPosition, core::f32 radius,
+                                    core::f32 height) {
+    if (m_impl == nullptr || height <= 2.0f * radius) {
+        core::logError("personnage : hauteur incompatible avec le rayon");
+        return kInvalidCharacter;
+    }
+
+    // Une capsule, et non une boite : elle glisse le long des murs et des coins au lieu de
+    // s'y accrocher. La demi-hauteur exclut les deux calottes spheriques.
+    const core::f32 halfHeight = height * 0.5f - radius;
+    const JPH::Ref<JPH::Shape> capsule =
+        JPH::RotatedTranslatedShapeSettings(
+            // Decalage vers le haut : la position du personnage designe ses pieds, alors
+            // qu'une capsule est centree sur son milieu.
+            JPH::Vec3(0.0f, halfHeight + radius, 0.0f), JPH::Quat::sIdentity(),
+            new JPH::CapsuleShape(halfHeight, radius))
+            .Create()
+            .Get();
+
+    JPH::Ref<JPH::CharacterVirtualSettings> settings = new JPH::CharacterVirtualSettings();
+    settings->mShape = capsule;
+    // Au-dela de 46 degres, on glisse : c'est ce qui empeche de gravir un mur en le
+    // longeant, defaut classique des controleurs maison.
+    settings->mMaxSlopeAngle = JPH::DegreesToRadians(46.0f);
+    // Plan de support : les contacts sous cette hauteur comptent comme du sol. Sans lui,
+    // un contact a mi-hauteur de la capsule ferait croire au personnage qu'il est pose.
+    settings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -radius);
+
+    m_impl->characters.push_back(new JPH::CharacterVirtual(
+        settings, toJolt(feetPosition), JPH::Quat::sIdentity(), &m_impl->system));
+    return static_cast<CharacterHandle>(m_impl->characters.size() - 1);
+}
+
+void World::setCharacterVelocity(CharacterHandle character, const core::Vec3& velocity) {
+    if (m_impl == nullptr) {
+        return;
+    }
+    if (JPH::CharacterVirtual* c = characterAt(m_impl->characters, character); c != nullptr) {
+        c->SetLinearVelocity(toJolt(velocity));
+    }
+}
+
+core::Vec3 World::characterVelocity(CharacterHandle character) const {
+    if (m_impl == nullptr) {
+        return core::Vec3{0.0f, 0.0f, 0.0f};
+    }
+    const JPH::CharacterVirtual* c = characterAt(m_impl->characters, character);
+    return c != nullptr ? fromJolt(c->GetLinearVelocity()) : core::Vec3{0.0f, 0.0f, 0.0f};
+}
+
+core::Vec3 World::characterPosition(CharacterHandle character) const {
+    if (m_impl == nullptr) {
+        return core::Vec3{0.0f, 0.0f, 0.0f};
+    }
+    const JPH::CharacterVirtual* c = characterAt(m_impl->characters, character);
+    return c != nullptr ? fromJolt(JPH::Vec3(c->GetPosition())) : core::Vec3{0.0f, 0.0f, 0.0f};
+}
+
+bool World::characterOnGround(CharacterHandle character) const {
+    if (m_impl == nullptr) {
+        return false;
+    }
+    const JPH::CharacterVirtual* c = characterAt(m_impl->characters, character);
+    return c != nullptr && c->GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround;
+}
+
+core::Vec3 World::gravity() const {
+    return m_impl != nullptr ? fromJolt(m_impl->system.GetGravity())
+                             : core::Vec3{0.0f, -9.81f, 0.0f};
 }
 
 } // namespace physics

@@ -4,6 +4,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 add_library(engine_scene STATIC
     src/resource_table.cpp
     src/scene.cpp
+    src/sector_graph.cpp
     src/serialization.cpp
 )
 

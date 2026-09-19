@@ -5,6 +5,7 @@ add_executable(engine_tests
     core/test_time.cpp
     renderer/test_camera.cpp
     scene/test_serialization.cpp
+    scene/test_sector_graph.cpp
 )
 
 # Ne sont liees ici que les couches testables sans GPU ni fenetre : c'est ce qui permet

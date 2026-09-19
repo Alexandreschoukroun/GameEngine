@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
+#include "scene/sector_graph.h"
 
 #include <nlohmann/json.hpp>
 
@@ -139,6 +140,24 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
             m["metallicRoughness"] =
                 std::string(resources.textureName(mesh->metallicRoughness));
             node["mesh"] = m;
+        }
+
+        if (const Sector* sector = registry.try_get<Sector>(entity); sector != nullptr) {
+            Json s;
+            s["halfExtents"] = toJson(sector->halfExtents);
+            node["sector"] = s;
+        }
+
+        if (const Portal* portal = registry.try_get<Portal>(entity); portal != nullptr) {
+            Json p;
+            // Les secteurs sont designes par leur identifiant stable, comme les parents :
+            // un rang dans le fichier ne survivrait pas a un tri ni a une fusion.
+            const Id* a = registry.try_get<Id>(portal->sectorA);
+            const Id* b = registry.try_get<Id>(portal->sectorB);
+            p["sectorA"] = toHex(a != nullptr ? a->value : core::kInvalidUuid);
+            p["sectorB"] = toHex(b != nullptr ? b->value : core::kInvalidUuid);
+            p["halfExtents"] = toJson(portal->halfExtents);
+            node["portal"] = p;
         }
 
         if (const LightSource* light = registry.try_get<LightSource>(entity);
@@ -284,6 +303,26 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
                 m, "metallicRoughness",
                 [&](const std::string& n) { return resources.findTexture(n); }, "texture");
             loaded.registry().emplace<MeshRenderer>(entity, meshRenderer);
+        }
+
+        if (node.contains("sector")) {
+            Sector sector;
+            sector.halfExtents =
+                vec3FromJson(node["sector"].value("halfExtents", Json()), sector.halfExtents);
+            loaded.registry().emplace<Sector>(entity, sector);
+        }
+
+        if (node.contains("portal")) {
+            const Json& p = node["portal"];
+            Portal portal;
+            portal.sectorA = findEntity(fromHex(p.value("sectorA", std::string())));
+            portal.sectorB = findEntity(fromHex(p.value("sectorB", std::string())));
+            if (portal.sectorA == kInvalidEntity || portal.sectorB == kInvalidEntity) {
+                core::logError("portail reliant un secteur introuvable");
+                return false;
+            }
+            portal.halfExtents = vec3FromJson(p.value("halfExtents", Json()), portal.halfExtents);
+            loaded.registry().emplace<Portal>(entity, portal);
         }
 
         if (node.contains("light")) {

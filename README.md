@@ -6,7 +6,7 @@ Un moteur de jeu **open source** en **C++20**, spécialisé dans les jeux d'**ho
 
 Pas de moteur généraliste ici. Tout est pensé pour un seul genre : des intérieurs clos et sombres, une lampe torche, du brouillard, un son qui trahit ce qui se passe derrière une porte, et une créature qui vous traque.
 
-> **État actuel : jalons M0 à M2 terminés.** Le moteur charge des modèles glTF, les affiche en rendu différé avec un éclairage PBR, des ombres portées et une lampe torche à inertie dans une pièce fermée. La suite, c'est la scène : entités, hiérarchie et sérialisation. Voir la [feuille de route](#feuille-de-route).
+> **État actuel : jalons M0 à M3 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. La suite, c'est la physique. Voir la [feuille de route](#feuille-de-route).
 
 ## Objectifs
 
@@ -136,6 +136,7 @@ Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minu
 - [`docs/02-camera.md`](docs/02-camera.md) : maths, caméra perspective et caméra libre
 - [`docs/03-profilage.md`](docs/03-profilage.md) : Tracy, et le bilan de M1
 - [`docs/04-renderer.md`](docs/04-renderer.md) : le renderer PBR — G-buffer, éclairage, ombres, lampe torche
+- [`docs/05-scene.md`](docs/05-scene.md) : la scène — entités, hiérarchie, sérialisation, secteurs
 - [`docs/build-et-ci.md`](docs/build-et-ci.md) : build, tests et intégration continue
 
 ## Licence

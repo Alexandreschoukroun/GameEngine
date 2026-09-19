@@ -4,6 +4,8 @@
 #include "core/types.h"
 #include "renderer/light.h"
 
+#include <entt/entity/entity.hpp>
+
 #include <string>
 
 namespace rhi {
@@ -32,6 +34,23 @@ struct Transform {
     // Transposee de l'inverse : une normale ne se transforme pas comme un point. Avec une
     // echelle non uniforme, la matrice du modele la ferait sortir de la perpendiculaire.
     core::Mat3 normalMatrix() const;
+};
+
+// Lien vers le parent. L'enfant est alors place RELATIVEMENT a lui : bouger le parent
+// deplace toute sa descendance. Une poignee sur une porte, une lampe sur une table.
+struct Parent {
+    entt::entity value = entt::null;
+};
+
+// Matrice monde, calculee une fois par frame a partir du Transform local et de la chaine
+// des parents. C'est elle que consomment le rendu, et plus tard la physique et l'audio :
+// sans ca, chacun referait le meme calcul de son cote.
+//
+// epoch sert de memo pendant la passe : une entite deja calculee cette frame n'est pas
+// recalculee, meme si plusieurs enfants la reclament comme parent.
+struct WorldTransform {
+    core::Mat4 matrix{1.0f};
+    core::u32 epoch = 0;
 };
 
 // Ce qu'il faut pour dessiner l'entite. Les ressources sont designees par pointeur : la

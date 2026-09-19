@@ -63,6 +63,16 @@ public:
     VoiceHandle play(SoundHandle sound, const core::Vec3& position, bool looping = false,
                      core::f32 volume = 1.0f, core::f32 pitch = 1.0f);
 
+    // Demarre une voix NON SPATIALISEE : elle sort des deux enceintes a l'identique, sans
+    // position ni attenuation. C'est ce qu'il faut pour une musique ou une ambiance de
+    // fond - leur donner un endroit dans le monde n'aurait pas de sens, et le joueur ne
+    // doit pas pouvoir s'en eloigner.
+    VoiceHandle playAmbient(SoundHandle sound, bool looping = true, core::f32 volume = 1.0f);
+
+    // Volume d'une voix deja lancee. L'occlusion s'applique par-dessus sans l'ecraser.
+    void setVoiceVolume(VoiceHandle voice, core::f32 volume);
+    core::f32 voiceVolume(VoiceHandle voice) const;
+
     // Deplace une voix deja lancee : une source attachee a un objet qui bouge.
     void setVoicePosition(VoiceHandle voice, const core::Vec3& position);
 
@@ -105,6 +115,10 @@ public:
     void setMasterVolume(core::f32 volume);
 
 private:
+    // Chemin commun aux deux lectures : seule la spatialisation les distingue.
+    VoiceHandle startVoice(SoundHandle sound, const core::Vec3& position, bool looping,
+                           core::f32 volume, core::f32 pitch, bool spatialized);
+
     struct Impl;
     std::unique_ptr<Impl> m_impl;
 };

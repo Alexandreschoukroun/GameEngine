@@ -15,6 +15,7 @@ add_executable(engine_tests
     scene/test_occlusion.cpp
     scene/test_footsteps.cpp
     audio/test_engine.cpp
+    audio/test_tension.cpp
 )
 
 # Ne sont liees ici que les couches testables sans GPU ni fenetre : c'est ce qui permet

@@ -6,7 +6,7 @@ Un moteur de jeu **open source** en **C++20**, spécialisé dans les jeux d'**ho
 
 Pas de moteur généraliste ici. Tout est pensé pour un seul genre : des intérieurs clos et sombres, une lampe torche, du brouillard, un son qui trahit ce qui se passe derrière une porte, et une créature qui vous traque.
 
-> **État actuel : jalons M0 à M4 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs, colliders — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. On s'y déplace, on attrape les objets et on ouvre les portes à la main. La suite, c'est l'audio. Voir la [feuille de route](#feuille-de-route).
+> **État actuel : jalons M0 à M5 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs, colliders — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. On s'y déplace, on attrape les objets et on ouvre les portes à la main — et on l'entend : sons spatialisés, occlusion par les murs et les portes, pas qui dépendent de la matière du sol, musique de tension paramétrique. Voir la [feuille de route](#feuille-de-route).
 
 ## Objectifs
 
@@ -81,7 +81,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | **M3** | Scène (EnTT), sérialisation JSON, graphe de secteurs/portails | ✅ Terminé |
 | **M4** | Physique Jolt, character controller, portes, saisie d'objets | ✅ Terminé |
 | M4.5 | Animation squelettique : squelettes glTF, skinning GPU, lecteur d'animation | À venir |
-| M5 | Audio : spatialisation, occlusion, reverb zones | 🚧 En cours |
+| **M5** | Audio : spatialisation, occlusion, matériaux de pas, couche de tension | ✅ Terminé |
 | M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | À venir |
 | M7 | Lua, triggers, navmesh, perception et IA de l'antagoniste | À venir |
 | M8 | Brouillard volumétrique, post-process, accessibilité | À venir |
@@ -138,7 +138,7 @@ Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minu
 - [`docs/04-renderer.md`](docs/04-renderer.md) : le renderer PBR — G-buffer, éclairage, ombres, lampe torche
 - [`docs/05-scene.md`](docs/05-scene.md) : la scène — entités, hiérarchie, sérialisation, secteurs
 - [`docs/06-physique.md`](docs/06-physique.md) : la physique — Jolt, colliders, personnage, saisie, portes
-- [`docs/07-audio.md`](docs/07-audio.md) : l'audio — périphérique, voix, son positionné
+- [`docs/07-audio.md`](docs/07-audio.md) : l'audio — voix, sources de scène, occlusion, matériaux, tension
 - [`docs/build-et-ci.md`](docs/build-et-ci.md) : build, tests et intégration continue
 
 ## Licence

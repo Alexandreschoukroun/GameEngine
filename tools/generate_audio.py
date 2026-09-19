@@ -135,6 +135,42 @@ def make_footstep(seed, resonances, brightness, decay, seconds=0.28):
     return normalize(samples, 0.9)
 
 
+def make_tension_layer(seed, partials, noise_amount, pulse_hz, seconds=4.0):
+    """Une couche de la musique de tension.
+
+    Le systeme ne joue pas des morceaux : il superpose en permanence trois couches et
+    fait varier leurs volumes. Chacune doit donc etre BOUCLABLE et sans evenement
+    marquant - une couche dont on reconnait le debut trahirait la boucle des la deuxieme
+    repetition.
+
+    partials     : (frequence, amplitude) des composantes harmoniques
+    noise_amount : part de souffle filtre, qui donne la matiere
+    pulse_hz     : battement lent du volume, 0 pour une couche immobile
+    """
+    random.seed(seed)
+    count = int(RATE * seconds)
+    samples = [0.0] * count
+
+    phases = [0.0] * len(partials)
+    low = 0.0
+    for i in range(count):
+        value = 0.0
+        for index, (frequency, amplitude) in enumerate(partials):
+            phases[index] += 2.0 * math.pi * frequency / RATE
+            value += math.sin(phases[index]) * amplitude
+
+        low += (random.uniform(-1.0, 1.0) - low) * 0.05
+        value += low * noise_amount
+
+        if pulse_hz > 0.0:
+            # Le battement est cale sur la duree de la boucle pour qu'il se raccorde.
+            value *= 0.55 + 0.45 * math.sin(2.0 * math.pi * pulse_hz * i / RATE)
+
+        samples[i] = value * 0.5
+
+    return normalize(crossfade_loop(samples, RATE), 0.8)
+
+
 def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     sounds = (
@@ -146,6 +182,21 @@ def main():
         # Bois creux : plus sourd, et il resonne - c'est le plancher qui vibre sous le pied.
         ("pas_bois.wav", make_footstep(22, [(180.0, 0.55, 0.070), (320.0, 0.30, 0.045)],
                                        brightness=0.08, decay=0.055)),
+        # --- les trois couches de la musique de tension ---------------------------------
+        # Calme : une seule fondamentale grave et son octave. Presente en permanence,
+        # c'est le lit sur lequel les autres se posent.
+        ("tension_calme.wav", make_tension_layer(31, [(55.0, 0.6), (110.0, 0.2)],
+                                                 noise_amount=0.5, pulse_hz=0.0)),
+        # Pouls : un battement lent, a la frequence d'un coeur au repos (1 Hz), sur une
+        # quinte. C'est la couche qui dit "quelque chose se prepare".
+        ("tension_pouls.wav", make_tension_layer(32, [(82.5, 0.5), (123.5, 0.3)],
+                                                 noise_amount=0.3, pulse_hz=1.0)),
+        # Aigu : une SECONDE MINEURE - deux notes separees d'un demi-ton, l'intervalle le
+        # plus dissonant de la gamme. C'est physiologique : leurs ondes se heurtent et
+        # produisent un battement rapide que l'oreille percoit comme une agression.
+        ("tension_aigu.wav", make_tension_layer(33, [(440.0, 0.35), (466.2, 0.35),
+                                                     (880.0, 0.12)],
+                                                noise_amount=0.15, pulse_hz=0.0)),
     )
     for name, samples in sounds:
         path = OUTPUT / name

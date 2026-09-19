@@ -1,6 +1,6 @@
 # 07 — Audio (M5)
 
-*Brique 1 : le périphérique, les voix, le son positionné (section 1). Brique 2 : les sources sonores deviennent des données de scène (section 2). Brique 3 : l'occlusion (section 3). Brique 4 : les matériaux de surface et les pas (section 4).*
+*Brique 1 : le périphérique, les voix, le son positionné (section 1). Brique 2 : les sources sonores deviennent des données de scène (section 2). Brique 3 : l'occlusion (section 3). Brique 4 : les matériaux de surface et les pas (section 4). Brique 5 : la couche de tension (section 5).*
 
 Le jalon M5 apporte ce que le SPEC appelle « le système le plus important » du moteur. Dans un jeu d'horreur en intérieur sombre, l'oreille porte plus d'information que l'œil : on sait qu'une chose marche dans la pièce d'à côté avant de la voir, et le plus souvent on ne la voit jamais.
 
@@ -301,4 +301,76 @@ Un lancer de rayon **par pas**, soit environ deux par seconde, et une recherche 
 
 **Ce qui n'existe pas encore** : pas de son à l'atterrissage ni au saut, pas d'impacts d'objets, pas de traînées — le SPEC les prévoit et ils réutiliseront le même composant. Le matériau ne joue encore aucun rôle dans l'occlusion. Et les pas ne font pas encore de **bruit au sens de l'IA** : en M7, l'antagoniste devra les entendre, et c'est pour ça que jouer un pas renvoie ce qui a été joué plutôt que rien.
 
-**Ce qui vient après (brique 5)** : la **couche de tension** — un drone paramétrique piloté par une variable `tension` de 0 à 1, plutôt que des morceaux fixes. C'est la dernière brique de M5, et celle qui prépare l'*AI Director* de M7.
+**Ce qui vient après (brique 5)** : la **couche de tension**.
+
+---
+
+# 5. Brique 5 — la couche de tension
+
+## 5.1 Le problème
+
+Il n'y a pas de musique. Et la façon habituelle d'en ajouter — des morceaux qu'on déclenche — ne convient pas à ce genre.
+
+Un morceau fixe doit être **attendu** : il commence, il dure, il finit. Si la situation change au milieu, on n'a que trois options, toutes mauvaises : le couper net, attendre qu'il se termine, ou fondre vers un autre morceau en perdant plusieurs secondes. Dans un jeu où la tension doit suivre la menace **seconde par seconde**, ces trois secondes de retard suffisent à détruire l'effet.
+
+Le SPEC tranche d'avance : *« couche de tension : musique/drone paramétrique piloté par une variable `tension` 0..1, pas des morceaux fixes »*.
+
+## 5.2 Le remixage vertical
+
+Trois couches tournent **en permanence**, superposées, et seuls leurs **volumes** varient :
+
+```
+tension :   0 ─────────────── 0,5 ─────────────── 1
+calme    ████████████████████████████████████░░░░   présent partout, s'efface à moitié
+pouls    ░░░░░░░░████████████████████████████████   entre à 0,15, plein à 0,65
+aigu     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░████████████   n'apparaît qu'après 0,60
+```
+
+C'est ce qu'on appelle du **remixage vertical**, par opposition au remixage horizontal qui enchaîne des morceaux dans le temps. Il n'y a plus de transition à gérer : la musique *est* déjà dans l'état voulu, on ne fait que doser ce qu'on en entend.
+
+Conséquence structurelle : les trois couches **démarrent ensemble et ne s'arrêtent jamais**. Les faire entrer et sortir les désynchroniserait, et chaque entrée s'entendrait comme un raccord.
+
+## 5.3 Ce que contient chaque couche
+
+Elles sont générées, comme les autres sons du dépôt, et chacune porte une intention précise.
+
+**Calme** — une fondamentale à 55 Hz et son octave, plus du souffle filtré. Aucune pulsation. C'est le lit sur lequel les autres se posent, et il ne disparaît jamais complètement : un silence total serait un trou, et un trou s'entend.
+
+**Pouls** — une quinte, dont le volume bat à **1 Hz**, la fréquence d'un cœur au repos. C'est la couche qui dit *quelque chose se prépare*, et le choix de 1 Hz n'est pas décoratif : c'est un rythme que le corps reconnaît.
+
+**Aigu** — deux notes séparées d'un **demi-ton** (440 et 466 Hz). C'est l'intervalle le plus dissonant de la gamme, et la raison est physique : leurs ondes se heurtent et produisent un battement rapide que l'oreille perçoit comme une agression. C'est le même procédé que les cordes de *Psychose*.
+
+## 5.4 Les courbes de volume, et ce qu'un test peut en dire
+
+La règle de mélange est une fonction pure — tension en entrée, volume en sortie — donc testable **sans aucun moteur audio**. Deux propriétés y sont vérifiées, et elles valent mieux que des valeurs figées :
+
+- chaque couche de menace est **monotone croissante** : une couche qui monterait puis redescendrait ferait entendre un relâchement au moment où la situation empire ;
+- le lit grave est **monotone décroissant**, mais jamais nul.
+
+Les entrées de couches utilisent un `smoothstep` plutôt qu'une rampe linéaire : une rampe fait entendre son début et sa fin, la courbe en S ne s'entend pas.
+
+## 5.5 La tension glisse, sauf au premier instant
+
+La valeur appliquée rejoint sa consigne par lissage exponentiel, comme l'occlusion et l'inertie de la lampe — mais **beaucoup plus lentement** : environ une seconde et demie. La tension doit monter comme une inquiétude, pas comme un interrupteur.
+
+Même exception qu'en brique 3 : la **première** application prend la consigne telle quelle, sinon chaque niveau commencerait par une montée de tension que personne n'a demandée.
+
+## 5.6 Le pilote est provisoire, et c'est assumé
+
+Il n'y a pas encore d'antagoniste. En attendant, la tension **monte dans le noir et retombe lampe allumée**.
+
+Ce n'est pas une règle de jeu, c'est un banc d'essai : il rend le système audible dès maintenant, et il sera remplacé en M7 par la proximité de la créature, sa ligne de vue et l'*AI Director*. Rien de ce qui est écrit ici ne changera à ce moment-là — seule la ligne qui appelle `setTension` bougera. C'est exactement l'intérêt d'avoir réduit la musique à **une variable**.
+
+## 5.7 Coût
+
+Trois voix occupées en permanence sur les 64 du budget, et trois fichiers de 281 Ko décodés en mémoire. Le mélange lui-même est un réglage de volume par couche et par frame.
+
+## 5.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écoute** : éteindre la lampe fait monter le pouls puis la dissonance ; la rallumer les fait refluer sans aucune coupure.
+
+**Six tests** s'ajoutent : le lit grave n'est jamais muet et la dissonance n'apparaît que tard, les volumes sont monotones, la tension est bornée, les trois couches démarrent ensemble et s'arrêtent ensemble, la tension glisse au lieu de sauter, et une couche manquante désactive la musique au lieu d'en jouer deux tiers — un mélange amputé sonnerait faux, pas incomplet. **74 tests, 493 assertions** au total.
+
+**Ce qui n'existe pas encore** : pas de HRTF binaural, pas de réverbération par pièce, pas de propagation du son par les portails, et le matériau ne joue aucun rôle dans l'occlusion. Ces quatre points restent ouverts dans le SPEC et reviendront quand ils auront un usage concret — la propagation, notamment, arrivera avec l'ouïe de l'antagoniste en M7, qui en a besoin pour la même raison.
+
+**M5 est terminé.**

@@ -66,6 +66,11 @@ public:
     // Vrai si le corps est dynamique et peut donc etre saisi ou pousse.
     bool isBodyDynamic(BodyHandle body) const;
 
+    // Un objet tenu cesse de heurter le personnage, tout en continuant de heurter les
+    // murs et les autres objets. Sans ca, ramener une caisse contre soi la ferait pousser
+    // le porteur - et comme elle est pilotee a vitesse imposee, elle le propulserait.
+    void setBodyHeld(BodyHandle body, bool held);
+
     // Premier corps touche par le rayon. Le lancer depuis l'oeil du joueur donne l'objet
     // vise ; le lancer depuis les yeux d'un monstre donnera sa ligne de vue.
     RayHit raycast(const core::Vec3& origin, const core::Vec3& direction,

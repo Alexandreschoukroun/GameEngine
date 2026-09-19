@@ -41,7 +41,11 @@ namespace {
 namespace Layers {
 constexpr JPH::ObjectLayer kStatic = 0;
 constexpr JPH::ObjectLayer kMoving = 1;
-constexpr JPH::ObjectLayer kCount = 2;
+// Le personnage a sa propre couche : c'est ce qui permet de dire qu'un objet TENU ne le
+// heurte pas, alors qu'il continue de heurter les murs et les autres objets.
+constexpr JPH::ObjectLayer kCharacter = 2;
+constexpr JPH::ObjectLayer kHeld = 3;
+constexpr JPH::ObjectLayer kCount = 4;
 } // namespace Layers
 
 namespace BroadPhase {
@@ -53,8 +57,17 @@ constexpr core::u32 kCount = 2;
 class ObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter {
 public:
     bool ShouldCollide(JPH::ObjectLayer first, JPH::ObjectLayer second) const override {
-        // Statique contre statique : jamais. Rien d'autre a exclure pour l'instant.
-        return first == Layers::kMoving || second == Layers::kMoving;
+        // Statique contre statique : jamais, ils ne bougeront pas l'un vers l'autre.
+        if (first == Layers::kStatic && second == Layers::kStatic) {
+            return false;
+        }
+        // Objet tenu contre porteur : jamais non plus. Sans cette exception, ramener une
+        // caisse contre soi la ferait pousser le joueur - et comme elle est pilotee a
+        // vitesse imposee, elle le propulserait.
+        const bool heldAgainstCharacter =
+            (first == Layers::kHeld && second == Layers::kCharacter) ||
+            (first == Layers::kCharacter && second == Layers::kHeld);
+        return !heldAgainstCharacter;
     }
 };
 
@@ -63,6 +76,8 @@ public:
     JPH::uint GetNumBroadPhaseLayers() const override { return BroadPhase::kCount; }
 
     JPH::BroadPhaseLayer GetBroadPhaseLayer(JPH::ObjectLayer layer) const override {
+        // Tout ce qui n'est pas statique partage le meme arbre spatial : seuls les
+        // statiques beneficient d'un arbre qui n'est jamais reconstruit.
         return layer == Layers::kStatic ? BroadPhase::kStatic : BroadPhase::kMoving;
     }
 
@@ -76,7 +91,8 @@ public:
 class ObjectVsBroadPhaseLayerFilter final : public JPH::ObjectVsBroadPhaseLayerFilter {
 public:
     bool ShouldCollide(JPH::ObjectLayer layer, JPH::BroadPhaseLayer broadPhase) const override {
-        return layer == Layers::kMoving || broadPhase == BroadPhase::kMoving;
+        // Un statique n'a besoin d'etre teste que contre ce qui bouge.
+        return layer != Layers::kStatic || broadPhase == BroadPhase::kMoving;
     }
 };
 
@@ -170,10 +186,12 @@ void World::step(core::f32 fixedDeltaSeconds) {
     const JPH::Vec3 gravityVector = m_impl->system.GetGravity();
     for (const JPH::Ref<JPH::CharacterVirtual>& character : m_impl->characters) {
         JPH::CharacterVirtual::ExtendedUpdateSettings settings;
-        character->ExtendedUpdate(fixedDeltaSeconds, gravityVector, settings,
-                                  m_impl->system.GetDefaultBroadPhaseLayerFilter(Layers::kMoving),
-                                  m_impl->system.GetDefaultLayerFilter(Layers::kMoving), {}, {},
-                                  m_impl->tempAllocator);
+        character->ExtendedUpdate(
+            fixedDeltaSeconds, gravityVector, settings,
+            m_impl->system.GetDefaultBroadPhaseLayerFilter(Layers::kCharacter),
+            // Filtre de couche du PERSONNAGE : c'est lui qui exclut l'objet tenu.
+            m_impl->system.GetDefaultLayerFilter(Layers::kCharacter), {}, {},
+            m_impl->tempAllocator);
     }
 }
 
@@ -238,6 +256,16 @@ core::Vec3 World::bodyVelocity(BodyHandle body) const {
         return core::Vec3{0.0f, 0.0f, 0.0f};
     }
     return fromJolt(m_impl->system.GetBodyInterface().GetLinearVelocity(JPH::BodyID(body)));
+}
+
+void World::setBodyHeld(BodyHandle body, bool held) {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return;
+    }
+    // Changer de couche de collision suffit : l'objet garde sa masse, sa forme et sa
+    // vitesse, il cesse simplement d'exister pour le porteur.
+    m_impl->system.GetBodyInterface().SetObjectLayer(
+        JPH::BodyID(body), held ? Layers::kHeld : Layers::kMoving);
 }
 
 bool World::isBodyDynamic(BodyHandle body) const {

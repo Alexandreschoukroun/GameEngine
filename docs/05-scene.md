@@ -1,6 +1,6 @@
 # 05 — Scène (M3)
 
-*Brique 1 : entités et composants. Brique 2 : hiérarchie (section 2). Brique 3a : écrire une scène (section 3). Brique 3b : la relire (section 4).*
+*Brique 1 : entités et composants. Brique 2 : hiérarchie (section 2). Brique 3a : écrire une scène (section 3). Brique 3b : la relire (section 4). Brique 4 : le graphe de secteurs (section 5).*
 
 Le jalon M3 fait passer le moteur des variables membres aux **données** : entités, hiérarchie, sérialisation JSON, et le graphe de secteurs/portails. C'est le jalon qui rend un niveau chargeable depuis un fichier.
 
@@ -249,3 +249,90 @@ Deux parcours du fichier et une recherche linéaire d'identifiant par lien de pa
 **Ce qui n'existe pas encore** : aucun rechargement à chaud — il faut relancer. Rien ne valide qu'un fichier édité à la main reste cohérent (une échelle nulle, un cône de spot négatif passeront sans broncher). Et le nom d'entité n'est pas unique : `findByName` rend la première trouvée, ce qui convient au code de démonstration mais pas à une référence durable.
 
 **Ce qui vient après (brique 4)** : le graphe de secteurs et portails — la dernière brique de M3, et la fondation que réutiliseront le culling du rendu, l'occlusion audio de M5 et la propagation du son pour l'IA de M7.
+
+---
+
+# 5. Brique 4 — le graphe de secteurs et portails
+
+## 5.1 Le problème
+
+Trois systèmes, dans trois jalons différents, ont besoin de la même information : **quelles parties du niveau sont reliées entre elles, et par où**.
+
+- Le **rendu** ne doit dessiner que ce qui est atteignable depuis la pièce du joueur. Un couloir derrière trois murs ne se voit pas, quel que soit l'angle de la caméra.
+- L'**audio** (M5) doit faire passer le son par les ouvertures. Une porte fermée atténue et filtre ; un mur bloque.
+- L'**IA** (M7) doit entendre par le même chemin : un bruit derrière un mur porte moins loin qu'à vol d'oiseau.
+
+Le SPEC place cette structure en M3 précisément parce qu'elle est partagée : la poser trois fois, une par système, garantirait trois comportements incohérents.
+
+## 5.2 Les décisions
+
+**Des boîtes alignées sur les axes.** Un secteur est un pavé droit décrit par un centre — celui de son `Transform` — et des demi-dimensions. Le test d'appartenance tient en six comparaisons, sans racine carrée ni produit scalaire. Les volumes convexes quelconques seraient plus généraux, mais coûteraient un test plus cher, une saisie pénible à la main, et un outil de construction à écrire **avant** l'éditeur.
+
+Limite assumée : une pièce en L demande deux secteurs qui se recouvrent. C'est très bien ainsi — le découpage est posé à la main, comme le prévoit le SPEC.
+
+**Des entités, comme tout le reste.** Un secteur et un portail sont des entités porteuses d'un composant. Conséquence : ils sont **sérialisés, hiérarchisables et éditables gratuitement**, sans une ligne de code spécifique. Un test le vérifie sur un cas parlant — un secteur attaché à un ascenseur monte avec lui.
+
+**Le graphe seul dans cette brique.** Le culling du rendu viendra dans une PR séparée, avec des mesures Tracy à l'appui. Mélanger une structure de données et une optimisation de rendu dans la même PR rendrait les deux plus difficiles à juger.
+
+## 5.3 Vocabulaire
+
+- **Secteur** : un volume du niveau — une pièce, un couloir.
+- **Portail** : l'ouverture entre deux secteurs. Une porte, une arche, un trou dans un mur.
+- **Parcours en largeur** : on explore les voisins immédiats avant les suivants. Les secteurs sortent donc **triés par nombre de portails traversés**, ce dont l'audio se servira pour atténuer par étapes.
+- **Profondeur** : le nombre de portails qu'on autorise à franchir.
+
+## 5.4 Les deux requêtes
+
+`sectorAt(scène, position)` — dans quel secteur se trouve ce point. Elle lit la **matrice monde**, pas le `Transform` local : un secteur enfant d'un ascenseur suit l'ascenseur.
+
+`reachableSectors(scène, depuis, profondeur, sortie)` — quels secteurs sont atteignables en franchissant au plus *n* portails. Le parcours mémorise les secteurs déjà atteints : un niveau bouclé — trois pièces reliées en cercle — ne provoque aucune boucle infinie. Un test couvre ce cas.
+
+## 5.5 Une leçon rencontrée pendant les essais
+
+En pilotant le jeu pour franchir la limite entre deux secteurs, la touche envoyée ne produisait aucun mouvement. Cause : le script envoyait la **touche virtuelle Windows `A`**, que le système place sur la **position physique Q** d'un clavier AZERTY. Or le moteur lit les **positions physiques**, par choix délibéré documenté en M1.
+
+L'illustration est parfaite : le même choix qui donne ZQSD sans configuration rend les outils d'automatisation dépendants de la disposition. Une fois la bonne touche envoyée, les transitions apparaissent :
+
+```
+secteur : aile_est (2 atteignables a 1 portail)
+secteur : aile_ouest (2 atteignables a 1 portail)
+secteur : aile_est (2 atteignables a 1 portail)
+```
+
+## 5.6 Coût
+
+Le test d'appartenance parcourt les secteurs linéairement. Sur quelques dizaines, c'est négligeable ; sur un millier, il faudra un index spatial. Le parcours en largeur est borné par la profondeur demandée, et réutilise un vecteur fourni par l'appelant — aucune allocation en régime établi.
+
+## 5.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié** : le jeu annonce son secteur courant et le nombre de secteurs atteignables, transitions comprises. Cinq tests couvrent l'appartenance, la hiérarchie, les profondeurs, les cycles et le cas dégénéré.
+
+**Ce qui n'existe pas encore** : rien ne consomme le graphe. Les portails ont des dimensions mais ne servent pas encore à tester la visibilité — seulement l'adjacence. Aucun outil ne vérifie qu'un découpage posé à la main est cohérent (un secteur oublié laisse un trou, deux secteurs qui se recouvrent sont acceptés sans avertissement).
+
+**Ce qui vient après** : le **culling par portails** dans le renderer, avec des mesures Tracy — et ce sera la première fois que le graphe rendra quelque chose de mesurable.
+
+---
+
+# 6. Bilan de M3
+
+Le jalon est terminé. Le moteur est passé des variables membres aux données.
+
+| Brique | État |
+|---|---|
+| Entités et composants (EnTT) | ✅ |
+| Hiérarchie de transforms | ✅ |
+| Écriture déterministe en JSON | ✅ |
+| Lecture, tout ou rien, versionnée | ✅ |
+| Graphe de secteurs et portails | ✅ |
+
+**Ce qui a changé en pratique** : un niveau est désormais un fichier. Le modifier ne demande plus de recompiler, et un diff Git ne montre que ce qui a réellement bougé. C'est la condition d'existence de l'éditeur de M6.
+
+**Les dettes assumées :**
+
+- pas de rechargement à chaud d'une scène ;
+- aucune validation des données éditées à la main — une échelle nulle ou un cône négatif passent sans broncher ;
+- `findByName` rend la première entité trouvée : commode, mais insuffisant comme référence durable ;
+- détruire un parent laisse ses enfants orphelins, traités comme des racines ;
+- recherche linéaire dans le graphe et dans la table de ressources, à remplacer le jour où la mesure le réclamera.
+
+**Ce qui vient après (M4 — Physique)** : Jolt, colliders depuis glTF, contrôleur de personnage, saisie d'objets et portes. Le moment où la caméra cessera de traverser les murs.

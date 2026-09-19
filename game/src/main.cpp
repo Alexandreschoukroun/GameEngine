@@ -1,6 +1,7 @@
 #include "assets/image.h"
 #include "assets/mesh_data.h"
 #include "core/math.h"
+#include "core/log.h"
 #include "core/types.h"
 #include "platform/application.h"
 #include "renderer/camera.h"
@@ -13,10 +14,13 @@
 #include "platform/paths.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
+#include "scene/sector_graph.h"
 #include "scene/serialization.h"
 
 #include <array>
 #include <cmath>
+#include <cstdio>
+#include <string>
 #include <vector>
 
 namespace {
@@ -185,6 +189,10 @@ protected:
         }
         m_fWasDown = fDown;
 
+        // Secteur courant : c'est cette information que le culling du rendu, l'occlusion
+        // audio de M5 et l'ouie de l'IA de M7 consommeront. Pour l'instant, on l'annonce.
+        updateCurrentSector();
+
         // Tab fait defiler les vues du G-buffer. On ne reagit qu'a l'instant ou la touche
         // s'enfonce : sinon la vue changerait soixante fois par seconde.
         const bool tabDown = input().isKeyDown(platform::Key::Tab);
@@ -324,6 +332,32 @@ private:
         m_resources.addTexture("missing", &m_missingTexture);
     }
 
+    void updateCurrentSector() {
+        // Les matrices monde doivent etre a jour : un secteur peut etre enfant d'autre
+        // chose. La passe est idempotente dans une meme frame grace au champ epoch.
+        m_scene.updateWorldTransforms();
+
+        const scene::Entity sector = scene::sectorAt(m_scene, m_camera.position());
+        if (sector == m_currentSector) {
+            return;
+        }
+        m_currentSector = sector;
+
+        if (sector == scene::kInvalidEntity) {
+            core::logInfo("hors de tout secteur");
+            return;
+        }
+
+        const std::string& name = m_scene.registry().get<scene::Name>(sector).value;
+        scene::reachableSectors(m_scene, sector, 1, m_reachable);
+        // Un portail franchi : ce sont les secteurs que le rendu devra dessiner, et ceux
+        // d'ou un son pourra parvenir sans traverser de mur.
+        char buffer[160];
+        std::snprintf(buffer, sizeof(buffer), "secteur : %s (%zu atteignables a 1 portail)",
+                      name.c_str(), m_reachable.size());
+        core::logInfo(buffer);
+    }
+
     bool loadModel() {
         assets::MeshData meshData;
         if (!assets::loadGltfMesh(platform::assetPath(kModelPath).c_str(), meshData)) {
@@ -433,6 +467,8 @@ private:
     scene::Scene m_scene;
     scene::ResourceTable m_resources;
     scene::Entity m_statue = scene::kInvalidEntity;
+    scene::Entity m_currentSector = scene::kInvalidEntity;
+    std::vector<scene::Entity> m_reachable;
     // Reutilises d'une frame a l'autre : on vide sans liberer, donc aucune allocation dans
     // la boucle de frame une fois le regime etabli (regle 7 du SPEC).
     std::vector<renderer::DrawItem> m_drawItems;

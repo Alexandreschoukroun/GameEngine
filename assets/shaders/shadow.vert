@@ -8,7 +8,9 @@ layout(location = 0) in vec3 aPosition;
 // n'est pas oblige de lire tous les attributs du VAO.
 
 layout(location = 0) uniform mat4 uLightViewProjection;
+// Meme emplacement que dans gbuffer.vert, pour que le renderer n'ait pas deux cas.
+layout(location = 4) uniform mat4 uModel;
 
 void main() {
-    gl_Position = uLightViewProjection * vec4(aPosition, 1.0);
+    gl_Position = uLightViewProjection * uModel * vec4(aPosition, 1.0);
 }

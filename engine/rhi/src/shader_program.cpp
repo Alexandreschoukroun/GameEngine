@@ -104,6 +104,14 @@ void ShaderProgram::setMat4(core::u32 location, const core::Mat4& value) {
                               &value[0][0]);
 }
 
+void ShaderProgram::setMat3(core::u32 location, const core::Mat3& value) {
+    if (m_program == 0) {
+        return;
+    }
+    glProgramUniformMatrix3fv(m_program, static_cast<GLint>(location), 1, GL_FALSE,
+                              &value[0][0]);
+}
+
 void ShaderProgram::setInt(core::u32 location, core::i32 value) {
     if (m_program == 0) {
         return;

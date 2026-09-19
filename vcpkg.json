@@ -6,6 +6,7 @@
     "sdl3",
     "doctest",
     "glm",
+    "entt",
     "cgltf",
     "stb",
     {

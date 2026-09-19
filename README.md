@@ -81,7 +81,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | **M3** | Scène (EnTT), sérialisation JSON, graphe de secteurs/portails | ✅ Terminé |
 | **M4** | Physique Jolt, character controller, portes, saisie d'objets | ✅ Terminé |
 | M4.5 | Animation squelettique : squelettes glTF, skinning GPU, lecteur d'animation | À venir |
-| M5 | Audio : spatialisation, occlusion, reverb zones | À venir |
+| M5 | Audio : spatialisation, occlusion, reverb zones | 🚧 En cours |
 | M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | À venir |
 | M7 | Lua, triggers, navmesh, perception et IA de l'antagoniste | À venir |
 | M8 | Brouillard volumétrique, post-process, accessibilité | À venir |
@@ -137,6 +137,8 @@ Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minu
 - [`docs/03-profilage.md`](docs/03-profilage.md) : Tracy, et le bilan de M1
 - [`docs/04-renderer.md`](docs/04-renderer.md) : le renderer PBR — G-buffer, éclairage, ombres, lampe torche
 - [`docs/05-scene.md`](docs/05-scene.md) : la scène — entités, hiérarchie, sérialisation, secteurs
+- [`docs/06-physique.md`](docs/06-physique.md) : la physique — Jolt, colliders, personnage, saisie, portes
+- [`docs/07-audio.md`](docs/07-audio.md) : l'audio — périphérique, voix, son positionné
 - [`docs/build-et-ci.md`](docs/build-et-ci.md) : build, tests et intégration continue
 
 ## Licence

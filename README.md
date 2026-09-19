@@ -6,7 +6,7 @@ Un moteur de jeu **open source** en **C++20**, spécialisé dans les jeux d'**ho
 
 Pas de moteur généraliste ici. Tout est pensé pour un seul genre : des intérieurs clos et sombres, une lampe torche, du brouillard, un son qui trahit ce qui se passe derrière une porte, et une créature qui vous traque.
 
-> **État actuel : jalons M0 à M3 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. La suite, c'est la physique. Voir la [feuille de route](#feuille-de-route).
+> **État actuel : jalons M0 à M3 terminés, M4 en cours.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. La suite, c'est la physique. Voir la [feuille de route](#feuille-de-route).
 
 ## Objectifs
 
@@ -79,7 +79,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | **M1** | Abstraction GPU + backend OpenGL 4.6, triangle texturé, caméra libre | ✅ Terminé |
 | **M2** | Renderer PBR deferred, glTF, lumières et ombres, lampe torche | ✅ Terminé |
 | M3 | Scène (EnTT), sérialisation JSON, graphe de secteurs/portails | À venir |
-| M4 | Physique Jolt, character controller, portes, saisie d'objets | À venir |
+| M4 | Physique Jolt, character controller, portes, saisie d'objets | En cours |
 | M4.5 | Animation squelettique : squelettes glTF, skinning GPU, lecteur d'animation | À venir |
 | M5 | Audio : spatialisation, occlusion, reverb zones | À venir |
 | M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | À venir |
@@ -110,7 +110,7 @@ ctest --preset windows-msvc-debug
 .\build\windows-msvc\game\Debug\game.exe
 ```
 
-Commandes : **Z Q S D** pour se déplacer (les touches suivent la disposition physique, donc W A S D sur un clavier QWERTZ ou QWERTY), **Espace** et **Maj gauche** pour monter et descendre, la **souris** pour regarder, **F** pour allumer ou éteindre la lampe torche, **Tab** pour faire défiler les couches du G-buffer, **Échap** pour quitter.
+Commandes : **Z Q S D** pour se déplacer (les touches suivent la disposition physique, donc W A S D sur un clavier QWERTZ ou QWERTY), **Espace** pour sauter, **Maj gauche** pour courir, la **souris** pour regarder, **F** pour allumer ou éteindre la lampe torche, **Tab** pour faire défiler les couches du G-buffer, **Échap** pour quitter.
 
 Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minutes. Les suivants sont instantanés. La CI GitHub Actions exécute exactement ces commandes, en Debug et en Release, à chaque push. Détails dans [`docs/build-et-ci.md`](docs/build-et-ci.md).
 

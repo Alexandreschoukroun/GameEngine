@@ -20,7 +20,8 @@ core::u32 mipLevelCount(core::u32 width, core::u32 height) {
 
 } // namespace
 
-bool Texture::create(core::u32 width, core::u32 height, const core::u8* pixelsRgba8) {
+bool Texture::create(core::u32 width, core::u32 height, const core::u8* pixelsRgba8,
+                     TextureFormat format) {
     if (width == 0 || height == 0 || pixelsRgba8 == nullptr) {
         core::logError("Texture::create appele sans pixels");
         return false;
@@ -29,11 +30,14 @@ bool Texture::create(core::u32 width, core::u32 height, const core::u8* pixelsRg
     glCreateTextures(GL_TEXTURE_2D, 1, &m_texture);
 
     // Storage reserve toute la chaine de mipmaps d'un coup, avec un format definitif.
-    // Note : on stocke en RGBA8 lineaire. La conversion sRGB sera tranchee en M2, avec
-    // l'eclairage et le tonemapping - une demi-correction serait pire que pas de
-    // correction du tout.
+    //
+    // SRGB8_ALPHA8 : le GPU convertit les octets en valeurs lineaires a chaque lecture,
+    // gratuitement, dans le materiel. Sans ca, les calculs d'eclairage porteraient sur des
+    // valeurs perceptuelles et seraient faux. Le canal alpha, lui, reste toujours lineaire.
+    const GLenum internalFormat =
+        format == TextureFormat::SrgbColor ? GL_SRGB8_ALPHA8 : GL_RGBA8;
     const GLsizei levels = static_cast<GLsizei>(mipLevelCount(width, height));
-    glTextureStorage2D(m_texture, levels, GL_RGBA8, static_cast<GLsizei>(width),
+    glTextureStorage2D(m_texture, levels, internalFormat, static_cast<GLsizei>(width),
                        static_cast<GLsizei>(height));
 
     // Remplit le niveau 0 avec nos pixels...

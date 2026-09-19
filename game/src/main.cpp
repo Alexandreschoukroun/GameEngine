@@ -21,11 +21,19 @@ constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
 constexpr const char* kBaseColorPath = "models/suzanne/Suzanne_BaseColor.png";
 constexpr const char* kGBufferVertexPath = "shaders/gbuffer.vert";
 constexpr const char* kGBufferFragmentPath = "shaders/gbuffer.frag";
-constexpr const char* kPresentVertexPath = "shaders/present.vert";
-constexpr const char* kPresentFragmentPath = "shaders/present.frag";
+constexpr const char* kLightingVertexPath = "shaders/present.vert";
+constexpr const char* kLightingFragmentPath = "shaders/lighting.frag";
+constexpr const char* kMetallicRoughnessPath = "models/suzanne/Suzanne_MetallicRoughness.png";
 
-// Vues de debogage du G-buffer, parcourues avec la touche Tab.
-constexpr core::i32 kViewCount = 3; // couleur de base, normale, profondeur
+// Vues parcourues avec Tab : image eclairee, puis les trois couches brutes du G-buffer.
+constexpr core::i32 kViewCount = 4;
+
+// Une seule lumiere pour l'instant, posee a cote de la camera de depart. La lampe torche
+// et les lumieres multiples viendront aux etapes suivantes.
+constexpr core::Vec3 kLightPosition{1.6f, 1.4f, 2.2f};
+// Couleur chaude, legerement ambree : une ampoule, pas un neon. La puissance compense la
+// decroissance en 1/d^2, qui divise deja par 9 a 3 metres.
+constexpr core::Vec4 kLightColorIntensity{1.0f, 0.88f, 0.72f, 24.0f};
 
 // Sensibilite du regard, en radians par pixel de deplacement souris. Reglable par le
 // joueur le jour ou il y aura des options (M8).
@@ -80,8 +88,8 @@ protected:
 
         if (!createProgramFromFiles(m_gbufferProgram, kGBufferVertexPath,
                                     kGBufferFragmentPath) ||
-            !createProgramFromFiles(m_presentProgram, kPresentVertexPath,
-                                    kPresentFragmentPath)) {
+            !createProgramFromFiles(m_lightingProgram, kLightingVertexPath,
+                                    kLightingFragmentPath)) {
             return false;
         }
 
@@ -101,10 +109,21 @@ protected:
         }
 
         assets::ImageData baseColor;
-        if (!assets::loadImage(platform::assetPath(kBaseColorPath).c_str(), baseColor)) {
+        assets::ImageData metallicRoughness;
+        if (!assets::loadImage(platform::assetPath(kBaseColorPath).c_str(), baseColor) ||
+            !assets::loadImage(platform::assetPath(kMetallicRoughnessPath).c_str(),
+                               metallicRoughness)) {
             return false;
         }
-        return m_texture.create(baseColor.width, baseColor.height, baseColor.pixels.data());
+
+        // La couleur de base est une couleur : le GPU doit la ramener en lineaire a chaque
+        // lecture. La carte metallicite/rugosite contient des mesures : aucune conversion,
+        // sinon les valeurs seraient faussees.
+        return m_baseColor.create(baseColor.width, baseColor.height, baseColor.pixels.data(),
+                                  rhi::TextureFormat::SrgbColor) &&
+               m_metallicRoughness.create(metallicRoughness.width, metallicRoughness.height,
+                                          metallicRoughness.pixels.data(),
+                                          rhi::TextureFormat::LinearData);
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
@@ -173,36 +192,45 @@ protected:
         m_device.bindRenderTarget(m_gbuffer);
         m_device.clear(0.0f, 0.0f, 0.0f, 0.0f);
         m_gbufferProgram.setMat4(0, m_camera.viewProjectionMatrix());
-        m_device.bindTexture(m_texture, 0);
+        m_device.bindTexture(m_baseColor, 0);
+        m_device.bindTexture(m_metallicRoughness, 1);
         m_device.draw(m_gbufferProgram, m_mesh);
 
-        // Passe 2 : un seul triangle couvre l'ecran et relit le G-buffer. C'est ici que
-        // l'eclairage prendra place a l'etape 4.
+        // Passe 2 : un seul triangle couvre l'ecran, relit le G-buffer et calcule la
+        // lumiere. Son cout ne depend pas du nombre d'objets de la scene.
         m_device.bindScreen(window().width(), window().height());
-        m_device.clear(0.04f, 0.0f, 0.02f, 1.0f);
+        m_device.clear(0.0f, 0.0f, 0.0f, 1.0f);
         m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Albedo, 0);
         m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Normal, 1);
         m_device.bindGBufferTexture(m_gbuffer, rhi::GBufferSlot::Depth, 2);
-        m_presentProgram.setInt(0, m_view);
-        m_presentProgram.setVec2(1, core::Vec2{m_camera.nearZ(), m_camera.farZ()});
-        m_device.drawFullscreenTriangle(m_presentProgram);
+        m_lightingProgram.setInt(0, m_view);
+        m_lightingProgram.setVec2(1, core::Vec2{m_camera.nearZ(), m_camera.farZ()});
+        // L'inverse de la matrice de camera permet de retrouver la position du monde a
+        // partir de la seule profondeur, donc de ne pas la stocker dans le G-buffer.
+        m_lightingProgram.setMat4(2, glm::inverse(m_camera.viewProjectionMatrix()));
+        m_lightingProgram.setVec3(3, m_camera.position());
+        m_lightingProgram.setVec3(4, kLightPosition);
+        m_lightingProgram.setVec4(5, kLightColorIntensity);
+        m_device.drawFullscreenTriangle(m_lightingProgram);
     }
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
         m_gbuffer.destroy();
-        m_texture.destroy();
+        m_metallicRoughness.destroy();
+        m_baseColor.destroy();
         m_mesh.destroy();
-        m_presentProgram.destroy();
+        m_lightingProgram.destroy();
         m_gbufferProgram.destroy();
     }
 
 private:
     rhi::Device m_device;
     rhi::ShaderProgram m_gbufferProgram;
-    rhi::ShaderProgram m_presentProgram;
+    rhi::ShaderProgram m_lightingProgram;
     rhi::Mesh m_mesh;
-    rhi::Texture m_texture;
+    rhi::Texture m_baseColor;
+    rhi::Texture m_metallicRoughness;
     rhi::RenderTarget m_gbuffer;
     renderer::Camera m_camera;
     core::i32 m_view = 0;

@@ -300,3 +300,73 @@ Pour un jeu d'horreur en intérieur avec beaucoup de lumières locales, le compr
 **Ce qui n'existe pas encore** : aucun éclairage — la passe d'affichage montre des données brutes. Le G-buffer ne contient ni rugosité ni métallicité, qui arriveront avec le PBR.
 
 **Ce qui vient après (étape 4)** : l'éclairage PBR. La passe 2 calculera la lumière au lieu d'afficher une couche, et la conversion sRGB sera enfin traitée — la dernière dette de M1 qui ait encore un sens.
+
+---
+
+# 5. Étape 4a — éclairage PBR et chaîne linéaire
+
+## 5.1 Le problème
+
+Le G-buffer contenait tout le nécessaire, et personne ne s'en servait. Il manquait le calcul qui transforme « voici une surface » en « voici comment elle réagit à la lumière ».
+
+Et il restait la dette repoussée deux fois : **l'espace colorimétrique**. Une image PNG n'est pas stockée proportionnellement à la lumière : elle est encodée en **sRGB**, une courbe qui donne plus de précision aux tons sombres, là où l'œil est sensible. Excellent pour stocker sur 8 bits, désastreux pour calculer. Additionner deux lumières est une addition **physique** : elle n'a de sens que sur des valeurs proportionnelles à l'énergie.
+
+```
+  texture sRGB  ──décodage──►  calculs en linéaire  ──encodage──►  écran sRGB
+   (le fichier)                   (la physique)                     (les yeux)
+```
+
+Tant qu'aucun calcul n'existait, corriger n'avait aucun effet observable. Tout en dépend désormais.
+
+## 5.2 Les décisions
+
+**PBR plutôt que Phong.** Phong et Blinn-Phong décrivent une surface par des réglages arbitraires — une « brillance » sans unité qu'on ajuste jusqu'à ce que ça paraisse bien. Défaut connu : un matériau réglé dans un couloir éclairé paraît faux dans une pièce sombre. Le PBR décrit la matière par deux grandeurs mesurables, **rugosité** et **métallicité**, et respecte la **conservation de l'énergie** : une surface ne renvoie jamais plus qu'elle ne reçoit. Une pierre réglée une fois reste crédible sous n'importe quel éclairage — indispensable pour un jeu dont l'ambiance repose sur des lumières changeantes.
+
+**Rugosité et métallicité empaquetées dans les canaux alpha.** Un troisième attachement aurait coûté 4 octets par pixel, soit 8 Mo en 1080p. Les canaux alpha de la couleur et de la normale étaient inutilisés :
+
+```
+  attachement 0 : RGB = couleur de base (sRGB)   A = rugosité    (linéaire)
+  attachement 1 : RGB = normale du monde (16F)   A = métallicité (linéaire)
+```
+
+À noter : l'encodage sRGB ne s'applique **qu'aux canaux RGB**. L'alpha reste linéaire, il peut donc transporter une mesure sans être déformé.
+
+**Deux formats de texture, selon ce que les octets signifient.** La couleur de base est une couleur destinée à l'œil : elle est chargée en `SRGB8_ALPHA8`, et le GPU la ramène en linéaire à chaque lecture, gratuitement. La carte métallicité/rugosité contient des **mesures** : elle est chargée en `RGBA8`, sans aucune conversion. Confondre les deux est l'erreur la plus courante de tout le sujet.
+
+**Tonemapping ACES.** L'éclairage produit des valeurs sans plafond ; l'écran s'arrête à 1. Couper brutalement crame les hautes lumières en blanc plat. Une approximation de la courbe ACES, six lignes, préserve le détail et donne un contraste cinématographique — ce qu'on veut pour de l'horreur.
+
+## 5.3 Vocabulaire
+
+- **BRDF** : la fonction qui répond à « une lumière arrive de cette direction, combien repart vers l'œil ? ».
+- **Métallicité** : 0 = diélectrique (bois, pierre, plastique), 1 = métal. Un métal n'a **pas de composante diffuse** et teinte ses reflets.
+- **Rugosité** : 0 = miroir, 1 = parfaitement mat. Elle contrôle l'étalement du reflet.
+- **Fresnel** : tout matériau devient réfléchissant quand on le regarde en rasant.
+- **Microfacettes** : la surface est modélisée comme une multitude de micro-miroirs. **GGX** décrit leur distribution (terme D), le terme géométrique (G) l'ombre qu'ils se portent entre eux.
+- **HDR** : des valeurs d'éclairage sans plafond, avant réduction à l'écran.
+- **Reconstruction de position** : retrouver le point du monde correspondant à un pixel à partir de sa profondeur et de l'inverse de la matrice de caméra — la raison pour laquelle la position n'est pas stockée.
+
+## 5.4 La découverte de l'étape : un métal sans environnement est noir
+
+Le premier rendu est apparu presque entièrement noir. Vérification faite dans le fichier : **le matériau de Suzanne est déclaré 100 % métallique** (canal bleu de la carte à 255), avec une rugosité de 0,32.
+
+Le rendu était donc **correct**. Un métal n'a aucune composante diffuse : il ne fait que réfléchir ce qui l'entoure. Ici, l'environnement est le vide absolu — il ne reste que le reflet direct de la lampe.
+
+Vérifié en forçant temporairement la métallicité à zéro : le modèle apparaît alors normalement éclairé, avec un dégradé diffus propre et des reflets sur les arcades. La chaîne complète fonctionne.
+
+**Conséquence à retenir pour la suite** : un moteur PBR sans éclairage d'environnement rend les métaux inutilisables. Ce n'est pas bloquant pour un jeu d'horreur en intérieur sombre, mais la question se posera — probablement à M8, avec l'ambiance.
+
+## 5.5 Artefact connu
+
+De fines mouchetures blanches suivent les coutures d'UV du modèle. Cause probable : aux coutures, le filtrage de la carte de rugosité interpole vers des valeurs proches de zéro, donc vers un miroir parfait, qui renvoie un reflet extrêmement intense sur un seul pixel. C'est un défaut classique du PBR (*specular aliasing*), traité habituellement par un plancher de rugosité plus haut ou un filtrage spécifique. Noté, non corrigé : il faudra voir s'il subsiste sur de vrais assets de décor.
+
+## 5.6 Coût
+
+Aucun coût mémoire supplémentaire, grâce à l'empaquetage. Par pixel d'écran : une reconstruction de position, puis une trentaine d'opérations flottantes par lumière. En 1080p avec une lumière, environ 60 millions d'opérations par frame — une fraction de milliseconde. C'est le poste « éclairage » du budget du SPEC, et il grossira à chaque lumière ajoutée.
+
+## 5.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : éclairage correct avec atténuation en 1/d², reflets cohérents avec la rugosité, tonemapping sans zone cramée, et Tab donne toujours accès aux trois couches brutes du G-buffer.
+
+**Ce qui n'existe pas encore** : une seule lumière, aucune ombre — tout objet est éclairé même s'il est derrière un mur. Aucun éclairage d'environnement. Le code d'orchestration est toujours dans le jeu.
+
+**Ce qui vient après (étape 4b)** : plusieurs lumières, et le déménagement des passes dans `renderer/` — l'éclairage multiple lui donnera enfin une raison d'exister.

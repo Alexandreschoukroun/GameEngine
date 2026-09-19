@@ -32,8 +32,10 @@ bool RenderTarget::create(core::u32 width, core::u32 height) {
 
     destroy(); // recreation a chaque redimensionnement de la fenetre
 
-    // RGBA8 pour la couleur : 8 bits par canal suffisent a une couleur de base.
-    m_albedoTexture = createTargetTexture(GL_RGBA8, width, height);
+    // SRGB8_ALPHA8 et non RGBA8 : stocker une couleur lineaire sur 8 bits ferait apparaitre
+    // des paliers dans les tons sombres. Le GPU encode a l'ecriture et decode a la lecture,
+    // gratuitement. Le canal alpha echappe a cette courbe : il transporte la rugosite.
+    m_albedoTexture = createTargetTexture(GL_SRGB8_ALPHA8, width, height);
     // RGBA16F pour la normale : en 8 bits, les surfaces courbes montreraient des bandes.
     m_normalTexture = createTargetTexture(GL_RGBA16F, width, height);
     // Profondeur en texture, et non en renderbuffer : la passe suivante doit la relire

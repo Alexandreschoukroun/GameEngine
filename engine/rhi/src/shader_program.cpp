@@ -118,6 +118,21 @@ void ShaderProgram::setVec2(core::u32 location, const core::Vec2& value) {
     glProgramUniform2f(m_program, static_cast<GLint>(location), value.x, value.y);
 }
 
+void ShaderProgram::setVec3(core::u32 location, const core::Vec3& value) {
+    if (m_program == 0) {
+        return;
+    }
+    glProgramUniform3f(m_program, static_cast<GLint>(location), value.x, value.y, value.z);
+}
+
+void ShaderProgram::setVec4(core::u32 location, const core::Vec4& value) {
+    if (m_program == 0) {
+        return;
+    }
+    glProgramUniform4f(m_program, static_cast<GLint>(location), value.x, value.y, value.z,
+                       value.w);
+}
+
 void ShaderProgram::destroy() {
     if (m_program != 0) {
         glDeleteProgram(m_program);

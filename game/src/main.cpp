@@ -1,4 +1,5 @@
 #include "assets/image.h"
+#include "audio/engine.h"
 #include "assets/mesh_data.h"
 #include "core/math.h"
 #include "core/log.h"
@@ -64,6 +65,11 @@ constexpr core::f32 kPushImpulse = 2.2f;
 // il faut quelques newtons-secondes par frame pour un mouvement franc. C'etait le defaut
 // du premier essai - 0,9 sur un battant de 144 kg ne se voyait tout simplement pas.
 constexpr core::f32 kDoorPull = 25.0f;
+// Le crepitement du foyer, joue en boucle a la position de la braise. C'est le premier
+// son du moteur, et il sert de repere sonore : en tournant sur soi-meme, on l'entend
+// passer d'une oreille a l'autre.
+constexpr const char* kFireSound = "audio/braises.wav";
+constexpr core::f32 kFireVolume = 0.7f;
 // Plafond de traction : sans lui, viser loin sur le cote enverrait la porte claquer
 // contre sa butee a une vitesse absurde.
 constexpr core::f32 kMaxDoorPull = 12.0f;
@@ -220,7 +226,33 @@ protected:
         }
         m_camera.setPosition(kSpawnPosition + core::Vec3{0.0f, kEyeHeight, 0.0f});
         m_flashlight.snapTo(m_camera);
+
+        // L'audio ne conditionne pas le lancement : un poste sans carte son doit pouvoir
+        // afficher le jeu. On signale et on continue.
+        if (!m_audio.create()) {
+            core::logWarn("le jeu demarre sans audio");
+        } else {
+            startFireLoop();
+        }
         return true;
+    }
+
+    // Le crepitement est attache a l'entite "braise" : sa position dans le monde est lue
+    // dans la scene, pas ecrite en dur. Deplacer le foyer dans demo.json deplace le son.
+    void startFireLoop() {
+        const audio::SoundHandle fire =
+            m_audio.loadSound(platform::assetPath(kFireSound));
+        if (fire == audio::kInvalidSound) {
+            return;
+        }
+        const scene::Entity ember = m_scene.findByName("braise");
+        if (ember == scene::kInvalidEntity) {
+            return;
+        }
+        m_scene.updateWorldTransforms();
+        const core::Mat4 world = m_scene.worldMatrix(ember);
+        const core::Vec3 position(world[3]);
+        m_fireVoice = m_audio.play(fire, position, true, kFireVolume);
     }
 
     // Une fois par frame : le regard suit la souris a la frequence de l'ecran.
@@ -230,6 +262,13 @@ protected:
         m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
                              -input().mouseDeltaY() * kLookSensitivity);
         m_flashlight.update(m_camera, frameDeltaSeconds);
+
+        // L'oreille suit l'oeil. Sans cet appel, tourner la tete ne changerait rien a ce
+        // qu'on entend - et c'est precisement par l'oreille qu'on localise une menace
+        // qu'on ne voit pas.
+        m_audio.setListener(m_camera.position(), m_camera.forward(),
+                            core::Vec3{0.0f, 1.0f, 0.0f});
+        m_audio.update();
 
         // F5 ecrit la scene sur le disque. Deux appuis successifs produisent exactement
         // le meme fichier : c'est l'exigence de determinisme du SPEC.
@@ -399,6 +438,7 @@ protected:
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
+        m_audio.destroy();
         m_physics.destroy();
         m_crateMesh.destroy();
         m_renderer.destroy();
@@ -703,6 +743,8 @@ private:
     rhi::Texture m_missingTexture;
 
     renderer::Flashlight m_flashlight;
+    audio::Engine m_audio;
+    audio::VoiceHandle m_fireVoice = audio::kInvalidVoice;
     physics::World m_physics;
     physics::CharacterHandle m_player = physics::kInvalidCharacter;
     physics::BodyHandle m_heldBody = physics::kInvalidBody;

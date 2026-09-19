@@ -8,6 +8,7 @@
     "glm",
     "entt",
     "joltphysics",
+    "miniaudio",
     "nlohmann-json",
     "cgltf",
     "stb",

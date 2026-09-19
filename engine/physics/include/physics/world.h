@@ -24,6 +24,16 @@ inline constexpr CharacterHandle kInvalidCharacter = 0xFFFFFFFFu;
 // filtres - est enfermee dans l'implementation. Aucun type Jolt n'apparait dans cet
 // en-tete : c'est la regle 2 du SPEC, et c'est ce qui permettra d'en changer un jour sans
 // toucher au reste du moteur.
+// Resultat d'un lancer de rayon. Il servira a la saisie d'objets, puis au champ de vision
+// de l'antagoniste en M7 : voir, c'est lancer un rayon et regarder ce qu'il touche.
+struct RayHit {
+    BodyHandle body = kInvalidBody;
+    core::Vec3 point{0.0f, 0.0f, 0.0f};
+    core::Vec3 normal{0.0f, 1.0f, 0.0f};
+    core::f32 distance = 0.0f;
+    bool hit = false;
+};
+
 class World {
 public:
     World();
@@ -46,6 +56,20 @@ public:
 
     core::Vec3 bodyPosition(BodyHandle body) const;
     core::Quat bodyRotation(BodyHandle body) const;
+
+    // Vitesse d'un corps dynamique. L'imposer est la maniere la plus stable de deplacer
+    // un objet tenu : il reste soumis aux collisions, donc il se coince dans une porte au
+    // lieu de la traverser.
+    void setBodyVelocity(BodyHandle body, const core::Vec3& linear);
+    core::Vec3 bodyVelocity(BodyHandle body) const;
+
+    // Vrai si le corps est dynamique et peut donc etre saisi ou pousse.
+    bool isBodyDynamic(BodyHandle body) const;
+
+    // Premier corps touche par le rayon. Le lancer depuis l'oeil du joueur donne l'objet
+    // vise ; le lancer depuis les yeux d'un monstre donnera sa ligne de vue.
+    RayHit raycast(const core::Vec3& origin, const core::Vec3& direction,
+                   core::f32 maxDistance) const;
 
     // --- Personnages ------------------------------------------------------------------
     //

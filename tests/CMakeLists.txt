@@ -8,6 +8,7 @@ add_executable(engine_tests
     scene/test_sector_graph.cpp
     physics/test_world.cpp
     physics/test_character.cpp
+    physics/test_raycast.cpp
     scene/test_physics_sync.cpp
 )
 

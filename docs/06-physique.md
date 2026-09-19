@@ -1,6 +1,6 @@
 # 06 — Physique (M4)
 
-*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3).*
+*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3). Brique 4a : attraper et pousser (section 4).*
 
 Le jalon M4 apporte la physique : colliders, contrôleur de personnage, saisie d'objets et portes. Cette première brique pose le socle — et force au passage une décision restée en suspens depuis M3.
 
@@ -201,3 +201,61 @@ Un balayage de capsule par pas, plus la résolution des contacts. Négligeable p
 **Ce qui n'existe pas encore** : ni accroupissement, ni hauteur de marche réglable, ni bruit de pas — les pas arriveront avec l'audio en M5. Le personnage ne pousse pas les caisses : un contrôleur virtuel n'applique pas de force aux corps qu'il touche, il faudra le faire explicitement.
 
 **Ce qui vient après (brique 4)** : la saisie d'objets et les portes à la manière d'*Amnesia* — on tire sur la poignée, on ne joue pas une animation.
+
+---
+
+# 4. Brique 4a — attraper et pousser
+
+## 4.1 Le problème
+
+Deux manques, dont l'un relevé en jouant : **les caisses arrêtaient le joueur comme des murs**. Un contrôleur virtuel détecte les corps dynamiques mais ne leur transmet aucune force — il faut le lui apprendre.
+
+Et surtout, rien ne permettait de **manipuler** quoi que ce soit, alors que c'est le cœur du genre que vise le SPEC.
+
+## 4.2 La décision : une vitesse imposée, pas une liaison
+
+Trois façons de faire suivre un objet tenu :
+
+**Vitesse imposée vers la cible** — à chaque pas, on calcule la vitesse qui rapprocherait l'objet du point de maintien, et on la lui donne. L'objet reste un corps dynamique ordinaire.
+
+**Contrainte physique** — une liaison entre l'objet et un point invisible, résolue par le solveur. Plus juste physiquement, mais une liaison mal dosée devient instable, et le réglage dépend de la masse : chaque objet demanderait son propre accord.
+
+**Objet rendu cinématique** — on désactive sa physique et on le colle devant la caméra. Parfaitement stable, et catastrophique : il traverse les murs, et on peut passer une caisse à travers une porte fermée. Exactement ce que le SPEC cherche à éviter.
+
+**Choix : la vitesse imposée.** Un seul réglage de nervosité, stable quelle que soit la masse, et l'objet conserve toutes ses collisions. C'est l'approche d'*Amnesia* et de *Half-Life 2*.
+
+## 4.3 Trois garde-fous
+
+**La vitesse est plafonnée.** Sans plafond, un objet très éloigné recevrait une vitesse énorme et franchirait un mur en un seul pas de simulation — le tunnel classique.
+
+**L'objet est lâché s'il s'éloigne trop.** Il s'est coincé dans un mur ou derrière une porte : le ramener de force reviendrait à le faire passer au travers.
+
+**Un corps endormi doit être réveillé.** Jolt cesse de simuler les objets immobiles ; leur imposer une vitesse sans les réveiller ne fait rien du tout. C'est un piège silencieux — la caisse reste figée malgré la poussée — et un test le couvre explicitement.
+
+## 4.4 Le lancer de rayon, qui resservira
+
+Attraper commence par viser : un rayon part de l'œil, dans l'axe du regard, sur la portée du bras. Le premier corps touché est le candidat, à condition qu'il soit dynamique.
+
+Cette même fonction servira au **champ de vision de l'antagoniste** en M7 : voir, c'est lancer un rayon et regarder ce qu'il rencontre. Un test vérifie déjà la propriété qui rendra le monstre aveugle derrière un mur — **le rayon s'arrête au premier corps**.
+
+## 4.5 Pousser ce qu'on bouscule
+
+Un rayon court, à hauteur de hanche, dans la direction de marche. S'il touche un corps dynamique, on lui ajoute une vitesse. C'est volontairement simple : doser par la masse, tenir compte de l'angle d'impact et de la friction viendra si le ressenti le réclame.
+
+## 4.6 Commandes
+
+**E** pour attraper et lâcher. L'objet flotte à 1,40 m devant les yeux et suit le regard — en restant physique : il heurte les murs, et il repousse les autres caisses.
+
+## 4.7 Coût
+
+Un lancer de rayon par frame pour la saisie, un autre pendant la marche. Un rayon coûte une descente dans l'arbre spatial : quelques microsecondes.
+
+## 4.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : la caisse attrapée flotte devant les yeux, suit le regard, et reste tenue quand le joueur recule.
+
+**Cinq tests** s'ajoutent : le rayon trouve le corps visé à la bonne distance avec la bonne normale, une portée trop courte ne touche rien, le rayon s'arrête au plus proche, les corps statiques ne sont pas saisissables, et un corps endormi se réveille bien quand on lui impose une vitesse. **39 tests, 109 assertions** au total.
+
+**Ce qui n'existe pas encore** : l'objet tenu ne tourne pas avec le regard, on ne peut pas le lancer, et aucun retour visuel n'indique ce qu'on vise. La poussée ignore la masse.
+
+**Ce qui vient après (brique 4b)** : les portes à charnière — le dernier morceau de M4, et celui que le SPEC décrit avec le plus de précision.

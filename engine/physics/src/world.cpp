@@ -12,6 +12,9 @@
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Body/BodyLockInterface.h>
+#include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -216,6 +219,66 @@ core::Quat World::bodyRotation(BodyHandle body) const {
         return core::Quat(1.0f, 0.0f, 0.0f, 0.0f);
     }
     return fromJolt(m_impl->system.GetBodyInterface().GetRotation(JPH::BodyID(body)));
+}
+
+void World::setBodyVelocity(BodyHandle body, const core::Vec3& linear) {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return;
+    }
+    JPH::BodyInterface& bodies = m_impl->system.GetBodyInterface();
+    const JPH::BodyID id(body);
+    // Un corps endormi ignore les changements de vitesse : Jolt desactive les objets
+    // immobiles pour ne pas les simuler. Il faut donc le reveiller explicitement.
+    bodies.ActivateBody(id);
+    bodies.SetLinearVelocity(id, toJolt(linear));
+}
+
+core::Vec3 World::bodyVelocity(BodyHandle body) const {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return core::Vec3{0.0f, 0.0f, 0.0f};
+    }
+    return fromJolt(m_impl->system.GetBodyInterface().GetLinearVelocity(JPH::BodyID(body)));
+}
+
+bool World::isBodyDynamic(BodyHandle body) const {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return false;
+    }
+    return m_impl->system.GetBodyInterface().GetMotionType(JPH::BodyID(body)) ==
+           JPH::EMotionType::Dynamic;
+}
+
+RayHit World::raycast(const core::Vec3& origin, const core::Vec3& direction,
+                      core::f32 maxDistance) const {
+    RayHit result;
+    if (m_impl == nullptr || maxDistance <= 0.0f) {
+        return result;
+    }
+
+    // La direction porte la longueur : Jolt exprime la fraction du trajet parcourue, et
+    // non une distance absolue.
+    const JPH::Vec3 ray = toJolt(glm::normalize(direction)) * maxDistance;
+    const JPH::RRayCast cast{toJolt(origin), ray};
+
+    JPH::RayCastResult closest;
+    if (!m_impl->system.GetNarrowPhaseQuery().CastRay(cast, closest)) {
+        return result;
+    }
+
+    result.hit = true;
+    result.body = closest.mBodyID.GetIndexAndSequenceNumber();
+    result.distance = closest.mFraction * maxDistance;
+    result.point = origin + glm::normalize(direction) * result.distance;
+
+    // La normale demande d'interroger le corps touche : elle depend de la face heurtee,
+    // que seule la forme connait.
+    JPH::BodyLockRead lock(m_impl->system.GetBodyLockInterface(), closest.mBodyID);
+    if (lock.Succeeded()) {
+        result.normal =
+            fromJolt(lock.GetBody().GetWorldSpaceSurfaceNormal(closest.mSubShapeID2,
+                                                               toJolt(result.point)));
+    }
+    return result;
 }
 
 namespace {

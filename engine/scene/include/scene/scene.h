@@ -27,13 +27,33 @@ public:
 
     bool isValid(Entity entity) const { return m_registry.valid(entity); }
 
+    // Attache child a parent : sa position devient relative a celle du parent.
+    // Passer kInvalidEntity comme parent detache l'entite.
+    // Refuse et journalise si le lien creerait un cycle - la passe de mise a jour est
+    // recursive, un cycle ferait deborder la pile.
+    bool setParent(Entity child, Entity parent);
+
+    // Recalcule la matrice monde de chaque entite, parents avant enfants. A appeler une
+    // fois par frame, avant tout systeme qui consomme des positions.
+    //
+    // Pas de drapeaux "sale" : ils seraient plus rapides, mais oublier d'invalider un
+    // enfant donne un objet colle a son ancienne position, de facon intermittente. Le
+    // SPEC interdit d'optimiser avant d'avoir mesure.
+    void updateWorldTransforms();
+
+    // Matrice monde d'une entite, telle que calculee par la derniere passe.
+    core::Mat4 worldMatrix(Entity entity) const;
+
     // Acces direct au registre pour attacher des composants et parcourir des vues.
     // Les systemes travaillent dessus ; il n'y a aucune raison de le cacher.
     entt::registry& registry() { return m_registry; }
     const entt::registry& registry() const { return m_registry; }
 
 private:
+    core::Mat4 computeWorld(Entity entity, core::u32 epoch);
+
     entt::registry m_registry;
+    core::u32 m_epoch = 0;
 };
 
 } // namespace scene

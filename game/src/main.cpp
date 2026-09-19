@@ -200,6 +200,13 @@ protected:
             direction.y -= 1.0f;
         }
 
+        // La statue tourne lentement sur elle-meme. Ses deux enfants suivent sans qu'on
+        // touche a leur Transform : c'est toute la hierarchie en une ligne.
+        if (m_scene.isValid(m_statue)) {
+            auto& transform = m_scene.registry().get<scene::Transform>(m_statue);
+            transform.rotation.y += 0.35f * static_cast<core::f32>(fixedDeltaSeconds);
+        }
+
         // Normaliser evite d'aller plus vite en diagonale. Le test protege glm::normalize,
         // qui divise par zero si le vecteur est nul.
         if (glm::dot(direction, direction) > 0.0f) {
@@ -219,32 +226,37 @@ protected:
     void onRender() override {
         // Deux systemes, au sens ECS : ils parcourent les entites possedant les composants
         // qui les interessent, et en tirent ce que le renderer attend.
+        // Une seule passe recalcule toutes les matrices monde, parents avant enfants.
+        // Les systemes qui suivent n'ont plus qu'a les lire.
+        m_scene.updateWorldTransforms();
+
         m_drawItems.clear();
-        for (auto [entity, transform, mesh] :
-             m_scene.registry().view<scene::Transform, scene::MeshRenderer>().each()) {
+        for (auto [entity, world, mesh] :
+             m_scene.registry().view<scene::WorldTransform, scene::MeshRenderer>().each()) {
             if (mesh.mesh == nullptr) {
                 continue;
             }
+            const core::Mat3 normalMatrix =
+                glm::transpose(glm::inverse(core::Mat3(world.matrix)));
             m_drawItems.push_back(renderer::DrawItem{mesh.mesh, mesh.baseColor,
-                                                     mesh.metallicRoughness,
-                                                     transform.matrix(),
-                                                     transform.normalMatrix()});
+                                                     mesh.metallicRoughness, world.matrix,
+                                                     normalMatrix});
         }
 
         // La lampe torche en premier : c'est elle qui porte l'ombre, et le renderer retient
         // la premiere lumiere a ombre de la liste.
         m_lights.clear();
         m_lights.push_back(m_flashlight.light());
-        for (auto [entity, transform, source] :
-             m_scene.registry().view<scene::Transform, scene::LightSource>().each()) {
+        for (auto [entity, world, source] :
+             m_scene.registry().view<scene::WorldTransform, scene::LightSource>().each()) {
             if (m_lights.size() >= kMaxSceneLights) {
                 break;
             }
             renderer::Light light;
-            // La position vient du Transform, jamais du composant lumiere : une seule
-            // verite pour une seule information.
-            light.position = transform.position;
-            light.direction = core::Vec3(transform.matrix() * core::Vec4{0.0f, 0.0f, -1.0f, 0.0f});
+            // La position vient de la matrice monde, donc de la hierarchie : une lampe
+            // enfant d'une porte suit la porte, sans code supplementaire.
+            light.position = core::Vec3(world.matrix[3]);
+            light.direction = core::Vec3(world.matrix * core::Vec4{0.0f, 0.0f, -1.0f, 0.0f});
             light.color = source.color;
             light.intensity = source.intensity;
             light.type = source.type;
@@ -286,22 +298,28 @@ private:
             statue,
             scene::MeshRenderer{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness});
 
-        const scene::Entity statueLoin = m_scene.createEntity("statue lointaine");
-        auto& farTransform = m_scene.registry().get<scene::Transform>(statueLoin);
-        farTransform.position = core::Vec3{-3.2f, -0.4f, -3.6f};
-        farTransform.rotation = core::Vec3{0.0f, core::radians(35.0f), 0.0f};
-        farTransform.scale = core::Vec3{0.7f, 0.7f, 0.7f};
-        m_scene.registry().emplace<scene::MeshRenderer>(
-            statueLoin,
-            scene::MeshRenderer{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness});
+        m_statue = statue;
 
-        // La lumiere d'ambiance devient une entite comme les autres : sa position est dans
-        // son Transform, pas dans son composant lumiere.
+        // Satellite ATTACHE a la statue : sa position est relative, donc faire tourner le
+        // parent le fait orbiter sans qu'on touche a son Transform.
+        const scene::Entity satellite = m_scene.createEntity("satellite");
+        auto& satelliteTransform = m_scene.registry().get<scene::Transform>(satellite);
+        satelliteTransform.position = core::Vec3{2.6f, -0.5f, 0.0f};
+        satelliteTransform.scale = core::Vec3{0.45f, 0.45f, 0.45f};
+        m_scene.registry().emplace<scene::MeshRenderer>(
+            satellite,
+            scene::MeshRenderer{&m_modelMesh, &m_modelBaseColor, &m_modelMetallicRoughness});
+        m_scene.setParent(satellite, statue);
+
+        // La braise est elle aussi enfant de la statue : elle orbite avec le satellite, ce
+        // qui rend la propagation visible sur l'eclairage et pas seulement sur la
+        // geometrie.
         const scene::Entity braise = m_scene.createEntity("braise");
         m_scene.registry().get<scene::Transform>(braise).position =
-            core::Vec3{0.0f, 2.2f, -5.0f};
+            core::Vec3{2.6f, 0.4f, 0.0f};
         m_scene.registry().emplace<scene::LightSource>(
-            braise, scene::LightSource{core::Vec3{1.0f, 0.22f, 0.16f}, 3.0f});
+            braise, scene::LightSource{core::Vec3{1.0f, 0.30f, 0.12f}, 9.0f});
+        m_scene.setParent(braise, statue);
     }
 
     bool loadModel() {
@@ -405,6 +423,7 @@ private:
 
     renderer::Flashlight m_flashlight;
     scene::Scene m_scene;
+    scene::Entity m_statue = scene::kInvalidEntity;
     // Reutilises d'une frame a l'autre : on vide sans liberer, donc aucune allocation dans
     // la boucle de frame une fois le regime etabli (regle 7 du SPEC).
     std::vector<renderer::DrawItem> m_drawItems;

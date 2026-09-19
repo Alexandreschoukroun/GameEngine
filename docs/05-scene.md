@@ -1,6 +1,6 @@
 # 05 — Scène (M3)
 
-*Brique 1 : les entités et les composants.*
+*Brique 1 : les entités et les composants. Brique 2 : la hiérarchie (section 2).*
 
 Le jalon M3 fait passer le moteur des variables membres aux **données** : entités, hiérarchie, sérialisation JSON, et le graphe de secteurs/portails. C'est le jalon qui rend un niveau chargeable depuis un fichier.
 
@@ -61,3 +61,64 @@ Les listes transmises au renderer sont des `std::vector` **réutilisés d'une fr
 **Ce qui n'existe pas encore** : aucune hiérarchie, donc aucun objet ne peut être attaché à un autre. La scène se construit toujours par du code, pas depuis un fichier. Rien ne détruit ni ne recharge une scène en cours de partie.
 
 **Ce qui vient après (brique 2)** : la hiérarchie de transforms — un parent, des enfants, et la propagation des transformations.
+
+---
+
+# 2. Brique 2 — la hiérarchie de transforms
+
+## 2.1 Le problème
+
+Chaque entité avait une position **absolue**. Suffisant pour poser des statues, insuffisant pour ce que le jeu demandera : une poignée attachée à une porte qui doit tourner avec elle, une lampe posée sur une table qu'on déplace, plus tard une arme dans la main d'un personnage.
+
+Dans tous ces cas, l'enfant est positionné **relativement au parent**, et le monde doit recalculer sa place quand le parent bouge.
+
+## 2.2 Les options considérées
+
+**Recalculer à la demande** : chaque objet remonte la chaîne de ses parents au moment où l'on a besoin de sa position. Aucune invalidation à gérer, mais le calcul se répète pour chaque consommateur — rendu, physique et audio referaient le même travail.
+
+**Cacher avec des drapeaux « sale »** : mémoriser la matrice monde et ne la recalculer qu'en cas de changement. Le plus rapide, et de loin le plus piégeux : oublier d'invalider un enfant donne un objet collé à son ancienne position, de façon intermittente — donc difficile à reproduire.
+
+**Une passe de mise à jour par frame** : parcourir tout, parents avant enfants, écrire la matrice monde de chacun. Coût linéaire, aucune invalidation possible, un seul endroit où ça se passe.
+
+**Choix : la passe par frame.** À l'échelle actuelle le coût est invisible, et le SPEC interdit d'optimiser avant d'avoir mesuré. Le jour où Tracy montrera que cette passe pèse, on ajoutera des drapeaux — avec des chiffres pour justifier la complexité.
+
+## 2.3 Deux protections contre le débordement de pile
+
+**Le cycle est refusé à la source.** Attacher un parent à son propre descendant ferait boucler le calcul récursif indéfiniment. `setParent` remonte donc la chaîne du futur parent et refuse le lien s'il y trouve l'enfant.
+
+**Et le calcul se protège quand même.** Chaque entité est marquée comme « calculée cette frame » **avant** de récurser vers son parent. Si un cycle échappait malgré tout à la vérification, la passe s'arrêterait au lieu de faire exploser la pile. Un débordement de pile ne laisse aucune trace exploitable : la ceinture et les bretelles se justifient.
+
+## 2.4 Le champ `epoch`
+
+Le composant `WorldTransform` porte un compteur de frame. Il sert de mémo pendant la passe : une entité déjà calculée n'est pas recalculée, même si dix enfants la réclament comme parent. Le coût reste linéaire quelle que soit la forme de l'arbre, sans allouer de structure temporaire.
+
+## 2.5 Vocabulaire
+
+- **Transform local** : la position relative au parent. C'est ce qu'on règle.
+- **Transform monde** : la position absolue, calculée. C'est ce que le rendu consomme.
+- **Racine** : une entité sans parent — son local *est* son monde.
+- **Propagation** : le fait qu'une modification du parent descende à toute sa descendance.
+
+## 2.6 Ce que la démonstration montre
+
+La statue tourne lentement sur elle-même, à pas fixe puisque c'est de la simulation. Deux entités lui sont attachées : un satellite et une braise.
+
+Aucune des deux n'est touchée par le code de rotation. Pourtant le satellite orbite, et la braise **déplace l'éclairage de toute la pièce** en orbitant. C'est toute la hiérarchie en une ligne :
+
+```cpp
+transform.rotation.y += 0.35f * fixedDeltaSeconds;
+```
+
+Que la propagation se voie sur la **lumière** et pas seulement sur la géométrie est délibéré : c'est la preuve que la position d'une lumière vient bien de sa matrice monde, et non d'un champ dupliqué dans son composant.
+
+## 2.7 Coût
+
+Une multiplication de matrices par entité et par frame, plus un parcours linéaire. Invisible à cette échelle, et mesurable dans Tracy le jour où la scène grossira.
+
+## 2.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié à l'écran** : la rotation du parent entraîne ses deux enfants, y compris l'éclairage qu'ils portent.
+
+**Ce qui n'existe pas encore** : détruire un parent laisse ses enfants avec un lien vers une entité invalide — le calcul les traite alors comme des racines, ce qui est acceptable mais n'a pas été décidé. La scène se construit toujours par du code.
+
+**Ce qui vient après (brique 3)** : la sérialisation JSON déterministe. C'est le basculement du jalon — les niveaux cesseront d'être écrits en C++ pour devenir des fichiers.

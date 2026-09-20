@@ -400,9 +400,9 @@
       "parent": "0x00000000000f0001",
       "transform": {
         "position": [
-          0.3889,
-          0.0,
-          0.0
+          0.4372,
+          -0.0025,
+          0.3875
         ],
         "rotation": [
           0.0,
@@ -411,14 +411,14 @@
           1.0
         ],
         "scale": [
-          0.0556,
-          0.025,
-          2.75
+          1.1111,
+          0.5,
+          12.5
         ]
       },
       "mesh": {
-        "mesh": "caisse",
-        "material": "metal_rouille"
+        "mesh": "loquet",
+        "material": "loquet"
       }
     },
     {

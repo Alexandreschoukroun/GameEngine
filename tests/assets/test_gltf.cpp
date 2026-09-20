@@ -4,6 +4,7 @@
 #include "platform/paths.h"
 
 #include <algorithm>
+#include <vector>
 #include <cmath>
 
 namespace {
@@ -139,4 +140,97 @@ TEST_CASE("Sub-meshes cover every index exactly once") {
         CHECK((sub.material == assets::kNoMaterial || sub.material < mesh.materials.size()));
     }
     CHECK(expected == mesh.indices.size());
+}
+
+TEST_CASE("Generated tangents agree with those the file provides") {
+    assets::MeshData mesh;
+    REQUIRE(loadSuzanne(mesh));
+    REQUIRE(mesh.hasTangents());
+
+    // Les tangentes du fichier sont celles de MikkTSpace, la reference du domaine. On les
+    // met de cote, on recalcule les notres, et on compare : c'est la seule validation
+    // serieuse possible pour ce genre de calcul.
+    const std::vector<core::Vec4> reference = mesh.tangents;
+    mesh.tangents.clear();
+    REQUIRE(assets::generateTangents(mesh));
+    REQUIRE(mesh.tangents.size() == reference.size());
+
+    core::u32 aligned = 0;
+    core::u32 sameHandedness = 0;
+    for (std::size_t i = 0; i < reference.size(); ++i) {
+        const core::Vec3 theirs(reference[i]);
+        const core::Vec3 ours(mesh.tangents[i]);
+        // Apres orthogonalisation par rapport a la normale, les deux doivent pointer dans
+        // la meme direction. On compare ce que le shader utilisera reellement.
+        const core::Vec3& normal = mesh.normals[i];
+        const core::Vec3 a =
+            glm::normalize(theirs - normal * glm::dot(normal, theirs));
+        const core::Vec3 b = glm::normalize(ours - normal * glm::dot(normal, ours));
+        if (glm::dot(a, b) > 0.9f) {
+            ++aligned;
+        }
+        if (reference[i].w * mesh.tangents[i].w > 0.0f) {
+            ++sameHandedness;
+        }
+    }
+
+    const auto total = static_cast<core::f32>(reference.size());
+    // Un desaccord existe sur les coutures de la carte UV, la ou plusieurs directions sont
+    // legitimes : on n'exige donc pas l'identite, mais une large majorite.
+    CHECK(static_cast<core::f32>(aligned) / total > 0.9f);
+    // Le signe, lui, ne souffre pas d'ambiguite : il decide du cote vers lequel le relief
+    // ressort. S'y tromper creuserait les bosses.
+    CHECK(static_cast<core::f32>(sameHandedness) / total > 0.98f);
+}
+
+TEST_CASE("Generated tangents form a usable frame everywhere") {
+    assets::MeshData mesh;
+    REQUIRE(loadSuzanne(mesh));
+    mesh.tangents.clear();
+    REQUIRE(assets::generateTangents(mesh));
+
+    // La propriete qui compte vraiment : AUCUN repere degenere. Une tangente nulle ferait
+    // calculer normalize(0) au shader, et l'eclairage partirait en NaN - un objet noir ou
+    // clignotant, sans aucun message d'erreur.
+    for (std::size_t i = 0; i < mesh.tangents.size(); ++i) {
+        const core::Vec3 tangent(mesh.tangents[i]);
+        CHECK(glm::length(tangent) == doctest::Approx(1.0f).epsilon(0.001));
+        CHECK(std::abs(glm::dot(tangent, mesh.normals[i])) < 0.001f);
+        CHECK(std::abs(std::abs(mesh.tangents[i].w) - 1.0f) < 0.001f);
+    }
+}
+
+TEST_CASE("A downloaded model without tangents still gets them") {
+    assets::MeshData mesh;
+    // Ce modele vient de Poly Haven et declare une carte de normales SANS fournir de
+    // tangentes - le cas le plus courant des modeles telecharges, que la specification
+    // glTF autorise explicitement.
+    REQUIRE(assets::loadGltfMesh(
+        platform::assetPath("models/loquet/gate_latch_01_1k.gltf").c_str(), mesh));
+
+    REQUIRE(mesh.isValid());
+    CHECK(mesh.hasTangents());
+    CHECK(!mesh.materials.empty());
+    // Ses trois portions partagent une seule matiere.
+    CHECK(mesh.subMeshes.size() == 3);
+
+    core::f32 worstLength = 0.0f;
+    for (const core::Vec4& tangent : mesh.tangents) {
+        worstLength = std::max(worstLength, std::abs(glm::length(core::Vec3(tangent)) - 1.0f));
+    }
+    CHECK(worstLength < 0.01f);
+}
+
+TEST_CASE("Without texture coordinates there is nothing to deduce") {
+    assets::MeshData mesh;
+    mesh.positions = {core::Vec3{0.0f, 0.0f, 0.0f}, core::Vec3{1.0f, 0.0f, 0.0f},
+                      core::Vec3{0.0f, 1.0f, 0.0f}};
+    mesh.normals = {core::Vec3{0.0f, 0.0f, 1.0f}, core::Vec3{0.0f, 0.0f, 1.0f},
+                    core::Vec3{0.0f, 0.0f, 1.0f}};
+    mesh.indices = {0, 1, 2};
+
+    // La direction de U se deduit des UV : sans elles, aucune information. On refuse
+    // plutot que d'inventer une tangente arbitraire qui donnerait un relief faux.
+    CHECK_FALSE(assets::generateTangents(mesh));
+    CHECK_FALSE(mesh.hasTangents());
 }

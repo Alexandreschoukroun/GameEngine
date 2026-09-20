@@ -79,6 +79,24 @@ struct MeshData {
     bool hasTangents() const { return tangents.size() == positions.size(); }
 };
 
+// Calcule des tangentes a partir des positions et des coordonnees de texture.
+//
+// A quoi ca sert : glTF n'OBLIGE pas un fichier a fournir ses tangentes, meme quand il
+// declare une carte de normales - la specification se contente de dire que le lecteur
+// devrait les calculer. Beaucoup de modeles telecharges sont dans ce cas. Sans tangente,
+// le repere de l'espace tangent est nul, et le shader calculerait normalize(0) : un
+// eclairage casse, pas simplement moins beau.
+//
+// La methode est celle de tout le monde : chaque triangle donne la direction dans laquelle
+// U augmente, deduite de ses aretes et de leurs differences d'UV ; chaque sommet accumule
+// les contributions des triangles qui le partagent, puis on normalise. Ce n'est pas
+// MikkTSpace a l'identique - le resultat peut differer sur les coutures - mais c'est
+// exact partout ailleurs, et infiniment mieux que rien.
+//
+// Sans coordonnees de texture, il n'y a aucune information a exploiter : la fonction rend
+// faux et laisse le maillage sans tangentes.
+bool generateTangents(MeshData& mesh);
+
 // Charge la geometrie d'un fichier glTF 2.0 (.gltf avec son .bin a cote).
 //
 // Toutes les primitives triangulaires de toutes les scenes sont fusionnees en un seul

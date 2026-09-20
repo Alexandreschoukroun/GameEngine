@@ -37,6 +37,8 @@ scene::ResourceTable gameResources() {
     resources.addMaterial("plancher", scene::Material{});
     resources.addMaterial("metal_rouille", scene::Material{});
     resources.addMaterial("suzanne", scene::Material{});
+    // Matieres declarees par les fichiers glTF eux-memes.
+    resources.addMaterial("loquet", scene::Material{});
 
     scene::CollisionMesh geometry;
     geometry.positions = kDummyPositions;
@@ -144,14 +146,14 @@ TEST_CASE("The door handle sits on the free edge and follows the door") {
     CHECK(handleCenter.x - doorCenter.x < 0.45f);
 
     // Un enfant herite de l'echelle de son parent. Le battant est mis a l'echelle
-    // (0,9 ; 2,0 ; 0,08), donc l'echelle locale de la poignee la compense pour qu'elle
-    // reste une barre et non une plaque ecrasee.
+    // (0,9 ; 2,0 ; 0,08) - un modele importe y serait donc ecrase en plaque. L'echelle
+    // locale du loquet ANNULE celle du parent, si bien qu'il conserve sa taille reelle,
+    // celle que son fichier decrit.
     const core::Mat4 world = scene.worldMatrix(handle);
     const core::f32 width = glm::length(core::Vec3(world[0]));
     const core::f32 height = glm::length(core::Vec3(world[1]));
     const core::f32 depth = glm::length(core::Vec3(world[2]));
-    CHECK(width == doctest::Approx(0.05f).epsilon(0.05));
-    CHECK(height == doctest::Approx(0.05f).epsilon(0.05));
-    // Elle traverse le battant, qui ne fait que 8 cm d'epaisseur.
-    CHECK(depth > 0.08f);
+    CHECK(width == doctest::Approx(1.0f).epsilon(0.01));
+    CHECK(height == doctest::Approx(1.0f).epsilon(0.01));
+    CHECK(depth == doctest::Approx(1.0f).epsilon(0.01));
 }

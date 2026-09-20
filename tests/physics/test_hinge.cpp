@@ -144,3 +144,51 @@ TEST_CASE("A hinged body is reported as such") {
     CHECK(world.isBodyHinged(door.body));
     CHECK_FALSE(world.isBodyHinged(crate));
 }
+
+TEST_CASE("A hinge can be removed, and rebuilt somewhere else") {
+    physics::World world;
+    REQUIRE(world.create());
+    const Door door = makeDoor(world, -1.6f, 1.6f, 0.0f);
+    REQUIRE(world.isBodyHinged(door.body));
+
+    // Sans retrait, la charniere ramenerait le battant a ses anciens gonds : c'est ce qui
+    // faisait revenir une porte deplacee dans l'editeur.
+    world.removeHinge(door.body);
+    CHECK_FALSE(world.isBodyHinged(door.body));
+
+    // Libere, le battant se deplace comme n'importe quel corps.
+    world.setBodyTransform(door.body, core::Vec3{5.0f, 0.0f, 0.0f}, core::Quat(1, 0, 0, 0));
+    for (core::u32 i = 0; i < 10; ++i) {
+        world.step(kStep);
+    }
+    CHECK(world.bodyPosition(door.body).x == doctest::Approx(5.0f).epsilon(0.05));
+
+    // Et l'on refait la charniere a la NOUVELLE place.
+    REQUIRE(world.addHinge(door.body, core::Vec3{4.55f, 0.0f, 0.0f},
+                           core::Vec3{0.0f, 1.0f, 0.0f}, -1.6f, 1.6f, 0.0f));
+    CHECK(world.isBodyHinged(door.body));
+
+    for (core::u32 i = 0; i < 60; ++i) {
+        world.step(kStep);
+    }
+    // Elle tient a ses nouveaux gonds au lieu d'etre rappelee aux anciens.
+    CHECK(world.bodyPosition(door.body).x > 4.0f);
+}
+
+TEST_CASE("Removing a hinge from a body that has none does nothing") {
+    physics::World world;
+    REQUIRE(world.create());
+    const physics::BodyHandle crate =
+        world.addBox(core::Vec3{0.0f, 0.0f, 0.0f}, core::Quat(1, 0, 0, 0),
+                     core::Vec3{0.3f, 0.3f, 0.3f}, false);
+
+    // L'editeur appelle ce retrait sans savoir si l'objet est contraint : il doit rester
+    // sans effet plutot que de retirer la charniere d'un voisin.
+    world.removeHinge(crate);
+    world.removeHinge(physics::kInvalidBody);
+    CHECK_FALSE(world.isBodyHinged(crate));
+
+    const Door door = makeDoor(world, -1.6f, 1.6f, 0.0f);
+    world.removeHinge(crate);
+    CHECK(world.isBodyHinged(door.body));
+}

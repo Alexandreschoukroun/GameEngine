@@ -1,6 +1,6 @@
 # 09 — L'éditeur (M6)
 
-*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2). Brique 3 : créer, dupliquer, détruire, enregistrer (section 3). Brique 4 : l'inspecteur complet (section 4). Brique 5 : sélectionner en cliquant (section 5).*
+*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2). Brique 3 : créer, dupliquer, détruire, enregistrer (section 3). Brique 4 : l'inspecteur complet (section 4). Brique 5 : sélectionner en cliquant (section 5). Brique 6 : deux modes, pas deux couches (section 6).*
 
 # 1. Brique 1 — l'éditeur existe
 
@@ -297,3 +297,72 @@ Un test de boîte par entité et par clic. Pour quelques centaines d'entités, c
 **Ce qui n'existe pas encore** : aucun contour ne signale l'objet sélectionné dans la vue — seuls la hiérarchie et le gizmo le montrent. Pas de sélection multiple, pas de sélection par rectangle, et un objet caché derrière un mur reste désignable si son englobant dépasse.
 
 **Ce qui vient après** : un **niveau**. Le moteur sait désormais charger une géométrie, ses matériaux, sa collision, et l'éditer à la souris — créer, choisir, déplacer, enregistrer. Il ne lui manque plus qu'un niveau à construire.
+
+---
+
+# 6. Brique 6 — deux modes, pas deux couches
+
+## 6.1 Ce que l'usage a révélé
+
+L'éditeur était utilisable. À l'usage, cinq défauts sont remontés coup sur coup :
+
+1. la souris ne se libérait pas — survoler la vue faisait pivoter la caméra ;
+2. cliquer ne sélectionnait **que la pièce** ;
+3. une porte déplacée revenait à sa place ;
+4. une fois cela corrigé, elle revenait **quand même** ;
+5. et une fois cela corrigé, on ne pouvait plus se déplacer.
+
+Trois d'entre eux — le premier, le troisième et le cinquième — viennent de la **même décision** : *l'éditeur s'affiche par-dessus un jeu qui tourne*. C'était l'idée forte de la brique 1, celle qui rendait le *play-in-editor* gratuit. Elle était juste, et sa formulation était fausse.
+
+## 6.2 La bonne formulation
+
+L'éditeur et le jeu ne sont pas **deux couches superposées** : ce sont **deux modes**.
+
+| | mode jeu | mode édition |
+|---|---|---|
+| autorité sur les poses | la simulation | la scène |
+| souris | capturée en permanence | libre ; bouton droit pour regarder |
+| déplacement | le personnage marche | la caméra vole |
+| physique | tourne | suspendue |
+
+Le basculement **transporte l'état** : en entrant en édition, la pose de l'objet manipulé est poussée vers son corps ; en sortant, toutes les poses éditées entrent dans la physique et la caméra retrouve le personnage.
+
+L'avantage de départ reste entier — un seul processus, une seule scène, rien à sérialiser pour passer de l'un à l'autre. C'est l'énoncé qui a changé, pas la conception.
+
+## 6.3 « L'interface veut la souris » n'est pas « la souris est capturée »
+
+ImGui répond à la première question, et c'est ce que je relayais. Mais au milieu de la vue 3D, ImGui considère la souris libre — donc le jeu reprenait ses mouvements et faisait pivoter la caméra.
+
+La question utile est la seconde. En jeu, la souris est capturée en permanence ; en édition, seulement **bouton droit maintenu** — la convention de tous les éditeurs 3D, et celle qui laisse le bouton gauche entièrement à la sélection.
+
+Un détail qui se serait vu tout de suite : le regard n'est appliqué que si la capture était **déjà active à l'image précédente**. Le premier mouvement rapporté après une capture contient le saut du curseur vers le centre de la fenêtre, et la vue ferait un bond.
+
+## 6.4 Une boîte qui entoure le regard ne peut pas gagner
+
+La boîte englobante de la pièce contient tout le mobilier **et la caméra**. Un rayon parti de l'intérieur rend une distance nulle : la pièce gagnait donc à chaque clic.
+
+J'avais pourtant écrit un test sur ce cas exact — « un rayon parti de l'intérieur donne une distance nulle ». Il était juste, et il ne disait rien de ce qu'il fallait **faire** de ce zéro. Un test peut vérifier correctement un calcul et laisser passer la décision qu'on en tire.
+
+Une boîte qui entoure le regard est désormais un **candidat de repli** : retenue seulement si rien d'autre n'est visé. Cliquer une caisse sélectionne la caisse ; cliquer un mur sélectionne toujours la pièce.
+
+## 6.5 Déplacer un objet contraint
+
+Téléporter le corps ne suffisait pas : la porte a une **charnière**, ancrée dans le monde, et le solveur la ramenait au pas suivant. La contrainte faisait exactement son travail.
+
+Deux choses manquaient donc. D'abord la **suspension de la simulation** — sans elle, rien de ce que l'éditeur écrit ne survit à l'image suivante. Ensuite la **reconstruction de la charnière** à la nouvelle place : une porte déplacée aurait continué de pivoter autour de ses anciens gonds, défaut qu'on n'aurait découvert qu'en l'ouvrant, bien après l'avoir bougée.
+
+Le moteur physique ne savait pas retirer une contrainte : il gardait la liste des corps contraints, pas les contraintes elles-mêmes. C'est typique — on stocke ce dont on a eu besoin, et retirer n'a jamais été demandé jusqu'à ce que l'édition existe.
+
+## 6.6 Une caméra qui vole
+
+Suspendre la simulation fige aussi le personnage, puisque c'est elle qui le déplace. Remettre la physique en marche pour lui aurait ramené les trois défauts précédents.
+
+Un éditeur ne fait pas marcher un personnage : il fait **voler une caméra**. La raison n'est pas seulement technique — on édite constamment des choses hors de portée d'un homme, un plafonnier, le haut d'un mur, une poutre.
+
+Le mouvement vit dans `onFrame` et non dans le pas fixe : ce n'est pas de la simulation, rien n'en dépend, et il n'a aucune raison d'être déterministe.
+
+## 6.7 Ce qui marche / ce qui ne marche pas
+
+**Quatre tests** s'ajoutent : un corps se téléporte sans garder son élan, téléporter un corps statique ne déclenche pas d'assertion (Jolt refuse qu'on donne une vitesse à un mur), une charnière retirée libère le battant et refaite ailleurs le tient à ses **nouveaux** gonds, et retirer la charnière d'un objet qui n'en a pas n'emporte pas celle du voisin. **128 tests, 36194 assertions** au total.
+
+**Ce qui n'existe pas encore** : la caméra libre n'a pas d'inertie, aucune vignette ne signale qu'on est en mode édition, et refermer l'éditeur ramène la caméra sur le personnage — prévisible, mais déroutant après avoir volé à l'autre bout du niveau.

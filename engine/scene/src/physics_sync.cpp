@@ -74,6 +74,49 @@ void createPhysicsBodies(Scene& scene, physics::World& world,
     }
 }
 
+void syncPhysicsFromTransform(Scene& scene, physics::World& world, Entity entity) {
+    if (!scene.isValid(entity)) {
+        return;
+    }
+    const auto* body = scene.registry().try_get<PhysicsBody>(entity);
+    if (body == nullptr) {
+        return;
+    }
+    // La pose MONDE : un corps physique vit dans le monde, pas dans le repere de son
+    // parent. Une poignee enfant d'une porte doit etre placee la ou on la voit.
+    scene.updateWorldTransforms();
+    const core::Mat4 world4 = scene.worldMatrix(entity);
+    const core::Vec3 position(world4[3]);
+    const auto* transform = scene.registry().try_get<Transform>(entity);
+    const core::Quat rotation =
+        transform != nullptr ? transform->rotation : core::Quat(1.0f, 0.0f, 0.0f, 0.0f);
+    world.setBodyTransform(body->handle, position, rotation);
+
+    // Une charniere est ancree dans le MONDE : deplacer le battant sans la refaire le
+    // laisserait pivoter autour de ses anciens gonds, et la contrainte le ramenerait de
+    // force a sa place. C'est ce qui faisait revenir la porte des qu'on la lachait.
+    if (const Hinge* hinge = scene.registry().try_get<Hinge>(entity); hinge != nullptr) {
+        world.removeHinge(body->handle);
+        const core::Vec3 anchor = core::Vec3(world4 * core::Vec4(hinge->localAnchor, 1.0f));
+        world.addHinge(body->handle, anchor, rotation * hinge->axis, hinge->minAngle,
+                       hinge->maxAngle, hinge->friction);
+    }
+}
+
+void syncPhysicsFromTransforms(Scene& scene, physics::World& world) {
+    // On collecte avant d'agir : refaire une charniere modifie les listes du monde
+    // physique, pas celles de la scene, mais le principe de ne pas modifier ce qu'on
+    // parcourt merite d'etre tenu partout.
+    std::vector<Entity> bodies;
+    for (auto [entity, body] : scene.registry().view<const PhysicsBody>().each()) {
+        (void)body;
+        bodies.push_back(entity);
+    }
+    for (const Entity entity : bodies) {
+        syncPhysicsFromTransform(scene, world, entity);
+    }
+}
+
 void syncTransformsFromPhysics(Scene& scene, const physics::World& world) {
     entt::registry& registry = scene.registry();
 

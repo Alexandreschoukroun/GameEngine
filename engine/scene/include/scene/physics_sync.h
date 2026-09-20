@@ -72,6 +72,25 @@ void createPhysicsBodies(Scene& scene, physics::World& world);
 // Le sens compte : la simulation fait autorite sur la position d'un objet dynamique.
 // Ecrire dans un Transform gere par la physique donnerait un objet qui tremble, tiraille
 // entre deux verites.
+// Pousse la pose d'UNE entite vers son corps physique. C'est l'inverse du sens habituel.
+//
+// Le sens normal est physique -> scene : la simulation fait autorite sur la position d'un
+// objet, et lui ecrire un Transform a la main donnerait un objet tremblant, tiraille entre
+// deux verites. C'est ce qui rendait une porte deplacee dans l'editeur immediatement
+// remise en place.
+//
+// Pendant qu'on EDITE un objet, l'autorite s'inverse : c'est la main qui decide. On ne
+// l'inverse que pour l'entite concernee, le reste de la scene continuant de simuler
+// normalement.
+//
+// Sans effet si l'entite n'a pas de corps.
+void syncPhysicsFromTransform(Scene& scene, physics::World& world, Entity entity);
+
+// Meme chose pour TOUS les corps. Sert a reprendre la simulation apres une edition : sans
+// cela, les objets reprendraient la ou la physique les avait laisses, et les modifications
+// seraient perdues.
+void syncPhysicsFromTransforms(Scene& scene, physics::World& world);
+
 void syncTransformsFromPhysics(Scene& scene, const physics::World& world);
 
 } // namespace scene

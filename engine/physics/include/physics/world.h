@@ -75,6 +75,18 @@ public:
                        core::u32 vertexCount, const core::u32* indices,
                        core::u32 indexCount);
 
+    // Impose une pose a un corps, en annulant sa vitesse.
+    //
+    // C'est une TELEPORTATION, pas un deplacement : le corps ne traverse pas l'espace
+    // entre les deux poses, donc il peut apparaitre dans un mur. C'est acceptable - et
+    // meme souhaitable - pour un editeur, ou l'on place les objets a la main ; ce serait
+    // un defaut grave dans du code de jeu, qui doit passer par des vitesses.
+    //
+    // La vitesse est remise a zero : sans cela, un objet replace garderait l'elan qu'il
+    // avait et repartirait des qu'on le lache.
+    void setBodyTransform(BodyHandle body, const core::Vec3& position,
+                          const core::Quat& rotation);
+
     core::Vec3 bodyPosition(BodyHandle body) const;
     core::Quat bodyRotation(BodyHandle body) const;
 
@@ -104,6 +116,14 @@ public:
     // Les angles sont en radians, relatifs a la pose du corps au moment de la creation.
     bool addHinge(BodyHandle body, const core::Vec3& anchorPoint, const core::Vec3& axis,
                   core::f32 minAngle, core::f32 maxAngle, core::f32 friction);
+
+    // Retire la charniere d'un corps, s'il en a une.
+    //
+    // Necessaire des qu'on DEPLACE un objet contraint : l'ancrage d'une charniere est fixe
+    // dans le monde, donc une porte qu'on reposerait ailleurs continuerait de pivoter
+    // autour de ses anciens gonds. Il faut donc la detruire et la refaire a la nouvelle
+    // place, et non la deplacer.
+    void removeHinge(BodyHandle body);
 
     // Vrai si le corps est tenu par une charniere. L'appelant s'en sert pour choisir
     // comment le manipuler : on ne tire pas sur une porte comme sur une caisse libre.

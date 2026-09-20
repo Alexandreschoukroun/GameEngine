@@ -1,6 +1,6 @@
 # 09 — L'éditeur (M6)
 
-*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1).*
+*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2).*
 
 # 1. Brique 1 — l'éditeur existe
 
@@ -76,4 +76,65 @@ L'éditeur voit les événements même masqué, et c'est voulu : sans cela, une 
 
 **Ce qui n'existe pas encore** : on ne peut ni créer, ni supprimer, ni reparenter une entité. Pas de gizmos — donc pas de manipulation directe à la souris, qui est pourtant le vrai but. Pas de sauvegarde depuis l'interface, pas de navigateur d'assets, pas de docking, et l'inspecteur ne montre que le `Transform` : les colliders, sources sonores, lumières et matériaux restent à éditer dans le fichier.
 
-**Ce qui vient après (brique 2)** : les **gizmos** — attraper un objet et le déplacer dans la vue. C'est ce qui transformera l'éditeur d'une liste en un outil, et ce qui aurait réglé l'affaire de la poignée en trois secondes.
+**Ce qui vient après (brique 2)** : les **gizmos**.
+
+---
+
+# 2. Brique 2 — les gizmos
+
+## 2.1 Le problème
+
+L'inspecteur permet de taper des nombres. C'est déjà mieux que d'éditer un fichier, et ce n'est pas manipuler : personne ne sait de tête qu'une poignée doit aller à `x = 0,2911` — on sait qu'elle doit aller *là*.
+
+Un gizmo traduit ce *là*. C'est l'outil qui fait la différence entre un inspecteur et un éditeur.
+
+## 2.2 Écrit à la main, et pourquoi
+
+**ImGuizmo** est la bibliothèque évidente pour ça. Elle est absente du vcpkg épinglé, et surtout le SPEC exige une **validation explicite** avant toute dépendance hors de la stack verrouillée — la règle posée pour Recast/Detour en M7 vaut ici.
+
+La translation sur trois axes tient en deux cents lignes dont l'essentiel est de la géométrie. Ce n'est pas réécrire une bibliothèque de la stack : c'est écrire le peu dont on a besoin plutôt que d'en importer beaucoup.
+
+Le bénéfice réel n'est pas la taille du binaire, c'est que ce peu est **testable**.
+
+## 2.3 La vraie difficulté : deux mondes, deux unités
+
+Un gizmo traduit un mouvement de souris, qui vit en **pixels**, en un déplacement d'objet, qui vit en **mètres**. Tout le reste en découle.
+
+Quatre fonctions isolent cette traduction, et elles sont volontairement **libres et sans état** — donc vérifiables sans fenêtre ni GPU, ce qui est la seule façon sérieuse de contrôler ce genre de calcul :
+
+- `worldToScreen` — projeter un point. Elle **refuse** ce qui est derrière la caméra : la division perspective y rend des coordonnées parfaitement plausibles mais symétriques, et une poignée apparaîtrait à l'opposé de son objet.
+- `screenRay` — l'opération inverse. Elle reconstruit deux points du même pixel, l'un au plan proche l'autre au plan lointain, et prend leur différence. C'est plus robuste que de recomposer l'œil et le champ de vision, et ça marcherait aussi en projection orthographique.
+- `closestPointOnAxis` — deux droites gauches dans l'espace. Son déterminant vaut `1 − (u·v)²`, nul exactement quand elles sont parallèles : on regarde alors l'axe par la tranche, la solution part à l'infini, et **refuser est la seule réponse juste**. Rendre un nombre énorme ferait bondir l'objet à l'autre bout du niveau.
+- `distanceToSegment` — le survol. Une poignée est un **segment**, pas une droite : mesurer à la droite prolongée la rendrait saisissable à l'autre bout de l'écran.
+
+## 2.4 Trois détails qui font la différence entre un gizmo et un objet qui saute
+
+**On mémorise où l'on a attrapé le bras.** Sans cela, l'objet sauterait à la première image pour centrer son origine sous le curseur. Le déplacement rendu est l'**écart** au point de saisie ; l'origine ayant bougé de ce qu'on a rendu à l'image précédente, cet écart retombe naturellement à zéro.
+
+**Le survol se fige pendant la saisie.** Le curseur s'éloigne forcément du bras quand on tire dessus — perdre l'axe en cours de geste serait absurde.
+
+**Le gizmo garde une taille constante à l'écran.** La longueur d'un bras croît avec la distance à la caméra. Un manipulateur qui rétrécit quand on recule devient inutilisable exactement au moment où l'on en a besoin, et un plancher évite qu'il ne disparaisse quand on se colle à l'objet.
+
+## 2.5 Le monde et le repère du parent
+
+Le gizmo calcule dans le **monde** ; le `Transform` vit dans le repère de son **parent**. La conversion n'est pas une formalité : la poignée de la scène est enfant d'une porte mise à l'échelle `(0,9 ; 2,0 ; 0,08)`. Sans conversion, la tirer l'enverrait **douze fois trop loin** sur un axe et huit fois trop court sur un autre.
+
+L'inverse de la partie linéaire de la matrice du parent suffit — on transforme une **direction**, pas un point.
+
+Le gizmo travaille par ailleurs selon les axes du monde et non ceux de l'objet. C'est le comportement par défaut de tous les éditeurs, et le seul qui permette d'aligner deux objets orientés différemment.
+
+## 2.6 Qui a la souris, suite
+
+La brique 1 relayait `WantCaptureMouse` d'ImGui. Ça ne suffit plus : le gizmo vit **dans la vue**, là où ImGui considère la souris libre. Tirer sur un bras ferait donc pivoter la caméra en même temps, et l'objet suivrait un regard qui bouge.
+
+L'éditeur déclare donc aussi capturer la souris quand un bras est survolé ou saisi. Réciproquement, une saisie **en cours** continue même si le curseur passe sur un panneau — on ne lâche pas un objet parce qu'on a frôlé une fenêtre.
+
+## 2.7 Coût
+
+Trois projections et une inversion de matrice par image, uniquement quand une entité est sélectionnée. Le dessin passe par la liste d'arrière-plan d'ImGui : le gizmo se pose sur la scène mais **sous** les panneaux, ce qui évite qu'un bras ne barre l'inspecteur.
+
+## 2.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Sept tests**, tous sans GPU : la projection et son refus de ce qui est derrière, le rayon d'écran cohérent avec elle, le point le plus proche d'un axe et son refus du cas parallèle, la distance au segment, le survol, la saisie qui déplace **sur l'axe et nulle part ailleurs**, et la taille apparente constante. **108 tests, 36104 assertions** au total.
+
+**Ce qui n'existe pas encore** : pas de rotation ni de mise à l'échelle — seule la translation est manipulable. Pas d'aimantation sur une grille, pas d'annulation, et on ne peut pas sélectionner un objet **en cliquant dessus dans la vue** : il faut passer par la hiérarchie. Ce dernier point réutilisera `screenRay` et le lancer de rayon de M4.

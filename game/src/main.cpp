@@ -644,7 +644,7 @@ protected:
 
         // L'interface vient APRES la scene : elle se pose par-dessus l'image finie, et
         // elle n'a donc aucune raison de passer par le G-buffer.
-        m_editor.draw(m_scene);
+        m_editor.draw(m_scene, m_camera);
     }
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.

@@ -17,6 +17,7 @@ option(GAMEENGINE_PROFILING "Instrument the engine for the Tracy profiler" ON)
 
 add_subdirectory(engine)
 add_subdirectory(game)
+add_subdirectory(tools)
 
 if(GAMEENGINE_BUILD_TESTS)
     enable_testing()

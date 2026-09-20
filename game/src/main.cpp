@@ -71,6 +71,12 @@ constexpr core::f32 kCrouchSpeed = 1.4f;
 // Vitesse a laquelle l'oeil rejoint sa nouvelle hauteur. Un saut instantane donnerait
 // l'impression d'un changement de camera, pas d'un mouvement du corps.
 constexpr core::f32 kCrouchBlendRate = 12.0f;
+
+// Camera libre de l'editeur. Elle vole, sans collision ni gravite : on edite souvent des
+// choses qu'aucun personnage ne pourrait atteindre - un plafonnier, le haut d'un mur.
+constexpr core::f32 kFlySpeed = 6.0f;      // metres par seconde
+constexpr core::f32 kFlyFastSpeed = 16.0f; // avec Maj : traverser un niveau ne doit pas
+                                           // prendre une minute
 constexpr core::Vec3 kSpawnPosition{0.0f, -1.2f, 3.0f};
 
 // --- Saisie d'objets --------------------------------------------------------------------
@@ -407,9 +413,12 @@ protected:
     void onFrame(core::f64 frameDeltaSeconds) override {
         // Un deplacement souris est deja une quantite, pas un taux : il ne se multiplie
         // pas par le temps ecoule. Le rattrapage de la lampe, lui, en depend.
-        // Tant que l'interface a la souris, le regard ne bouge pas : cliquer un bouton
-        // ferait sinon pivoter la camera en meme temps.
-        if (!m_editor.capturesMouse()) {
+        updateMouseMode();
+        updateFreeCamera(frameDeltaSeconds);
+        // Le regard ne suit la souris que lorsque celle-ci est CAPTUREE. Sans cette
+        // condition, ouvrir l'editeur rendait le curseur libre mais laissait la camera
+        // pivoter des qu'on survolait la vue : on visait un objet et la vue partait.
+        if (m_lookActive && !m_editor.capturesMouse()) {
             m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
                                  -input().mouseDeltaY() * kLookSensitivity);
         }
@@ -448,16 +457,21 @@ protected:
         }
         m_f5WasDown = f5Down;
 
-        if (!m_editor.capturesMouse()) {
+        // Attraper un objet demande la meme capture que le regard : dans l'editeur, le
+        // bouton gauche sert a selectionner, pas a saisir.
+        if (m_lookActive && !m_editor.capturesMouse()) {
             updateGrab();
+        } else if (m_heldBody != physics::kInvalidBody) {
+            // On lache ce qu'on tenait en ouvrant l'editeur, sinon l'objet resterait
+            // accroche a un regard qui ne bouge plus.
+            releaseHeldBody();
         }
 
-        // F1 bascule l'editeur. Le curseur suit : une interface se clique, un jeu a la
-        // premiere personne capture la souris - les deux ne peuvent pas coexister.
+        // F1 bascule l'editeur. Le curseur, lui, est gere par updateMouseMode : son etat
+        // depend de l'editeur ET du bouton droit, pas d'un seul evenement de bascule.
         const bool editorKey = input().isKeyDown(platform::Key::F1);
         if (editorKey && !m_editorKeyWasDown) {
             m_editor.toggle();
-            window().setRelativeMouseMode(!m_editor.isVisible());
         }
         m_editorKeyWasDown = editorKey;
 
@@ -566,6 +580,34 @@ protected:
         // La physique avance au meme rythme, et uniquement ici : elle n'est deterministe
         // qu'a pas constant.
         updateHeldBody(delta);
+
+        // L'editeur SUSPEND la simulation, et ce n'est pas un raccourci.
+        //
+        // Un editeur ne simule pas : Unity et Unreal ne font tourner la physique qu'en
+        // mode jeu. Ici l'editeur s'affiche par-dessus un jeu qui n'a jamais cesse, et
+        // c'est precisement ce qui rendait l'edition impossible - la simulation reecrivait
+        // la pose de chaque corps, et les contraintes ramenaient de force une porte
+        // deplacee sur ses anciens gonds.
+        //
+        // Suspendre rend l'autorite a la scene pendant qu'on edite. Refermer l'editeur,
+        // c'est repasser en mode jeu : la pose de chaque corps est alors reprise de la
+        // scene, donc les modifications prennent effet immediatement.
+        if (m_editor.isVisible()) {
+            scene::syncPhysicsFromTransform(m_scene, m_physics, m_editor.selected());
+            m_physicsPaused = true;
+            return;
+        }
+        if (m_physicsPaused) {
+            scene::syncPhysicsFromTransforms(m_scene, m_physics);
+            m_physicsPaused = false;
+            // La camera revient sur le personnage, reste la ou on l'avait laisse. C'est
+            // previsible : on a explicitement quitte l'edition pour rejouer, donc on
+            // reprend avec son corps. Le faire suivre la camera risquerait de le deposer
+            // dans un mur.
+            m_camera.setPosition(m_physics.characterPosition(m_player) +
+                                 core::Vec3{0.0f, m_eyeHeight, 0.0f});
+        }
+
         stepPhysics(delta);
 
         // Les pas : la distance reellement parcourue depuis le pas fixe precedent, a
@@ -851,6 +893,74 @@ private:
     // Saisie et maintien d'objets. L'objet tenu reste un corps dynamique ordinaire : il
     // heurte les murs, se coince dans une porte et repousse ce qu'il touche. C'est ce qui
     // distingue une manipulation physique d'un objet colle a l'ecran.
+    // Deplacement de la camera pendant l'edition.
+    //
+    // Un editeur ne fait pas marcher un personnage : il fait VOLER une camera. La raison
+    // est pratique - on edite constamment des choses hors de portee d'un homme, un
+    // plafonnier, le haut d'un mur, une poutre - et structurelle : la simulation etant
+    // suspendue pendant l'edition, plus rien ne deplacerait le personnage de toute facon.
+    //
+    // Le mouvement vit dans onFrame et non dans le pas fixe : ce n'est pas de la
+    // simulation, rien n'en depend, et il n'a aucune raison d'etre deterministe.
+    void updateFreeCamera(core::f64 frameDeltaSeconds) {
+        using platform::Key;
+        if (!m_editor.isVisible() || m_editor.capturesKeyboard()) {
+            return;
+        }
+        const auto delta = static_cast<core::f32>(frameDeltaSeconds);
+
+        core::Vec3 wish{0.0f, 0.0f, 0.0f};
+        if (input().isKeyDown(Key::W)) {
+            wish += m_camera.forward();
+        }
+        if (input().isKeyDown(Key::S)) {
+            wish -= m_camera.forward();
+        }
+        if (input().isKeyDown(Key::D)) {
+            wish += m_camera.right();
+        }
+        if (input().isKeyDown(Key::A)) {
+            wish -= m_camera.right();
+        }
+        // Monter et descendre le long de l'axe du MONDE, pas du regard : c'est ce qui
+        // permet de prendre de la hauteur sans changer ce qu'on observe.
+        if (input().isKeyDown(Key::Space)) {
+            wish += core::Vec3{0.0f, 1.0f, 0.0f};
+        }
+        if (input().isKeyDown(Key::LeftControl)) {
+            wish -= core::Vec3{0.0f, 1.0f, 0.0f};
+        }
+
+        if (glm::dot(wish, wish) <= 0.0f) {
+            return;
+        }
+        const core::f32 speed = input().isKeyDown(Key::LeftShift) ? kFlyFastSpeed : kFlySpeed;
+        m_camera.setPosition(m_camera.position() + glm::normalize(wish) * speed * delta);
+    }
+
+    // Qui tient la souris, et quand le regard suit.
+    //
+    // Une interface se clique, un jeu a la premiere personne CAPTURE la souris : les deux
+    // ne peuvent pas coexister. En jeu, la capture est permanente. Dans l'editeur, le
+    // curseur doit rester libre pour viser des objets et des boutons - mais il faut bien
+    // pouvoir se retourner pour voir ce qu'on edite.
+    //
+    // La convention retenue est celle de tous les editeurs 3D : le BOUTON DROIT maintenu
+    // donne le regard. Elle a le merite d'etre celle que la main connait deja, et de
+    // laisser le bouton gauche entierement a la selection et aux gizmos.
+    void updateMouseMode() {
+        const bool editorOpen = m_editor.isVisible();
+        const bool lookHeld = input().isMouseButtonDown(platform::MouseButton::Right);
+        const bool wantCapture = !editorOpen || lookHeld;
+        window().setRelativeMouseMode(wantCapture);
+
+        // Le regard n'est applique que si la capture etait DEJA active a l'image
+        // precedente : le premier deplacement rapporte apres une capture contient le saut
+        // du curseur vers le centre, et la vue ferait un bond.
+        m_lookActive = wantCapture && m_captureWasActive;
+        m_captureWasActive = wantCapture;
+    }
+
     void updateGrab() {
         // Maintien du clic plutot qu'une touche a basculer : on saisit, on glisse, on
         // relache. C'est le geste d'Amnesia, et il rend la manipulation continue - la
@@ -1215,6 +1325,9 @@ private:
     audio::TensionLayer m_tension;
     editor::Editor m_editor;
     bool m_editorKeyWasDown = false;
+    bool m_physicsPaused = false;
+    bool m_captureWasActive = true;
+    bool m_lookActive = true;
     core::f32 m_tensionLevel = 0.0f;
     core::Vec3 m_lastFeet = kSpawnPosition;
     core::f32 m_eyeHeight = kEyeHeight;

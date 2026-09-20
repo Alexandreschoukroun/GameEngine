@@ -78,6 +78,16 @@ scene::Entity pickEntity(const scene::Scene& scene, const scene::ResourceTable& 
     scene::Entity best = scene::kInvalidEntity;
     core::f32 bestDistance = std::numeric_limits<core::f32>::max();
 
+    // Candidat de REPLI : une entite dont l'englobant contient deja le regard.
+    //
+    // C'est le cas de la piece des qu'on est dedans - son englobant contient la camera et
+    // tout le mobilier. Traitee comme les autres, elle rendrait une distance nulle et
+    // gagnerait systematiquement : cliquer une caisse selectionnerait le decor.
+    //
+    // On la garde donc de cote et on ne la retient que si rien d'autre n'est vise. Cliquer
+    // un mur selectionne toujours la piece, cliquer une caisse selectionne la caisse.
+    scene::Entity enclosing = scene::kInvalidEntity;
+
     for (auto [entity, world] : scene.registry().view<const scene::WorldTransform>().each()) {
         const auto* mesh = scene.registry().try_get<const scene::MeshRenderer>(entity);
         const scene::MeshBounds bounds =
@@ -107,12 +117,22 @@ scene::Entity pickEntity(const scene::Scene& scene, const scene::ResourceTable& 
             hit = rayIntersectsSphere(ray, origin, kInvisibleRadius, distance);
         }
 
-        if (hit && distance < bestDistance) {
+        if (!hit) {
+            continue;
+        }
+        if (distance <= 0.0f) {
+            // On entoure le regard : repli, pas candidat.
+            if (enclosing == scene::kInvalidEntity) {
+                enclosing = entity;
+            }
+            continue;
+        }
+        if (distance < bestDistance) {
             bestDistance = distance;
             best = entity;
         }
     }
-    return best;
+    return best != scene::kInvalidEntity ? best : enclosing;
 }
 
 } // namespace editor

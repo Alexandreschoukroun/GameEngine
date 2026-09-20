@@ -147,6 +147,9 @@ struct World::Impl {
     // Corps tenus par une charniere. Une liste suffit : il y en aura quelques dizaines
     // dans un niveau, pas des milliers.
     std::vector<BodyHandle> hingedBodies;
+    // La contrainte elle-meme, pour pouvoir la retirer. Un Ref : Jolt les compte par
+    // reference, et le monde en garde une jusqu'a ce qu'on la relache.
+    std::vector<JPH::Ref<JPH::Constraint>> hingeConstraints;
 };
 
 World::World() = default;
@@ -345,6 +348,21 @@ BodyHandle World::addMesh(const core::Vec3& position, const core::Quat& rotation
     return id.GetIndexAndSequenceNumber();
 }
 
+void World::setBodyTransform(BodyHandle body, const core::Vec3& position,
+                             const core::Quat& rotation) {
+    if (m_impl == nullptr || body == kInvalidBody) {
+        return;
+    }
+    JPH::BodyInterface& bodies = m_impl->system.GetBodyInterface();
+    const JPH::BodyID id(body);
+    bodies.SetPositionAndRotation(id, toJolt(position), toJolt(rotation),
+                                  JPH::EActivation::Activate);
+    // Un corps statique n'a pas de vitesse a annuler, et Jolt refuse qu'on lui en donne.
+    if (bodies.GetMotionType(id) != JPH::EMotionType::Static) {
+        bodies.SetLinearAndAngularVelocity(id, JPH::Vec3::sZero(), JPH::Vec3::sZero());
+    }
+}
+
 core::Vec3 World::bodyAngularVelocity(BodyHandle body) const {
     if (m_impl == nullptr || body == kInvalidBody) {
         return core::Vec3{0.0f, 0.0f, 0.0f};
@@ -393,7 +411,27 @@ bool World::addHinge(BodyHandle body, const core::Vec3& anchorPoint, const core:
     JPH::Constraint* constraint = settings.Create(JPH::Body::sFixedToWorld, lock.GetBody());
     m_impl->system.AddConstraint(constraint);
     m_impl->hingedBodies.push_back(body);
+    m_impl->hingeConstraints.push_back(constraint);
     return true;
+}
+
+void World::removeHinge(BodyHandle body) {
+    if (m_impl == nullptr) {
+        return;
+    }
+    // Parcours a rebours : on retire en place, et partir de la fin evite de decaler les
+    // indices qu'il reste a examiner.
+    for (std::size_t i = m_impl->hingedBodies.size(); i > 0; --i) {
+        const std::size_t index = i - 1;
+        if (m_impl->hingedBodies[index] != body) {
+            continue;
+        }
+        m_impl->system.RemoveConstraint(m_impl->hingeConstraints[index].GetPtr());
+        m_impl->hingeConstraints.erase(m_impl->hingeConstraints.begin() +
+                                       static_cast<std::ptrdiff_t>(index));
+        m_impl->hingedBodies.erase(m_impl->hingedBodies.begin() +
+                                   static_cast<std::ptrdiff_t>(index));
+    }
 }
 
 bool World::isBodyHinged(BodyHandle body) const {

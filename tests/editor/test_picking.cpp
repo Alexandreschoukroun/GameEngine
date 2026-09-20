@@ -179,3 +179,33 @@ TEST_CASE("A scaled entity is picked over its whole extent") {
                                         core::Vec3{4.0f, 0.0f, 0.0f})) ==
           scene::kInvalidEntity);
 }
+
+TEST_CASE("An enclosing box never wins over what is actually in front") {
+    scene::ResourceTable resources;
+    const scene::ResourceHandle cube = addUnitCube(resources);
+    scene::Scene scene;
+
+    // La piece : un cube unite etire en boite de 24 m, qui contient tout le reste ET la
+    // camera. C'est exactement la situation du jeu des qu'on est a l'interieur.
+    const scene::Entity room = scene.createEntity("piece");
+    scene.registry().get<scene::Transform>(room).scale = core::Vec3{24.0f, 8.0f, 24.0f};
+    scene.registry().emplace<scene::MeshRenderer>(room, scene::MeshRenderer{cube, 0});
+
+    const scene::Entity crate = scene.createEntity("caisse");
+    scene.registry().get<scene::Transform>(crate).position = core::Vec3{0.0f, 0.0f, -3.0f};
+    scene.registry().emplace<scene::MeshRenderer>(crate, scene::MeshRenderer{cube, 0});
+    scene.updateWorldTransforms();
+
+    // Depuis l'interieur, en visant la caisse : c'est la CAISSE qu'on veut, pas le decor
+    // qui nous entoure. Sans la regle de repli, la piece rendrait une distance nulle et
+    // gagnerait a chaque clic.
+    const editor::Ray onCrate =
+        rayTowards(core::Vec3{0.0f, 0.0f, 0.0f}, core::Vec3{0.0f, 0.0f, -3.0f});
+    CHECK(editor::pickEntity(scene, resources, onCrate) == crate);
+
+    // En visant a cote, il ne reste que la piece : elle doit alors etre selectionnable,
+    // sans quoi on ne pourrait jamais designer un mur.
+    const editor::Ray onWall =
+        rayTowards(core::Vec3{0.0f, 0.0f, 0.0f}, core::Vec3{1.0f, 0.3f, 0.0f});
+    CHECK(editor::pickEntity(scene, resources, onWall) == room);
+}

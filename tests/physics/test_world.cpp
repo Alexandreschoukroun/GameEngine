@@ -86,3 +86,43 @@ TEST_CASE("The same simulation twice gives the same result") {
     CHECK(first.y == doctest::Approx(second.y));
     CHECK(first.z == doctest::Approx(second.z));
 }
+
+TEST_CASE("A body can be teleported, and it does not keep its momentum") {
+    physics::World world;
+    REQUIRE(world.create());
+    world.addBox(core::Vec3{0.0f, -1.0f, 0.0f}, core::Quat(1, 0, 0, 0),
+                 core::Vec3{20.0f, 0.5f, 20.0f}, true);
+
+    const physics::BodyHandle crate =
+        world.addBox(core::Vec3{0.0f, 5.0f, 0.0f}, core::Quat(1, 0, 0, 0),
+                     core::Vec3{0.3f, 0.3f, 0.3f}, false);
+
+    // On le laisse tomber : il acquiert une vitesse vers le bas.
+    for (core::u32 i = 0; i < 30; ++i) {
+        world.step(1.0f / 60.0f);
+    }
+    REQUIRE(world.bodyVelocity(crate).y < -1.0f);
+
+    // Puis on le replace a la main, comme le fait l'editeur.
+    world.setBodyTransform(crate, core::Vec3{4.0f, 3.0f, -2.0f}, core::Quat(1, 0, 0, 0));
+    CHECK(world.bodyPosition(crate).x == doctest::Approx(4.0f));
+    CHECK(world.bodyPosition(crate).z == doctest::Approx(-2.0f));
+    // La vitesse est annulee : sans cela, l'objet replace repartirait avec l'elan qu'il
+    // avait des qu'on le lache, et paraitrait glisser tout seul.
+    CHECK(glm::length(world.bodyVelocity(crate)) == doctest::Approx(0.0f).epsilon(0.01));
+}
+
+TEST_CASE("Teleporting a static body does not fail") {
+    physics::World world;
+    REQUIRE(world.create());
+    const physics::BodyHandle wall =
+        world.addBox(core::Vec3{0.0f, 0.0f, 0.0f}, core::Quat(1, 0, 0, 0),
+                     core::Vec3{1.0f, 1.0f, 1.0f}, true);
+
+    // Un corps statique n'a pas de vitesse a annuler, et Jolt refuse qu'on lui en donne :
+    // l'implementation doit le distinguer, sinon deplacer un mur dans l'editeur
+    // declencherait une assertion.
+    world.setBodyTransform(wall, core::Vec3{3.0f, 1.0f, 0.0f}, core::Quat(1, 0, 0, 0));
+    CHECK(world.bodyPosition(wall).x == doctest::Approx(3.0f));
+    CHECK_FALSE(world.isBodyDynamic(wall));
+}

@@ -1,6 +1,6 @@
 # 09 — L'éditeur (M6)
 
-*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2). Brique 3 : créer, dupliquer, détruire, enregistrer (section 3). Brique 4 : l'inspecteur complet (section 4).*
+*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2). Brique 3 : créer, dupliquer, détruire, enregistrer (section 3). Brique 4 : l'inspecteur complet (section 4). Brique 5 : sélectionner en cliquant (section 5).*
 
 # 1. Brique 1 — l'éditeur existe
 
@@ -245,3 +245,55 @@ Il vérifie désormais des **propriétés** : toute entité affichée cite une m
 **Ce qui n'existe pas encore** : on ne peut pas reparenter à la souris, ni éditer les charnières, secteurs et portails, ni l'environnement de la scène. Les modifications de source audio ne prennent effet qu'au rechargement, et une entité créée n'a toujours pas de corps physique avant le prochain lancement.
 
 **Ce qui vient après (brique 5)** : **sélectionner en cliquant dans la vue**. Passer par la liste est acceptable avec vingt entités, impraticable avec deux cents — et c'est ce qui manque pour qu'un niveau se construise au rythme de la main.
+
+---
+
+# 5. Brique 5 — sélectionner en cliquant
+
+## 5.1 Le problème
+
+Pour choisir un objet, il fallait le trouver dans la liste. C'est acceptable avec vingt entités et impraticable avec deux cents : on sait **où est** l'objet qu'on veut, pas son rang dans un arbre.
+
+## 5.2 Une boîte suffit
+
+Tester un rayon contre chaque triangle d'un maillage coûterait cent mille fois plus cher que contre sa boîte englobante — et n'apporterait rien. On ne demande pas au pixel près quel objet on vise : on demande **lequel est devant**.
+
+La boîte est donc calculée une fois au chargement et retenue par la table de ressources, à côté du maillage GPU. C'est une donnée que personne n'avait jusqu'ici, parce que personne n'en avait eu besoin : le rendu n'a pas à connaître l'encombrement de ce qu'il dessine.
+
+Ses huit coins sont transformés par la matrice monde puis réenglobés. La boîte qui en résulte est **plus large que l'objet** dès qu'il est tourné — c'est le prix d'un test aligné sur les axes, et il est sans conséquence pour désigner quelque chose.
+
+## 5.3 La méthode des tranches, et ses deux pièges
+
+L'intersection rayon-boîte se calcule en bornant, pour chaque axe, l'intervalle de parcours du rayon à l'intérieur de la boîte, puis en regardant si les trois intervalles se recouvrent. Quinze lignes.
+
+Deux cas particuliers ne sont pas optionnels :
+
+**Un rayon parallèle à une paire de faces.** La division par une direction nulle produirait un infini. Il faut traiter le cas à part : le rayon n'entre jamais par ces faces, donc soit il est déjà entre les deux, soit il les manque définitivement.
+
+**Un rayon qui part de l'intérieur.** La distance d'entrée est alors négative, et la distance utile vaut zéro. Ce cas n'est pas théorique : il se présente **à chaque clic**, puisque la boîte de la pièce englobe la caméra.
+
+## 5.4 Ce qui n'a rien à montrer doit rester atteignable
+
+Une lumière, une source sonore, un secteur n'ont aucune géométrie. Ce sont pourtant les objets **les plus difficiles à retrouver dans une liste**, et ceux qu'on a le plus besoin de désigner.
+
+Ils reçoivent donc une petite sphère posée sur leur origine — 25 cm, assez pour qu'on l'attrape, assez peu pour ne pas masquer ce qui est derrière.
+
+## 5.5 Trois exclusions, trois raisons différentes
+
+Un clic ne désigne pas toujours :
+
+- **sur un panneau** — le clic appartient à l'interface ;
+- **sur le gizmo** — on manipule la sélection courante, on n'en change pas. C'est pourquoi le gizmo est dessiné *avant* : il doit avoir la priorité, sans quoi attraper un bras sélectionnerait ce qu'il y a derrière ;
+- **dans le vide** — et là, on **désélectionne**. C'est le geste attendu pour sortir d'une sélection, et le seul qui n'exige pas de viser autre chose.
+
+## 5.6 Coût
+
+Un test de boîte par entité et par clic. Pour quelques centaines d'entités, c'est instantané — et surtout, **rien ne se calcule tant qu'on ne clique pas**.
+
+## 5.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Sept tests**, tous sans GPU : le rayon rencontre une boîte ou la manque, le cas parallèle ne divise pas par zéro, un rayon parti de l'intérieur donne une distance nulle, ce qui est derrière n'est jamais sélectionné, le plus proche l'emporte, une entité suit sa matrice monde, une entité mise à l'échelle est désignable sur **toute** son étendue, et ce qui n'a pas de géométrie reste atteignable. **123 tests, 36174 assertions** au total.
+
+**Ce qui n'existe pas encore** : aucun contour ne signale l'objet sélectionné dans la vue — seuls la hiérarchie et le gizmo le montrent. Pas de sélection multiple, pas de sélection par rectangle, et un objet caché derrière un mur reste désignable si son englobant dépasse.
+
+**Ce qui vient après** : un **niveau**. Le moteur sait désormais charger une géométrie, ses matériaux, sa collision, et l'éditer à la souris — créer, choisir, déplacer, enregistrer. Il ne lui manque plus qu'un niveau à construire.

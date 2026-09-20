@@ -62,6 +62,14 @@ struct CollisionMesh {
     }
 };
 
+// Encombrement d'un maillage, dans son propre repere. Sert a designer un objet a la
+// souris : un rayon contre une boite coute quelques comparaisons.
+struct MeshBounds {
+    core::Vec3 min{0.0f, 0.0f, 0.0f};
+    core::Vec3 max{0.0f, 0.0f, 0.0f};
+    bool valid = false;
+};
+
 // Fait la correspondance entre les noms logiques ecrits dans les fichiers de scene
 // ("suzanne", "damier") et les ressources GPU chargees.
 //
@@ -71,7 +79,10 @@ struct CollisionMesh {
 class ResourceTable {
 public:
     // Enregistre une ressource deja chargee. La table ne possede rien : elle reference.
-    ResourceHandle addMesh(std::string_view name, const rhi::Mesh* mesh);
+    // L'encombrement est facultatif : un maillage sans lui reste affichable, il n'est
+    // simplement pas designable a la souris.
+    ResourceHandle addMesh(std::string_view name, const rhi::Mesh* mesh,
+                           const MeshBounds& bounds = {});
     ResourceHandle addTexture(std::string_view name, const rhi::Texture* texture);
     // Un son n'est pas une ressource GPU, mais la table lui rend le meme service : la
     // scene cite "braises" et ignore quel fichier c'est, comme elle cite "suzanne".
@@ -86,6 +97,7 @@ public:
     ResourceHandle findCollisionMesh(std::string_view name) const;
 
     const rhi::Mesh* mesh(ResourceHandle handle) const;
+    MeshBounds meshBounds(ResourceHandle handle) const;
     const rhi::Texture* texture(ResourceHandle handle) const;
     audio::SoundHandle sound(ResourceHandle handle) const;
     // Nul si la poignee est invalide : l'appelant saute alors l'objet plutot que de
@@ -115,6 +127,7 @@ private:
     struct MeshEntry {
         std::string name;
         const rhi::Mesh* mesh = nullptr;
+        MeshBounds bounds;
     };
     struct TextureEntry {
         std::string name;

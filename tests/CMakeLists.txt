@@ -6,6 +6,7 @@ add_executable(engine_tests
     assets/test_gltf.cpp
     renderer/test_camera.cpp
     editor/test_gizmo.cpp
+    editor/test_picking.cpp
     scene/test_serialization.cpp
     scene/test_sector_graph.cpp
     physics/test_world.cpp

@@ -254,6 +254,25 @@ std::vector<core::u8> makeCheckerboard() {
 
 // Les donnees du fichier sont neutres : c'est ici qu'elles prennent la forme attendue par
 // le GPU. La couche assets ignore volontairement ce qu'est un sommet pour rhi.
+// Encombrement d'une geometrie construite en code. Les maillages importes tirent le leur
+// de leur MeshData ; ceux qu'on fabrique ici n'en ont pas, il faut donc le mesurer.
+scene::MeshBounds boundsOf(const std::vector<rhi::Vertex>& vertices) {
+    scene::MeshBounds bounds;
+    if (vertices.empty()) {
+        return bounds;
+    }
+    bounds.min = core::Vec3{vertices[0].position[0], vertices[0].position[1],
+                            vertices[0].position[2]};
+    bounds.max = bounds.min;
+    for (const rhi::Vertex& vertex : vertices) {
+        const core::Vec3 position{vertex.position[0], vertex.position[1], vertex.position[2]};
+        bounds.min = glm::min(bounds.min, position);
+        bounds.max = glm::max(bounds.max, position);
+    }
+    bounds.valid = true;
+    return bounds;
+}
+
 std::vector<rhi::Vertex> toVertices(const assets::MeshData& meshData) {
     std::vector<rhi::Vertex> vertices(meshData.positions.size());
     for (std::size_t i = 0; i < vertices.size(); ++i) {
@@ -740,7 +759,7 @@ private:
     }
 
     void registerResources() {
-        m_resources.addMesh("piece", &m_floorMesh);
+        m_resources.addMesh("piece", &m_floorMesh, m_roomBounds);
         m_resources.addTexture("damier", &m_floorBaseColor);
         m_resources.addTexture("mat_rugueux", &m_floorMaterial);
         m_resources.addTexture("mat_metal", &m_metalMaterial);
@@ -748,7 +767,7 @@ private:
         // Remplacement des ressources introuvables : un magenta franc, impossible a
         // confondre avec une texture legitime.
         m_resources.addTexture("missing", &m_missingTexture);
-        m_resources.addMesh("caisse", &m_crateMesh);
+        m_resources.addMesh("caisse", &m_crateMesh, m_crateBounds);
         if (m_stoneNormal.isValid()) {
             m_resources.addTexture("pierre_relief", &m_stoneNormal);
         }
@@ -817,6 +836,7 @@ private:
                 {0.0f, 1.0f, 0.0f}, 1.0f, 1.0f);
         addQuad(vertices, indices, {-h, -h, -h}, {h, -h, -h}, {h, -h, h}, {-h, -h, h},
                 {0.0f, -1.0f, 0.0f}, 1.0f, 1.0f);
+        m_crateBounds = boundsOf(vertices);
         return m_crateMesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
                                   indices.data(), static_cast<core::u32>(indices.size()));
     }
@@ -1016,7 +1036,9 @@ private:
                              static_cast<core::u32>(meshData.indices.size()))) {
             return false;
         }
-        m_resources.addMesh(file.name, &out.mesh);
+        scene::MeshBounds bounds;
+        bounds.valid = meshData.computeBounds(bounds.min, bounds.max);
+        m_resources.addMesh(file.name, &out.mesh, bounds);
 
         if (meshData.materials.empty()) {
             core::logWarn("modele sans matiere declaree");
@@ -1109,6 +1131,7 @@ private:
                 core::Vec3{vertex.position[0], vertex.position[1], vertex.position[2]});
         }
         m_roomIndices = indices;
+        m_roomBounds = boundsOf(vertices);
 
         const std::vector<core::u8> pixels = makeCheckerboard();
         if (!m_floorBaseColor.create(kCheckerSize, kCheckerSize, pixels.data(),
@@ -1170,6 +1193,8 @@ private:
     // ressources n'en garde qu'une vue : ces tableaux doivent lui survivre.
     std::vector<core::Vec3> m_roomPositions;
     std::vector<core::u32> m_roomIndices;
+    scene::MeshBounds m_roomBounds;
+    scene::MeshBounds m_crateBounds;
     // Une matiere libre = trois textures. Le tableau les possede, la table de ressources
     // n'en garde que des pointeurs.
     struct RealMaterial {

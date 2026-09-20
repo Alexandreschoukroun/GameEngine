@@ -17,7 +17,8 @@ ResourceHandle findByName(const Container& entries, std::string_view name) {
 
 } // namespace
 
-ResourceHandle ResourceTable::addMesh(std::string_view name, const rhi::Mesh* mesh) {
+ResourceHandle ResourceTable::addMesh(std::string_view name, const rhi::Mesh* mesh,
+                                      const MeshBounds& bounds) {
     if (mesh == nullptr || name.empty()) {
         core::logError("ResourceTable : maillage ou nom manquant");
         return kInvalidResource;
@@ -27,9 +28,10 @@ ResourceHandle ResourceTable::addMesh(std::string_view name, const rhi::Mesh* me
         // Reenregistrer sous le meme nom remplace la ressource : les scenes deja chargees
         // continuent de pointer sur la bonne poignee.
         m_meshes[existing].mesh = mesh;
+        m_meshes[existing].bounds = bounds;
         return existing;
     }
-    m_meshes.push_back(MeshEntry{std::string(name), mesh});
+    m_meshes.push_back(MeshEntry{std::string(name), mesh, bounds});
     return static_cast<ResourceHandle>(m_meshes.size() - 1);
 }
 
@@ -112,6 +114,10 @@ ResourceHandle ResourceTable::findCollisionMesh(std::string_view name) const {
 
 const rhi::Mesh* ResourceTable::mesh(ResourceHandle handle) const {
     return handle < m_meshes.size() ? m_meshes[handle].mesh : nullptr;
+}
+
+MeshBounds ResourceTable::meshBounds(ResourceHandle handle) const {
+    return handle < m_meshes.size() ? m_meshes[handle].bounds : MeshBounds{};
 }
 
 const rhi::Texture* ResourceTable::texture(ResourceHandle handle) const {

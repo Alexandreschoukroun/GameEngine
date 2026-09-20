@@ -35,7 +35,20 @@ namespace {
 // Seul le fichier glTF est cite : ses textures sont declarees DEDANS, et le chargeur en
 // resout les chemins. C'est ce qui rend l'import d'un modele telecharge immediat - on
 // change cette ligne, et le modele arrive avec ses matieres.
-constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
+// Modeles importes : un fichier glTF, un nom logique. Leurs matieres sont declarees DANS
+// le fichier, donc ajouter un modele ne demande qu'une ligne ici - c'est tout l'interet
+// d'avoir appris a lire les materiaux glTF.
+struct ImportedModelFile {
+    const char* path;
+    const char* name;
+};
+
+constexpr ImportedModelFile kImportedModels[] = {
+    {"models/suzanne/Suzanne.gltf", "suzanne"},
+    {"models/loquet/gate_latch_01_1k.gltf", "loquet"},
+};
+constexpr core::u32 kImportedModelCount =
+    static_cast<core::u32>(sizeof(kImportedModels) / sizeof(kImportedModels[0]));
 constexpr const char* kScenePath = "scenes/demo.json";
 
 constexpr core::f32 kLookSensitivity = 0.0022f; // radians par pixel de souris
@@ -268,7 +281,7 @@ protected:
             return false;
         }
         m_flashlight.snapTo(m_camera);
-        if (!loadModel() || !loadRoom()) {
+        if (!loadRoom()) {
             return false;
         }
         // Le maillage des caisses doit exister AVANT le chargement : la scene le reclame
@@ -276,14 +289,20 @@ protected:
         if (!buildCrateMesh()) {
             return false;
         }
-        loadRealMaterials();
-
         // L'absence d'une de ces textures n'empeche pas de jouer : on ignore le retour.
         loadTexture(kStoneNormalPath, m_stoneNormal, rhi::TextureFormat::LinearData);
         loadTexture(kWoodNormalPath, m_woodNormal, rhi::TextureFormat::LinearData);
         loadTexture(kStoneColorPath, m_stoneColor, rhi::TextureFormat::SrgbColor);
         loadTexture(kWoodColorPath, m_woodColor, rhi::TextureFormat::SrgbColor);
+        loadRealMaterials();
         registerResources();
+
+        // Les modeles EN DERNIER, et ce n'est pas indifferent : un modele dont le fichier
+        // ne declare pas de carte de couleur se rabat sur le blanc neutre, et une matiere
+        // de repli qui n'existe pas encore le laisserait sans rien a afficher.
+        if (!importModels()) {
+            return false;
+        }
 
         // La scene ne vient plus du code : elle est lue dans un fichier. Modifier
         // demo.json et relancer suffit a changer le niveau, sans recompiler.
@@ -595,9 +614,12 @@ protected:
         m_floorMaterial.destroy();
         m_floorBaseColor.destroy();
         m_floorMesh.destroy();
-        m_modelMetallicRoughness.destroy();
-        m_modelBaseColor.destroy();
-        m_modelMesh.destroy();
+        for (ImportedModel& model : m_importedModels) {
+            model.normalMap.destroy();
+            model.metallicRoughness.destroy();
+            model.baseColor.destroy();
+            model.mesh.destroy();
+        }
     }
 
 private:
@@ -663,9 +685,6 @@ private:
         m_resources.addTexture("mat_rugueux", &m_floorMaterial);
         m_resources.addTexture("mat_metal", &m_metalMaterial);
         m_resources.addTexture("blanc", &m_whiteTexture);
-        m_resources.addMesh("suzanne", &m_modelMesh);
-        m_resources.addTexture("suzanne_couleur", &m_modelBaseColor);
-        m_resources.addTexture("suzanne_matiere", &m_modelMetallicRoughness);
         // Remplacement des ressources introuvables : un magenta franc, impossible a
         // confondre avec une texture legitime.
         m_resources.addTexture("missing", &m_missingTexture);
@@ -718,13 +737,6 @@ private:
         brass.baseColorFactor = core::Vec4{0.72f, 0.55f, 0.25f, 1.0f};
         m_resources.addMaterial("laiton", brass);
 
-        scene::Material model;
-        model.baseColor = m_resources.findTexture("suzanne_couleur");
-        model.metallicRoughness = m_resources.findTexture("suzanne_matiere");
-        model.baseColorFactor = m_modelMaterial.baseColorFactor;
-        model.metallicFactor = m_modelMaterial.metallicFactor;
-        model.roughnessFactor = m_modelMaterial.roughnessFactor;
-        m_resources.addMaterial("suzanne", model);
     }
 
     // Cube de 1 m de cote, centre sur l'origine : la mise a l'echelle du Transform lui
@@ -920,45 +932,82 @@ private:
         core::logInfo(buffer);
     }
 
-    bool loadModel() {
+    // Un modele importe possede sa geometrie et ses textures ; la table de ressources
+    // n'en garde que des pointeurs, elle ne possede rien.
+    struct ImportedModel {
+        rhi::Mesh mesh;
+        rhi::Texture baseColor;
+        rhi::Texture metallicRoughness;
+        rhi::Texture normalMap;
+    };
+
+    // Importe un modele glTF : sa geometrie, et les textures que SON FICHIER declare.
+    //
+    // C'est la fonction qui rend un modele telecharge utilisable sans rien recopier a la
+    // main. Elle ne connait ni Suzanne ni le loquet : elle lit ce que le fichier dit.
+    bool importModel(const ImportedModelFile& file, ImportedModel& out) {
         assets::MeshData meshData;
-        if (!assets::loadGltfMesh(platform::assetPath(kModelPath).c_str(), meshData)) {
+        if (!assets::loadGltfMesh(platform::assetPath(file.path).c_str(), meshData)) {
             return false;
         }
         const std::vector<rhi::Vertex> vertices = toVertices(meshData);
-        if (!m_modelMesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
-                                meshData.indices.data(),
-                                static_cast<core::u32>(meshData.indices.size()))) {
+        if (!out.mesh.create(vertices.data(), static_cast<core::u32>(vertices.size()),
+                             meshData.indices.data(),
+                             static_cast<core::u32>(meshData.indices.size()))) {
             return false;
         }
+        m_resources.addMesh(file.name, &out.mesh);
 
         if (meshData.materials.empty()) {
-            core::logWarn("le modele ne declare aucune matiere");
+            core::logWarn("modele sans matiere declaree");
+            core::logWarn(file.path);
             return true;
         }
-        // Une seule matiere pour l'instant : le moteur ne dessine pas encore une portion
-        // par materiau, meme s'il sait desormais les distinguer.
-        m_modelMaterial = meshData.materials[0];
+        // Une seule matiere par modele pour l'instant : le moteur sait distinguer les
+        // portions, mais le rendu n'en lie encore qu'une par entite.
+        const assets::MaterialData& source = meshData.materials[0];
 
-        assets::ImageData baseColor;
-        assets::ImageData metallicRoughness;
-        // Les chemins viennent du FICHIER, deja resolus par rapport a son emplacement.
-        if (!assets::loadImage(m_modelMaterial.baseColorTexture.c_str(), baseColor) ||
-            !assets::loadImage(m_modelMaterial.metallicRoughnessTexture.c_str(),
-                               metallicRoughness)) {
-            return false;
+        scene::Material material;
+        material.baseColorFactor = source.baseColorFactor;
+        material.metallicFactor = source.metallicFactor;
+        material.roughnessFactor = source.roughnessFactor;
+
+        const std::string name = file.name;
+        // Les chemins viennent du fichier, deja resolus par rapport a son emplacement.
+        if (!source.baseColorTexture.empty() &&
+            loadTexture(source.baseColorTexture.c_str(), out.baseColor,
+                        rhi::TextureFormat::SrgbColor)) {
+            material.baseColor = m_resources.addTexture(name + "_couleur", &out.baseColor);
+        } else {
+            // Sans carte de couleur, le facteur decrit tout : il faut un blanc neutre a
+            // multiplier.
+            material.baseColor = m_resources.findTexture("blanc");
+        }
+        if (!source.metallicRoughnessTexture.empty() &&
+            loadTexture(source.metallicRoughnessTexture.c_str(), out.metallicRoughness,
+                        rhi::TextureFormat::LinearData)) {
+            material.metallicRoughness =
+                m_resources.addTexture(name + "_matiere", &out.metallicRoughness);
+        } else {
+            material.metallicRoughness = m_resources.findTexture("mat_rugueux");
+        }
+        if (!source.normalTexture.empty() &&
+            loadTexture(source.normalTexture.c_str(), out.normalMap,
+                        rhi::TextureFormat::LinearData)) {
+            material.normalMap = m_resources.addTexture(name + "_relief", &out.normalMap);
         }
 
-        // La couleur de base est une couleur : le GPU doit la ramener en lineaire a chaque
-        // lecture. La carte metallicite/rugosite contient des mesures : aucune conversion,
-        // sinon les valeurs seraient faussees.
-        return m_modelBaseColor.create(baseColor.width, baseColor.height,
-                                       baseColor.pixels.data(),
-                                       rhi::TextureFormat::SrgbColor) &&
-               m_modelMetallicRoughness.create(metallicRoughness.width,
-                                               metallicRoughness.height,
-                                               metallicRoughness.pixels.data(),
-                                               rhi::TextureFormat::LinearData);
+        m_resources.addMaterial(file.name, material);
+        return true;
+    }
+
+    bool importModels() {
+        for (core::u32 i = 0; i < kImportedModelCount; ++i) {
+            if (!importModel(kImportedModels[i], m_importedModels[i])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     bool loadRoom() {
@@ -1048,9 +1097,6 @@ private:
     renderer::DeferredRenderer m_renderer;
     renderer::Camera m_camera;
 
-    rhi::Mesh m_modelMesh;
-    rhi::Texture m_modelBaseColor;
-    rhi::Texture m_modelMetallicRoughness;
 
     rhi::Mesh m_floorMesh;
     rhi::Texture m_floorBaseColor;
@@ -1059,7 +1105,7 @@ private:
     rhi::Texture m_missingTexture;
     rhi::Texture m_metalMaterial;
     rhi::Texture m_whiteTexture;
-    assets::MaterialData m_modelMaterial;
+    std::array<ImportedModel, kImportedModelCount> m_importedModels;
     // Copie processeur de la geometrie de la piece, pour la collision. La table de
     // ressources n'en garde qu'une vue : ces tableaux doivent lui survivre.
     std::vector<core::Vec3> m_roomPositions;

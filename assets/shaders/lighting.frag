@@ -30,6 +30,11 @@ layout(location = 31) uniform vec4 uLightParams[kMaxLights];     // x = cos exte
 layout(location = 39) uniform mat4 uShadowViewProjection;        // occupe 39 a 42
 layout(location = 43) uniform int uShadowLightIndex;             // -1 = aucune ombre
 layout(location = 44) uniform int uHasCookie;
+// Environnement : deux couleurs, celle qui vient d'en haut et celle qui vient d'en bas.
+// C'est le modele le plus simple qui ait un sens dans un interieur - la vraie carte
+// d'environnement viendra si le besoin s'en fait sentir.
+layout(location = 45) uniform vec4 uEnvironmentSky;    // rgb = couleur, a = intensite
+layout(location = 46) uniform vec4 uEnvironmentGround; // rgb = couleur
 
 in vec2 vTexCoord;
 out vec4 outColor;
@@ -86,6 +91,36 @@ vec3 fresnelSchlick(float cosTheta, vec3 f0) {
 // L'eclairage n'a pas de plafond : une lampe proche peut donner 50 la ou l'ecran affiche
 // 1 au maximum. Couper a 1 cramerait tout en blanc plat ; cette approximation de la courbe
 // ACES garde du detail dans les hautes lumieres.
+// Couleur que l'environnement renvoie dans une direction donnee. Un hemisphere : clair
+// au-dessus, sombre en dessous, interpole entre les deux.
+//
+// Dans un interieur clos, cet "environnement" n'est pas un ciel : c'est la lumiere que
+// les murs, le sol et le plafond se renvoient entre eux. On ne la simule pas, on
+// l'approche par deux couleurs - ce qui suffit a ce qu'un metal ait quelque chose a
+// reflechir, et c'est tout ce qui manquait.
+vec3 environmentColor(vec3 direction) {
+    float height = direction.y * 0.5 + 0.5;
+    return mix(uEnvironmentGround.rgb, uEnvironmentSky.rgb, height) * uEnvironmentSky.a;
+}
+
+// Approximation analytique de l'integrale de la BRDF sur l'hemisphere, due a Lazarov.
+// La methode exacte demande une texture precalculee ; cette courbe la remplace a quelques
+// pour cent pres, pour le prix de six operations. Elle rend deux nombres : le facteur qui
+// multiplie la reflectance de base, et celui qui s'y ajoute.
+vec2 environmentBRDF(float nDotV, float roughness) {
+    const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
+    const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
+    vec4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28 * nDotV)) * r.x + r.y;
+    return vec2(-1.04, 1.04) * a004 + r.zw;
+}
+
+// Fresnel qui tient compte de la rugosite. Le Fresnel ordinaire suppose une surface
+// parfaitement lisse ; sur une surface rugueuse, le reflet rasant est moins marque.
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 f0, float roughness) {
+    return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
 vec3 tonemapACES(vec3 color) {
     const float a = 2.51;
     const float b = 0.03;
@@ -229,9 +264,29 @@ void main() {
         color += (diffuse + specular) * radiance * nDotL;
     }
 
-    // Ambiante tres faible : dans un jeu d'horreur, l'obscurite doit rester noire, mais
-    // pas au point qu'on ne devine plus rien.
-    color += albedo * 0.015;
+    // --- eclairage d'environnement ----------------------------------------------------
+    //
+    // Ce qui precede ne tient compte que des lampes. Or une surface recoit aussi la
+    // lumiere que tout ce qui l'entoure lui renvoie - et pour un METAL, c'est la seule
+    // source qui existe : un metal n'a aucune composante diffuse, il ne fait que
+    // reflechir. Sans ce terme, tout metal est noir, quelles que soient les lampes.
+    float nDotV = max(dot(normal, view), 0.0);
+    vec3 fresnelAmbient = fresnelSchlickRoughness(nDotV, f0, roughness);
+
+    // Diffus : la lumiere qui arrive de tout l'hemisphere au-dessus de la surface. Elle
+    // est nulle sur un metal, et attenuee par ce qui part deja en reflet.
+    vec3 ambientDiffuse = environmentColor(normal) * albedo * (1.0 - metallic) *
+                          (vec3(1.0) - fresnelAmbient);
+
+    // Speculaire : ce que la surface renvoie vers l'oeil. Une surface rugueuse "voit" une
+    // zone large de l'environnement ; faute de pouvoir la flouter, on fait tendre la
+    // direction de reflexion vers la normale, ce qui revient a moyenner.
+    vec3 reflection = reflect(-view, normal);
+    vec3 incoming = environmentColor(mix(reflection, normal, roughness));
+    vec2 brdf = environmentBRDF(nDotV, roughness);
+    vec3 ambientSpecular = incoming * (fresnelAmbient * brdf.x + brdf.y);
+
+    color += ambientDiffuse + ambientSpecular;
 
     color = tonemapACES(color);
     // Derniere etape : reencoder vers la courbe sRGB attendue par l'ecran. Les calculs

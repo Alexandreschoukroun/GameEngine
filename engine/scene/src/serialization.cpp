@@ -122,6 +122,16 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
 
     Json root;
     root["version"] = kSceneFormatVersion;
+
+    // L'environnement precede les entites : il decrit le cadre dans lequel elles vivent.
+    {
+        const Environment& environment = scene.environment();
+        Json e;
+        e["skyColor"] = toJson(environment.skyColor);
+        e["groundColor"] = toJson(environment.groundColor);
+        e["intensity"] = rounded(environment.intensity);
+        root["environment"] = e;
+    }
     Json entities = Json::array();
 
     for (const auto& [uuid, entity] : sorted) {
@@ -293,6 +303,17 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
         return false;
     }
 
+    // L'environnement est facultatif : une scene qui n'en declare pas garde les valeurs
+    // par defaut, qui sont celles d'un interieur sombre.
+    Environment environment;
+    if (root.contains("environment")) {
+        const Json& e = root["environment"];
+        environment.skyColor = vec3FromJson(e.value("skyColor", Json()), environment.skyColor);
+        environment.groundColor =
+            vec3FromJson(e.value("groundColor", Json()), environment.groundColor);
+        environment.intensity = e.value("intensity", environment.intensity);
+    }
+
     // Tout ou rien : on construit a cote, et on ne remplace la scene de l'appelant qu'une
     // fois la lecture entierement reussie.
     Scene loaded;
@@ -459,6 +480,7 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
         }
     }
 
+    loaded.environment() = environment;
     scene = std::move(loaded);
     return true;
 }

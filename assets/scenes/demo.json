@@ -1,5 +1,18 @@
 {
   "version": 1,
+  "environment": {
+    "skyColor": [
+      0.08,
+      0.085,
+      0.1
+    ],
+    "groundColor": [
+      0.025,
+      0.022,
+      0.02
+    ],
+    "intensity": 1.0
+  },
   "entities": [
     {
       "id": "0x00000000000c0001",

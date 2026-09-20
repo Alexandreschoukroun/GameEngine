@@ -228,3 +228,39 @@ TEST_CASE("A mesh renderer cites one material, not three textures") {
 
     CHECK(scene::saveSceneToString(reloaded, resources) == written);
 }
+
+TEST_CASE("The scene environment survives a save and a load") {
+    const scene::ResourceTable resources;
+    scene::Scene scene;
+    makeEntity(scene, "mur", 0x00e1, core::Vec3{0.0f, 0.0f, 0.0f});
+
+    scene.environment().skyColor = core::Vec3{0.12f, 0.1f, 0.2f};
+    scene.environment().groundColor = core::Vec3{0.03f, 0.02f, 0.01f};
+    scene.environment().intensity = 0.6f;
+
+    const std::string written = scene::saveSceneToString(scene, resources);
+
+    scene::Scene reloaded;
+    REQUIRE(scene::loadSceneFromString(reloaded, resources, written));
+    CHECK(reloaded.environment().skyColor.b == doctest::Approx(0.2f));
+    CHECK(reloaded.environment().groundColor.r == doctest::Approx(0.03f));
+    CHECK(reloaded.environment().intensity == doctest::Approx(0.6f));
+
+    CHECK(scene::saveSceneToString(reloaded, resources) == written);
+}
+
+TEST_CASE("A scene without an environment block keeps the dark defaults") {
+    const scene::ResourceTable resources;
+    scene::Scene scene;
+
+    // Un fichier ancien, ou ecrit a la main, n'a pas de bloc environnement. Il doit rester
+    // lisible : l'absence vaut "valeurs par defaut", pas "erreur".
+    const std::string minimal = R"({"version":1,"entities":[]})";
+    REQUIRE(scene::loadSceneFromString(scene, resources, minimal));
+
+    const scene::Environment defaults;
+    CHECK(scene.environment().intensity == doctest::Approx(defaults.intensity));
+    CHECK(scene.environment().skyColor.r == doctest::Approx(defaults.skyColor.r));
+    // Et le ciel reste plus clair que le sol : c'est ce qui donne un sens a l'hemisphere.
+    CHECK(scene.environment().skyColor.r > scene.environment().groundColor.r);
+}

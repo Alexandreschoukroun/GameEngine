@@ -1,6 +1,6 @@
 # 08 — Matériaux et relief (M5.5)
 
-*Brique 1 : les cartes de normales et les textures générées (section 1). Brique 2 : les matériaux du fichier glTF (section 2).*
+*Brique 1 : les cartes de normales et les textures générées (section 1). Brique 2 : les matériaux du fichier glTF (section 2). Brique 3 : l'éclairage d'environnement (section 3).*
 
 Ce jalon intercalaire prépare l'éditeur de M6. Un éditeur qui ne sait éditer que des caisses grises n'apprend rien à personne : avant de pouvoir poser des objets à la souris, il faut que ces objets ressemblent à quelque chose.
 
@@ -203,4 +203,77 @@ Un appel de dessin par portion au lieu d'un par objet. Les matériaux sont lus u
 
 **Ce qui n'existe pas encore** : pas d'import automatique (une entité par portion), pas d'extensions glTF, pas d'images embarquées. Et surtout, **les métaux sont toujours noirs** : un métal ne fait que réfléchir son environnement, et il n'y en a pas.
 
-**Ce qui vient après (brique 3)** : l'**éclairage d'environnement**. C'est ce qui sortira Suzanne du noir, et ce qui fera exister les métaux en général.
+**Ce qui vient après (brique 3)** : l'**éclairage d'environnement**.
+
+---
+
+# 3. Brique 3 — l'éclairage d'environnement
+
+## 3.1 Le problème : pourquoi Suzanne est noire
+
+C'est la limitation connue depuis M2, et ce n'est pas un bug.
+
+Le modèle PBR sépare radicalement deux familles de surfaces. Un **diélectrique** — bois, pierre, peau — absorbe une partie de la lumière et la rediffuse dans toutes les directions : c'est sa couleur. Un **métal** ne diffuse rien du tout. Il n'a aucune composante diffuse ; il ne fait que **réfléchir son environnement**.
+
+Le matériau de Suzanne est 100 % métallique. Dans une pièce dont le moteur ne connaissait que deux lampes ponctuelles, elle n'avait rien à réfléchir sauf ces deux points — donc elle était noire.
+
+Le moteur avait bien une ambiante, mais fausse : `couleur × 0,015`, appliquée **à plat et sans tenir compte de la métallicité**. Or c'est exactement la composante qu'un métal n'a pas. Elle éclairait donc ce qui n'en avait pas besoin, et laissait dans le noir ce qui en avait besoin.
+
+## 3.2 Les options
+
+**Une vraie carte d'environnement (IBL complète).** On capture l'environnement dans une texture cubique, on la pré-filtre pour chaque niveau de rugosité, on y ajoute une table de BRDF précalculée. C'est l'état de l'art, et ce que font les moteurs commerciaux. Mais cela demande un pipeline de pré-calcul, plusieurs textures, et une carte par lieu — beaucoup de machinerie pour un jeu qui se passe dans des **pièces closes**, où il n'y a ni ciel ni horizon.
+
+**Une ambiante constante.** Une seule couleur ajoutée partout. Simple, mais sans direction : une surface tournée vers le sol reçoit autant qu'une surface tournée vers le plafond, et un métal réfléchit la même chose quel que soit l'angle de vue. Le résultat est plat.
+
+**Un hémisphère.** Deux couleurs — ce qui vient d'en haut, ce qui vient d'en bas — interpolées selon la direction. C'est le choix retenu.
+
+Dans un intérieur clos, cet « environnement » n'est pas un ciel : c'est la lumière que **les murs, le sol et le plafond se renvoient entre eux**. On ne la simule pas, on l'approche par deux couleurs. C'est faux physiquement, et c'est suffisant pour que la chose essentielle arrive : qu'un métal ait quelque chose à réfléchir.
+
+## 3.3 Ce que le shader calcule
+
+Deux termes, et leur séparation est la correction du défaut de 3.1 :
+
+```
+diffus     = environnement(normale)   x couleur x (1 - métallicité) x (1 - Fresnel)
+spéculaire = environnement(réflexion) x (Fresnel x A + B)
+```
+
+- Le **diffus** est multiplié par `(1 - métallicité)` : il s'annule sur un métal, comme il doit.
+- Le **spéculaire** existe pour tout le monde, et c'est le seul terme qui éclaire un métal.
+- `(1 - Fresnel)` sur le diffus est de la **conservation d'énergie** : ce qui part en reflet ne peut pas repartir en diffus.
+
+Trois raffinements méritent d'être expliqués.
+
+**Un Fresnel qui tient compte de la rugosité.** Le Fresnel ordinaire suppose une surface parfaitement lisse. Sur une surface rugueuse, le renforcement du reflet aux angles rasants est bien moins marqué — d'où une variante qui borne l'effet par la rugosité.
+
+**La rugosité rapproche la réflexion de la normale.** Une surface rugueuse ne renvoie pas une image nette de l'environnement : elle en « voit » une zone large. Faute de pouvoir la flouter, on fait tendre la direction de réflexion vers la normale, ce qui revient à moyenner l'hémisphère.
+
+**L'intégrale de la BRDF est approchée analytiquement.** La méthode exacte demande une texture précalculée. L'approximation de Lazarov la remplace à quelques pour cent près, pour six opérations arithmétiques et aucune texture. Elle rend deux nombres : ce qui multiplie la réflectance de base, et ce qui s'y ajoute.
+
+## 3.4 L'environnement est une donnée de la scène
+
+Ce n'est pas une entité : il n'y en a qu'un, et il n'a pas de position. C'est une **propriété de la scène entière**, au même titre que le seront plus tard un brouillard global ou une réverbération de lieu.
+
+```json
+"environment": {
+  "skyColor": [0.08, 0.085, 0.1],
+  "groundColor": [0.025, 0.022, 0.02],
+  "intensity": 1.0
+}
+```
+
+Le bloc est **facultatif** : une scène qui n'en déclare pas garde les valeurs par défaut, celles d'un intérieur sombre. Un test le vérifie explicitement, parce qu'un fichier écrit à la main ne doit pas devenir illisible du seul fait qu'un champ a été ajouté au format.
+
+L'`intensity` mérite son existence séparée : elle règle l'ensemble sans toucher aux teintes. Dans un jeu d'horreur, c'est elle qui décide si l'obscurité reste noire — et ce réglage-là se fait à l'œil, pas au calcul.
+
+## 3.5 Coût
+
+Deux interpolations de couleurs, une réflexion, six opérations pour l'approximation de BRDF — par pixel de l'écran, une seule fois, dans la passe d'éclairage. Aucune texture supplémentaire, aucune mémoire. C'est l'intérêt d'avoir choisi l'hémisphère plutôt que l'IBL complète.
+
+## 3.6 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Deux tests** s'ajoutent : l'environnement survit à une sauvegarde-rechargement sans casser le déterminisme du fichier, et une scène sans bloc `environment` garde les valeurs par défaut — avec un ciel plus clair que le sol, ce qui est ce qui donne un sens à l'hémisphère. **83 tests, 554 assertions** au total.
+
+**Ce qui n'existe pas encore** : l'environnement est le **même partout** dans la scène. Une cave et un couloir éclairé devraient renvoyer des lumières différentes — c'est le graphe de secteurs de M3 qui portera cette information, exactement comme il portera la réverbération audio. Il n'y a pas non plus d'occlusion ambiante réelle : un recoin reçoit autant d'ambiante qu'un mur dégagé, alors qu'il devrait en recevoir moins.
+
+**Ce qui vient après** : M5.5 a atteint son objectif — des surfaces qui ressemblent à quelque chose, et des modèles qu'on peut importer. La suite est l'**éditeur M6**, ou l'**animation squelettique M4.5**, selon ce qui manque le plus.

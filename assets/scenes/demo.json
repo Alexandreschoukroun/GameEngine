@@ -580,6 +580,33 @@
       }
     },
     {
+      "id": "0x00000000000f0003",
+      "name": "poignee",
+      "parent": "0x00000000000f0001",
+      "transform": {
+        "position": [
+          0.3889,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.0556,
+          0.025,
+          2.75
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "laiton"
+      }
+    },
+    {
       "id": "0x08b6af78e6f9f7cf",
       "name": "satellite",
       "parent": "0x9514ba977cedc264",

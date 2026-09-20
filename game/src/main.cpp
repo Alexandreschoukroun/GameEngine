@@ -558,6 +558,8 @@ protected:
         m_crateMesh.destroy();
         m_renderer.destroy();
         m_missingTexture.destroy();
+        m_whiteTexture.destroy();
+        m_metalMaterial.destroy();
         m_woodColor.destroy();
         m_stoneColor.destroy();
         m_woodNormal.destroy();
@@ -597,6 +599,8 @@ private:
         m_resources.addMesh("piece", &m_floorMesh);
         m_resources.addTexture("damier", &m_floorBaseColor);
         m_resources.addTexture("mat_rugueux", &m_floorMaterial);
+        m_resources.addTexture("mat_metal", &m_metalMaterial);
+        m_resources.addTexture("blanc", &m_whiteTexture);
         m_resources.addMesh("suzanne", &m_modelMesh);
         m_resources.addTexture("suzanne_couleur", &m_modelBaseColor);
         m_resources.addTexture("suzanne_matiere", &m_modelMetallicRoughness);
@@ -634,6 +638,14 @@ private:
         wood.metallicRoughness = m_resources.findTexture("mat_rugueux");
         wood.normalMap = m_resources.findTexture("bois_relief");
         m_resources.addMaterial("bois", wood);
+
+        // Laiton : aucune texture de couleur, seulement un FACTEUR. C'est ainsi que sont
+        // decrits la plupart des modeles simples, et cela ne coute pas une image.
+        scene::Material brass;
+        brass.baseColor = m_resources.findTexture("blanc");
+        brass.metallicRoughness = m_resources.findTexture("mat_metal");
+        brass.baseColorFactor = core::Vec4{0.72f, 0.55f, 0.25f, 1.0f};
+        m_resources.addMaterial("laiton", brass);
 
         scene::Material model;
         model.baseColor = m_resources.findTexture("suzanne_couleur");
@@ -917,6 +929,19 @@ private:
         // la rugosite et le bleu la metallicite. Le shader ne fait aucune difference avec
         // une vraie carte, et on evite d'ajouter des parametres de matiere partout.
         const core::u8 material[4] = {0, 200, 0, 255}; // rugueux, non metallique
+        // Metal poli : bleu a fond (metallicite 1), vert moyen (rugosite ~0,35). C'est ce
+        // qui rend la poignee sensible a l'eclairage d'environnement - un metal ne voit
+        // que lui.
+        const core::u8 metal[4] = {0, 90, 255, 255};
+        if (!m_metalMaterial.create(1, 1, metal, rhi::TextureFormat::LinearData)) {
+            return false;
+        }
+        // Blanc neutre : une matiere sans carte de couleur se decrit entierement par son
+        // baseColorFactor, et le blanc est l'element neutre de la multiplication.
+        const core::u8 white[4] = {255, 255, 255, 255};
+        if (!m_whiteTexture.create(1, 1, white, rhi::TextureFormat::SrgbColor)) {
+            return false;
+        }
         if (!m_floorMaterial.create(1, 1, material, rhi::TextureFormat::LinearData)) {
             return false;
         }
@@ -950,6 +975,8 @@ private:
     rhi::Texture m_floorMaterial;
     rhi::Texture m_cookie;
     rhi::Texture m_missingTexture;
+    rhi::Texture m_metalMaterial;
+    rhi::Texture m_whiteTexture;
     assets::MaterialData m_modelMaterial;
     rhi::Texture m_stoneNormal;
     rhi::Texture m_woodNormal;

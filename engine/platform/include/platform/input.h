@@ -26,6 +26,7 @@ enum class Key : core::u32 {
     Tab,
     E,
     F,
+    F1,
     F5,
 };
 
@@ -67,6 +68,24 @@ private:
 class Input {
 public:
     void update(InputState& state);
+
+    // Observateur des evenements bruts, appele pour CHAQUE evenement avant que le moteur
+    // ne le traite. Le pointeur est un SDL_Event*, opaque ici pour la meme raison que les
+    // poignees de fenetre.
+    //
+    // Dear ImGui a besoin de voir les evenements tels quels - clavier, souris, texte,
+    // molette - et notre InputState n'en retient qu'une fraction. Plutot que de gonfler
+    // l'etat du moteur avec tout ce dont une interface pourrait avoir besoin, on laisse
+    // l'editeur ecouter la source.
+    //
+    // Un pointeur de fonction et non une std::function : aucune allocation, et l'appel
+    // reste direct dans une boucle qui tourne des milliers de fois par seconde.
+    using RawEventObserver = void (*)(const void* sdlEvent, void* user);
+    void setRawEventObserver(RawEventObserver observer, void* user);
+
+private:
+    RawEventObserver m_observer = nullptr;
+    void* m_observerUser = nullptr;
 };
 
 } // namespace platform

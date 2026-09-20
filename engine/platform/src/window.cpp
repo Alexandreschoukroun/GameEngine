@@ -83,6 +83,8 @@ GLProcAddressLoader Window::glProcAddressLoader() const {
     return &glGetProcAddress;
 }
 
+void* Window::nativeWindow() const { return m_window; }
+
 void Window::setRelativeMouseMode(bool enabled) {
     if (m_window != nullptr) {
         SDL_SetWindowRelativeMouseMode(m_window, enabled);

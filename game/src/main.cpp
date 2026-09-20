@@ -1,5 +1,6 @@
 #include "assets/image.h"
 #include "audio/engine.h"
+#include "editor/editor.h"
 #include "audio/tension.h"
 #include "assets/mesh_data.h"
 #include "core/math.h"
@@ -306,6 +307,12 @@ protected:
         loadRealMaterials();
         registerResources();
 
+        // L'editeur n'est pas indispensable pour jouer : s'il ne demarre pas, on le
+        // signale et le jeu continue sans lui.
+        if (!m_editor.create(window(), inputDevice())) {
+            core::logWarn("le jeu demarre sans editeur");
+        }
+
         // Les modeles EN DERNIER, et ce n'est pas indifferent : un modele dont le fichier
         // ne declare pas de carte de couleur se rabat sur le blanc neutre, et une matiere
         // de repli qui n'existe pas encore le laisserait sans rien a afficher.
@@ -378,8 +385,12 @@ protected:
     void onFrame(core::f64 frameDeltaSeconds) override {
         // Un deplacement souris est deja une quantite, pas un taux : il ne se multiplie
         // pas par le temps ecoule. Le rattrapage de la lampe, lui, en depend.
-        m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
-                             -input().mouseDeltaY() * kLookSensitivity);
+        // Tant que l'interface a la souris, le regard ne bouge pas : cliquer un bouton
+        // ferait sinon pivoter la camera en meme temps.
+        if (!m_editor.capturesMouse()) {
+            m_camera.addRotation(input().mouseDeltaX() * kLookSensitivity,
+                                 -input().mouseDeltaY() * kLookSensitivity);
+        }
         m_flashlight.update(m_camera, frameDeltaSeconds);
 
         // L'oreille suit l'oeil. Sans cet appel, tourner la tete ne changerait rien a ce
@@ -415,7 +426,18 @@ protected:
         }
         m_f5WasDown = f5Down;
 
-        updateGrab();
+        if (!m_editor.capturesMouse()) {
+            updateGrab();
+        }
+
+        // F1 bascule l'editeur. Le curseur suit : une interface se clique, un jeu a la
+        // premiere personne capture la souris - les deux ne peuvent pas coexister.
+        const bool editorKey = input().isKeyDown(platform::Key::F1);
+        if (editorKey && !m_editorKeyWasDown) {
+            m_editor.toggle();
+            window().setRelativeMouseMode(!m_editor.isVisible());
+        }
+        m_editorKeyWasDown = editorKey;
 
         const bool fDown = input().isKeyDown(platform::Key::F);
         if (fDown && !m_fWasDown) {
@@ -451,17 +473,20 @@ protected:
         right.y = 0.0f;
 
         core::Vec3 wish{0.0f, 0.0f, 0.0f};
-        if (input().isKeyDown(Key::W)) {
-            wish += forward;
-        }
-        if (input().isKeyDown(Key::S)) {
-            wish -= forward;
-        }
-        if (input().isKeyDown(Key::D)) {
-            wish += right;
-        }
-        if (input().isKeyDown(Key::A)) {
-            wish -= right;
+        // Taper un nom d'entite ne doit pas faire marcher le joueur.
+        if (!m_editor.capturesKeyboard()) {
+            if (input().isKeyDown(Key::W)) {
+                wish += forward;
+            }
+            if (input().isKeyDown(Key::S)) {
+                wish -= forward;
+            }
+            if (input().isKeyDown(Key::D)) {
+                wish += right;
+            }
+            if (input().isKeyDown(Key::A)) {
+                wish -= right;
+            }
         }
         if (glm::dot(wish, wish) > 0.0f) {
             // Normaliser evite d'aller plus vite en diagonale.
@@ -470,7 +495,8 @@ protected:
 
         // S'accroupir se demande, se relever se NEGOCIE : la physique refuse si le decor
         // s'y oppose, et on reste donc baisse sous un plafond bas.
-        const bool wantsCrouch = input().isKeyDown(Key::LeftControl);
+        const bool wantsCrouch =
+            !m_editor.capturesKeyboard() && input().isKeyDown(Key::LeftControl);
         const core::f32 wantedHeight = wantsCrouch ? kCrouchHeight : kPlayerHeight;
         if (m_physics.characterHeight(m_player) != wantedHeight) {
             m_physics.setCharacterHeight(m_player, wantedHeight);
@@ -490,7 +516,7 @@ protected:
         // provoquerait une chute a grande vitesse.
         core::Vec3 newVelocity{wish.x * speed, onGround ? 0.0f : velocity.y, wish.z * speed};
 
-        if (onGround && input().isKeyDown(Key::Space)) {
+        if (onGround && !m_editor.capturesKeyboard() && input().isKeyDown(Key::Space)) {
             newVelocity.y = kJumpSpeed;
         } else if (!onGround) {
             // La gravite est celle du monde physique, pas une constante recopiee ici : une
@@ -615,10 +641,15 @@ protected:
 
         m_renderer.render(m_device, m_camera, m_drawItems, m_lights, window().width(),
                           window().height());
+
+        // L'interface vient APRES la scene : elle se pose par-dessus l'image finie, et
+        // elle n'a donc aucune raison de passer par le G-buffer.
+        m_editor.draw(m_scene);
     }
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.
     void onShutdown() override {
+        m_editor.destroy();
         m_tension.stop(m_audio);
         m_audio.destroy();
         m_physics.destroy();
@@ -1154,6 +1185,8 @@ private:
     audio::Engine m_audio;
     scene::FootstepPlayer m_footsteps;
     audio::TensionLayer m_tension;
+    editor::Editor m_editor;
+    bool m_editorKeyWasDown = false;
     core::f32 m_tensionLevel = 0.0f;
     core::Vec3 m_lastFeet = kSpawnPosition;
     core::f32 m_eyeHeight = kEyeHeight;

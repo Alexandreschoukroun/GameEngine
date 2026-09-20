@@ -19,6 +19,9 @@ namespace {
 
 // Emplacements d'uniformes de la passe d'eclairage. Un tableau de 8 vec4 occupe 8
 // emplacements consecutifs : d'ou le saut de 7 a 15.
+// Passe de geometrie : 0 = viewProjection, 4 = modele, 8 = matrice des normales.
+constexpr core::u32 kUniformNormalMapStrength = 12;
+// Passe d'eclairage.
 constexpr core::u32 kUniformDebugView = 0;
 constexpr core::u32 kUniformNearFar = 1;
 constexpr core::u32 kUniformInverseViewProjection = 2;
@@ -144,6 +147,16 @@ void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
             m_geometryProgram.setMat3(8, item.normalMatrix);
             device.bindTexture(*item.baseColor, 0);
             device.bindTexture(*item.metallicRoughness, 1);
+
+            // Un objet sans carte de normales garde sa normale geometrique. On coupe par
+            // un uniforme plutot que par un second shader : deux programmes pour une
+            // ligne de difference multiplieraient les changements d'etat GPU sans rien
+            // faire gagner.
+            const bool hasNormalMap = item.normalMap != nullptr;
+            m_geometryProgram.setFloat(kUniformNormalMapStrength, hasNormalMap ? 1.0f : 0.0f);
+            if (hasNormalMap) {
+                device.bindTexture(*item.normalMap, 2);
+            }
             device.draw(m_geometryProgram, *item.mesh);
         }
     }

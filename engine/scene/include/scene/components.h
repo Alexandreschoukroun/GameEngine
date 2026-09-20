@@ -66,6 +66,10 @@ struct MeshRenderer {
     ResourceHandle mesh = kInvalidResource;
     ResourceHandle baseColor = kInvalidResource;
     ResourceHandle metallicRoughness = kInvalidResource;
+    // Facultative, contrairement aux trois autres : une surface sans carte de normales
+    // s'eclaire par sa geometrie seule. C'est pourquoi elle ne se replie pas sur
+    // "missing" - un damier rose interprete comme du relief deformerait la surface.
+    ResourceHandle normalMap = kInvalidResource;
 };
 
 // Emission lumineuse. Ni position ni direction ici : elles viennent du Transform.

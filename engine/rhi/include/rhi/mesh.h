@@ -4,12 +4,17 @@
 
 namespace rhi {
 
-// Format de sommet du moteur : une position, et les coordonnees de texture qui lui
-// correspondent. On ne generalise pas le format tant qu'il n'en existe qu'un seul
-// reellement utilise (regle 5 du SPEC) ; les normales viendront avec l'eclairage en M2.
+// Format de sommet du moteur. On ne generalise pas tant qu'il n'en existe qu'un seul
+// reellement utilise (regle 5 du SPEC) : un systeme de formats configurables couterait
+// bien plus cher que les quelques octets qu'il economiserait ici.
+//
+// La tangente a quatre composantes : xyz est la direction dans laquelle U augmente sur la
+// surface, w vaut +1 ou -1 selon l'orientation de la carte UV. Avec la normale, elles
+// suffisent a reconstruire le repere dans lequel une carte de normales est exprimee.
 struct Vertex {
     core::f32 position[3];
     core::f32 normal[3];
+    core::f32 tangent[4];
     core::f32 uv[2];
 };
 

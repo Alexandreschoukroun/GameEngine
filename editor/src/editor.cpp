@@ -1,5 +1,7 @@
 #include "editor/editor.h"
 
+#include "panels.h"
+
 #include "core/log.h"
 #include "platform/input.h"
 #include "platform/window.h"
@@ -33,12 +35,6 @@ namespace {
 // Version de GLSL declaree aux shaders internes d'ImGui. Elle doit correspondre au
 // contexte cree par la plateforme - OpenGL 4.6 coeur.
 constexpr const char* kGlslVersion = "#version 460 core";
-
-// L'editeur ne doit pas obliger a garder Maj enfonce pour taper un nombre : les champs
-// numeriques d'ImGui avancent d'autant plus vite qu'on glisse loin.
-constexpr float kDragSpeedPosition = 0.01f; // metres par pixel
-constexpr float kDragSpeedAngle = 0.5f;     // degres par pixel
-constexpr float kDragSpeedScale = 0.01f;
 
 void forwardEvent(const void* sdlEvent, void* /*user*/) {
     ImGui_ImplSDL3_ProcessEvent(static_cast<const SDL_Event*>(sdlEvent));
@@ -216,26 +212,6 @@ void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,
                    const renderer::Camera& camera, Editor::Impl& impl);
 void drawGizmo(scene::Scene& scene, const renderer::Camera& camera, scene::Entity selected,
                TranslationGizmo& gizmo);
-
-// Liste, en lecture seule, ce que porte l'entite. Savoir de quoi un objet est fait est la
-// premiere question qu'on se pose devant un editeur.
-void drawComponentSummary(const scene::Scene& scene, scene::Entity entity) {
-    const entt::registry& registry = scene.registry();
-    struct Row {
-        const char* label;
-        bool present;
-    };
-    const Row rows[] = {
-        {"maillage", registry.try_get<scene::MeshRenderer>(entity) != nullptr},
-        {"lumiere", registry.try_get<scene::LightSource>(entity) != nullptr},
-        {"parent", registry.try_get<scene::Parent>(entity) != nullptr},
-    };
-    for (const Row& row : rows) {
-        if (row.present) {
-            ImGui::BulletText("%s", row.label);
-        }
-    }
-}
 
 } // namespace
 
@@ -454,29 +430,7 @@ void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,
             }
             ImGui::Separator();
 
-            auto* transform = scene.registry().try_get<scene::Transform>(selected);
-            if (transform != nullptr && ImGui::CollapsingHeader("Transform",
-                                                                ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::DragFloat3("position", &transform->position.x, kDragSpeedPosition);
-
-                // Des DEGRES a l'ecran, un quaternion en memoire. C'est ce que le SPEC
-                // annoncait des M4 : personne ne raisonne en quaternions, et personne ne
-                // veut d'un format de fichier qui souffre du blocage de cardan.
-                //
-                // La conversion n'a lieu que si l'utilisateur touche au champ : la
-                // refaire a chaque image ferait deriver les dernieres decimales, et un
-                // objet immobile finirait par tourner tout seul.
-                core::Vec3 degrees = glm::degrees(glm::eulerAngles(transform->rotation));
-                if (ImGui::DragFloat3("rotation", &degrees.x, kDragSpeedAngle)) {
-                    transform->rotation = core::Quat(glm::radians(degrees));
-                }
-
-                ImGui::DragFloat3("echelle", &transform->scale.x, kDragSpeedScale);
-            }
-
-            if (ImGui::CollapsingHeader("Composants", ImGuiTreeNodeFlags_DefaultOpen)) {
-                drawComponentSummary(scene, selected);
-            }
+            drawComponentPanels(scene, resources, selected);
         }
     }
     ImGui::End();

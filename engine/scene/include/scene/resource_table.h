@@ -100,6 +100,17 @@ public:
     std::string_view materialName(ResourceHandle handle) const;
     std::string_view collisionMeshName(ResourceHandle handle) const;
 
+    // Nombre de ressources de chaque sorte. Les poignees sont des indices consecutifs
+    // partant de zero : ces compteurs suffisent donc a TOUT enumerer, ce dont l'editeur a
+    // besoin pour proposer un choix. Rien d'autre n'a de raison de les appeler.
+    core::u32 meshCount() const { return static_cast<core::u32>(m_meshes.size()); }
+    core::u32 textureCount() const { return static_cast<core::u32>(m_textures.size()); }
+    core::u32 soundCount() const { return static_cast<core::u32>(m_sounds.size()); }
+    core::u32 materialCount() const { return static_cast<core::u32>(m_materials.size()); }
+    core::u32 collisionMeshCount() const {
+        return static_cast<core::u32>(m_collisionMeshes.size());
+    }
+
 private:
     struct MeshEntry {
         std::string name;

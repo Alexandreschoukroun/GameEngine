@@ -1,6 +1,6 @@
 # 09 — L'éditeur (M6)
 
-*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2). Brique 3 : creer, dupliquer, detruire, enregistrer (section 3).*
+*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2). Brique 3 : créer, dupliquer, détruire, enregistrer (section 3). Brique 4 : l'inspecteur complet (section 4).*
 
 # 1. Brique 1 — l'éditeur existe
 
@@ -198,3 +198,50 @@ Ce n'est pas difficile à corriger — la fonction qui crée les corps ignore d�
 **Ce qui n'existe pas encore** : on ne peut pas **reparenter** à la souris, ni choisir le maillage ou la matière d'une entité créée — elle naît invisible, et il faut encore le fichier pour lui donner un corps. L'inspecteur ne montre toujours que le `Transform` et le nom.
 
 **Ce qui vient après (brique 4)** : l'inspecteur complet — colliders, lumières, sources sonores, et un choix de maillage et de matière parmi ce que la table de ressources connaît. C'est ce qui rendra une entité créée dans l'éditeur réellement utilisable.
+
+---
+
+# 4. Brique 4 — l'inspecteur complet
+
+## 4.1 Le problème
+
+Une entité créée dans l'éditeur naissait **invisible**. On pouvait la nommer, la déplacer, la dupliquer — mais pas lui donner un maillage, une matière, une lumière ou un collider. Il fallait rouvrir le fichier.
+
+C'était le verrou qui empêchait de construire quoi que ce soit entièrement à la souris.
+
+## 4.2 Énumérer les ressources revient à compter
+
+Un choix de maillage suppose de savoir ce que le moteur connaît. La table de ressources n'exposait que la résolution nom → poignée, jamais l'inverse en bloc.
+
+L'ajout est minuscule, et c'est une propriété du modèle qui le permet : les poignées sont des **indices consécutifs partant de zéro**. Énumérer revient donc à compter, et cinq accesseurs de taille suffisent — il n'y a rien à itérer, juste un intervalle à parcourir.
+
+## 4.3 Ce que l'interface refuse de laisser faire
+
+Un inspecteur n'est pas qu'un ensemble de champs : c'est aussi l'endroit où l'on empêche des états impossibles.
+
+- **Un collider de maillage est forcé statique**, et l'interface le dit. Jolt refuse de faire bouger un maillage de triangles, qui n'a ni volume ni masse bien définis ; laisser une case à cocher promettrait quelque chose que le moteur ne tiendra pas.
+- **Le cône intérieur d'un spot ne peut pas dépasser l'extérieur.** Le dégradé entre les deux s'inverserait, et le bord du faisceau deviendrait une découpe nette.
+- **La masse volumique n'apparaît que pour un corps dynamique**, avec son unité. C'est le rappel qui évite de refaire l'erreur du battant de 144 kg.
+- **« (aucune) » est une valeur légitime** dans chaque liste : une carte de normales est facultative, et une source audio sans son est un objet muet qu'on a le droit de vouloir.
+
+## 4.4 Retirer un composant qu'on est en train d'afficher
+
+Le bouton de retrait vit **dans l'en-tête du composant**, donc pendant qu'on dessine ses champs. Le supprimer sur-le-champ libérerait la mémoire que les lignes suivantes vont lire.
+
+La demande est donc enregistrée et appliquée **après** tout le panneau. C'est le même raisonnement que la collecte avant création des corps physiques en M4 : on ne modifie pas ce qu'on est en train de parcourir.
+
+## 4.5 Un test qui a dû être corrigé
+
+Le garde-fou de `demo.json` vérifiait des **comptes exacts** : onze entités affichées, deux sources sonores, un collider de maillage.
+
+Il a échoué dès le premier usage réel de l'éditeur — parce que la scène avait été modifiée et enregistrée, ce qui est précisément le travail d'un éditeur. Un test qui casse à chaque modification légitime est un test qu'on finit par désactiver, et un test désactivé ne protège plus rien.
+
+Il vérifie désormais des **propriétés** : toute entité affichée cite une matière que le jeu connaît, toute source nomme un son enregistré, tout collider de maillage désigne une géométrie existante. Ces énoncés restent vrais quel que soit le contenu de la scène, et ce sont eux qui attrapent la vraie erreur — un nom mal orthographié.
+
+## 4.6 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**116 tests, 36153 assertions**, inchangés : cette brique est de l'interface, et l'interface ne se teste pas utilement en unitaire. Ce qui se teste — l'énumération des ressources, les opérations d'édition — l'était déjà.
+
+**Ce qui n'existe pas encore** : on ne peut pas reparenter à la souris, ni éditer les charnières, secteurs et portails, ni l'environnement de la scène. Les modifications de source audio ne prennent effet qu'au rechargement, et une entité créée n'a toujours pas de corps physique avant le prochain lancement.
+
+**Ce qui vient après (brique 5)** : **sélectionner en cliquant dans la vue**. Passer par la liste est acceptable avec vingt entités, impraticable avec deux cents — et c'est ce qui manque pour qu'un niveau se construise au rythme de la main.

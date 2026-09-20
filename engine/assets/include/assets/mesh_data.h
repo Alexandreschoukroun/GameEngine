@@ -3,9 +3,45 @@
 #include "core/math.h"
 #include "core/types.h"
 
+#include <string>
 #include <vector>
 
 namespace assets {
+
+// Matiere d'une surface, telle que le fichier glTF la decrit.
+//
+// Les FACTEURS multiplient toujours, meme sans texture : c'est la convention du format.
+// Un materiau sans carte de couleur mais avec un baseColorFactor rouge est donc un objet
+// rouge uni - c'est ainsi que sont faits la plupart des modeles simples.
+//
+// Les chemins de texture sont relatifs au fichier glTF, et resolus par le chargeur en
+// chemins complets : l'appelant n'a pas a savoir ou le modele vivait.
+struct MaterialData {
+    std::string name;
+    core::Vec4 baseColorFactor{1.0f, 1.0f, 1.0f, 1.0f};
+    core::f32 metallicFactor = 1.0f;
+    core::f32 roughnessFactor = 1.0f;
+    // Amplitude du relief, que glTF autorise a doser par materiau.
+    core::f32 normalScale = 1.0f;
+
+    std::string baseColorTexture;
+    std::string metallicRoughnessTexture;
+    std::string normalTexture;
+};
+
+// Une portion du maillage qui partage un meme materiau.
+//
+// Un modele telecharge en compte presque toujours plusieurs : un personnage a une peau,
+// des yeux et des vetements. Les fusionner en un seul morceau, comme le moteur le faisait,
+// revenait a leur imposer une seule matiere - donc a afficher les yeux en tissu.
+struct SubMesh {
+    core::u32 firstIndex = 0;
+    core::u32 indexCount = 0;
+    // Indice dans MeshData::materials, ou kNoMaterial.
+    core::u32 material = 0xFFFFFFFFu;
+};
+
+inline constexpr core::u32 kNoMaterial = 0xFFFFFFFFu;
 
 // Geometrie telle qu'elle sort d'un fichier : des donnees en RAM, rien de plus.
 //
@@ -25,6 +61,11 @@ struct MeshData {
     std::vector<core::Vec4> tangents;
     std::vector<core::Vec2> uvs;
     std::vector<core::u32> indices;
+    // Les portions du maillage et les matieres qu'elles utilisent. Un seul tampon de
+    // sommets sert a toutes : ce qui change d'une portion a l'autre, c'est la plage
+    // d'indices a dessiner et le materiau a lier.
+    std::vector<SubMesh> subMeshes;
+    std::vector<MaterialData> materials;
 
     bool isValid() const {
         return !positions.empty() && positions.size() == normals.size() &&

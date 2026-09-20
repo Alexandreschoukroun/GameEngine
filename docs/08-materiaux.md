@@ -1,6 +1,6 @@
 # 08 — Matériaux et relief (M5.5)
 
-*Brique 1 : les cartes de normales et les textures générées (section 1).*
+*Brique 1 : les cartes de normales et les textures générées (section 1). Brique 2 : les matériaux du fichier glTF (section 2).*
 
 Ce jalon intercalaire prépare l'éditeur de M6. Un éditeur qui ne sait éditer que des caisses grises n'apprend rien à personne : avant de pouvoir poser des objets à la souris, il faut que ces objets ressemblent à quelque chose.
 
@@ -124,4 +124,83 @@ Une lecture de texture supplémentaire par pixel visible, et seulement pour les 
 
 Les métaux restent noirs, faute d'environnement à réfléchir. Et il n'existe aucune occlusion ambiante réelle, ni aucune notion de matériau partagée avec la physique et l'audio — alors que les trois systèmes en réclament une depuis M4.
 
-**Ce qui vient après (brique 2)** : lire les **matériaux glTF**. C'est ce qui rendra l'import d'un modèle téléchargé immédiat — poser le fichier, et qu'il s'affiche correctement.
+**Ce qui vient après (brique 2)** : lire les **matériaux glTF**.
+
+---
+
+# 2. Brique 2 — les matériaux du fichier
+
+## 2.1 Le problème
+
+Le moteur lisait la géométrie d'un fichier glTF et **s'arrêtait là**. Les matériaux que le fichier décrit — couleur de base, métallicité, rugosité, carte de normales, et les facteurs qui les multiplient — étaient purement et simplement ignorés.
+
+Conséquence pratique : un modèle téléchargé arrivait avec la bonne forme et les mauvaises couleurs. Il fallait ouvrir le `.gltf` à la main, y lire les noms de fichiers d'images, puis les recopier dans le JSON de scène. Pour un moteur dont l'objectif affiché est qu'un non-développeur crée un jeu, c'est rédhibitoire.
+
+## 2.2 Un matériau, pas trois textures
+
+Jusqu'ici une entité citait trois textures indépendantes. C'était une **mauvaise description du monde** : une matière n'est pas « cette couleur avec ce relief », c'est « du bois ». Les trois textures vont ensemble, elles se changent ensemble, et rien n'empêchait d'en mélanger deux qui n'ont rien à voir.
+
+Le `Material` regroupe donc les trois textures **et** les trois facteurs sous un nom :
+
+```json
+"mesh": { "mesh": "caisse", "material": "bois" }
+```
+
+Trois bénéfices, dans l'ordre d'importance :
+
+- c'est l'unité que les **fichiers glTF apportent** — la correspondance est directe, sans traduction ;
+- c'est l'unité que l'**éditeur de M6** manipulera : on assigne une matière à un objet, on ne lui branche pas trois images ;
+- les facteurs vivent dans la table, **partagés** : régler la rugosité du bois une fois la règle sur tous les objets en bois.
+
+## 2.3 Les facteurs multiplient, toujours
+
+C'est une convention du format qu'il faut connaître : `baseColorFactor`, `metallicFactor` et `roughnessFactor` **multiplient** la texture correspondante, et valent 1 quand le fichier n'en dit rien.
+
+Conséquence utile : un matériau **sans** carte de couleur mais avec un facteur rouge décrit un objet rouge uni. C'est ainsi que sont faits la plupart des modèles simples — beaucoup de fichiers n'ont aucune texture et ne sont que des facteurs.
+
+Le shader de géométrie les applique donc systématiquement. Sur un objet texturé sans facteur particulier, la multiplication par 1 ne change rien ; sur un modèle sans texture, elle fait tout.
+
+## 2.4 Les portions, et pourquoi elles sont nécessaires
+
+Le chargeur fusionnait toutes les primitives en un seul maillage. C'est acceptable pour Suzanne, qui n'a qu'une matière — et faux pour presque tout le reste : un personnage a une peau, des yeux et des vêtements. Les fusionner revenait à afficher les yeux en tissu.
+
+Chaque primitive devient donc une **portion** : même tampon de sommets, plage d'indices propre, matériau propre.
+
+```
+   un seul tampon de sommets
+   [============================================]
+    ^-------portion 0------^^----portion 1------^
+         matériau "peau"        matériau "tissu"
+```
+
+Côté GPU, `glDrawElements` prend un décalage dans le tampon d'indices — c'est un **nombre d'octets**, pas un nombre d'indices, et c'est une source d'erreur classique. Dessiner en plusieurs appels reste bien moins cher que de dupliquer la géométrie.
+
+Un test vérifie la propriété qui compte : les portions se suivent **sans trou ni recouvrement**. Un trou laisserait des triangles jamais dessinés, un recouvrement les dessinerait deux fois.
+
+## 2.5 Les chemins sont relatifs au fichier, pas au répertoire courant
+
+Un `.gltf` référence ses images par des chemins relatifs **à lui-même**. Le chargeur les résout donc à partir de l'emplacement du fichier, et rend des chemins complets.
+
+Sans cela, un modèle rangé dans un sous-dossier ne trouverait aucune de ses images dès qu'on lance le jeu depuis ailleurs — un bug qui ne se manifeste pas sur la machine de développement, et toujours chez les autres.
+
+Effet concret : le jeu ne cite plus qu'**une seule ligne** pour le modèle, le fichier `.gltf`. Ses textures sont déclarées dedans. Changer cette ligne suffit désormais à importer un autre modèle.
+
+## 2.6 Ce qui reste hors de portée
+
+Le moteur **sait** distinguer les portions et leurs matériaux, mais le jeu de démonstration n'affiche encore qu'une matière par maillage. Le pont entre les deux — créer une entité par portion à l'import — appartient à l'éditeur et à un futur import automatique.
+
+Les `data:` URI, qui embarquent une image dans le fichier, sont reconnues et ignorées. Les extensions du format (transmission, specular/glossiness, clearcoat) le sont aussi : seul le modèle métallique/rugueux, que la spécification désigne comme standard, est lu.
+
+## 2.7 Coût
+
+Un appel de dessin par portion au lieu d'un par objet. Les matériaux sont lus une fois au chargement et tiennent dans quelques dizaines d'octets chacun. Trois uniformes de plus par objet, ce qui est négligeable devant un changement de texture.
+
+## 2.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Vérifié** : Suzanne charge ses deux textures depuis les chemins déclarés dans son propre fichier, et le jeu ne connaît plus que le `.gltf`.
+
+**Trois tests** s'ajoutent : le matériau du fichier est lu avec ses facteurs et ses chemins résolus, les portions couvrent chaque indice exactement une fois, et un `MeshRenderer` cite un matériau qui survit à une sauvegarde-rechargement sans casser le déterminisme. **81 tests, 545 assertions** au total.
+
+**Ce qui n'existe pas encore** : pas d'import automatique (une entité par portion), pas d'extensions glTF, pas d'images embarquées. Et surtout, **les métaux sont toujours noirs** : un métal ne fait que réfléchir son environnement, et il n'y en a pas.
+
+**Ce qui vient après (brique 3)** : l'**éclairage d'environnement**. C'est ce qui sortira Suzanne du noir, et ce qui fera exister les métaux en général.

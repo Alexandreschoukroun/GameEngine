@@ -126,6 +126,10 @@ TEST_CASE("The demo scene declares sounds the game actually registers") {
     resources.addSound("souffle", 1);
     resources.addSound("pas_pierre", 2);
     resources.addSound("pas_bois", 3);
+    // Les matieres que le jeu declare a l'initialisation.
+    resources.addMaterial("pierre", scene::Material{});
+    resources.addMaterial("bois", scene::Material{});
+    resources.addMaterial("suzanne", scene::Material{});
 
     scene::Scene scene;
     REQUIRE(scene::loadSceneFromFile(scene, resources,
@@ -148,4 +152,14 @@ TEST_CASE("The demo scene declares sounds the game actually registers") {
         ++surfaces;
     }
     CHECK(surfaces == 2);
+
+    // Et pour les matieres : une entite affichee dont le materiau est introuvable serait
+    // purement et simplement sautee par le rendu, en silence.
+    core::u32 rendered = 0;
+    for (auto [entity, renderer] : scene.registry().view<const scene::MeshRenderer>().each()) {
+        (void)entity;
+        CHECK(renderer.material != scene::kInvalidResource);
+        ++rendered;
+    }
+    CHECK(rendered == 9);
 }

@@ -27,6 +27,18 @@ struct DrawItem {
     // Facultative : sans elle, la surface est eclairee par sa seule normale geometrique.
     // Elle n'a d'effet que si le maillage porte des tangentes.
     const rhi::Texture* normalMap = nullptr;
+
+    // Portion du maillage a dessiner. indexCount = 0 signifie "tout le maillage", ce qui
+    // laisse les objets a matiere unique s'ecrire sans rien preciser.
+    core::u32 firstIndex = 0;
+    core::u32 indexCount = 0;
+
+    // Facteurs du materiau, tels que glTF les definit : ils MULTIPLIENT les textures.
+    // Un materiau sans carte de couleur mais avec un facteur rouge donne un objet rouge
+    // uni - c'est ainsi que sont faits la plupart des modeles simples.
+    core::Vec4 baseColorFactor{1.0f, 1.0f, 1.0f, 1.0f};
+    core::f32 metallicFactor = 1.0f;
+    core::f32 roughnessFactor = 1.0f;
     // Place l'objet dans le monde. Sans elle, toute la geometrie resterait la ou le
     // fichier l'a laissee, et deux exemplaires du meme modele se superposeraient.
     core::Mat4 modelMatrix{1.0f};

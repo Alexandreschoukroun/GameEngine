@@ -24,13 +24,22 @@ layout(binding = 2) uniform sampler2D uNormalMap;
 // garde alors la normale geometrique telle quelle.
 layout(location = 12) uniform float uNormalMapStrength;
 
+// Facteurs du materiau glTF. Ils MULTIPLIENT les textures, et valent 1 quand le fichier
+// n'en dit rien - un materiau sans carte de couleur mais avec un facteur rouge decrit donc
+// un objet rouge uni, ce qui est le cas de beaucoup de modeles simples.
+layout(location = 13) uniform vec4 uBaseColorFactor;
+layout(location = 14) uniform float uMetallicFactor;
+layout(location = 15) uniform float uRoughnessFactor;
+
 in vec3 vNormal;
 in vec4 vTangent;
 in vec2 vTexCoord;
 
 void main() {
-    vec3 baseColor = texture(uAlbedo, vTexCoord).rgb;
+    vec3 baseColor = texture(uAlbedo, vTexCoord).rgb * uBaseColorFactor.rgb;
     vec2 metallicRoughness = texture(uMetallicRoughness, vTexCoord).bg;
+    metallicRoughness.x *= uMetallicFactor;
+    metallicRoughness.y *= uRoughnessFactor;
 
     // L'interpolation entre trois sommets raccourcit les normales : il faut renormaliser.
     // En 16 bits flottants on stocke les valeurs negatives telles quelles, sans l'encodage

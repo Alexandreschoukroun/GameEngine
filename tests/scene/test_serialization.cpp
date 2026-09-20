@@ -187,3 +187,44 @@ TEST_CASE("An audio source survives a save and a load") {
     // Et le fichier reecrit est identique : une source audio ne casse pas le determinisme.
     CHECK(scene::saveSceneToString(reloaded, resources) == written);
 }
+
+TEST_CASE("A mesh renderer cites one material, not three textures") {
+    scene::ResourceTable resources;
+    const scene::ResourceHandle mesh = resources.addMesh("caisse", nullptr);
+    // La table refuse un maillage nul : on verifie au passage qu'elle protege ses entrees.
+    CHECK(mesh == scene::kInvalidResource);
+
+    scene::Material wood;
+    wood.baseColorFactor = core::Vec4{0.8f, 0.6f, 0.4f, 1.0f};
+    wood.metallicFactor = 0.0f;
+    wood.roughnessFactor = 0.85f;
+    const scene::ResourceHandle material = resources.addMaterial("bois", wood);
+    REQUIRE(material != scene::kInvalidResource);
+
+    scene::Scene scene;
+    const scene::Entity crate = makeEntity(scene, "caisse", 0x00c1, core::Vec3{1.0f, 0.0f, 2.0f});
+    scene.registry().emplace<scene::MeshRenderer>(
+        crate, scene::MeshRenderer{scene::kInvalidResource, material});
+
+    const std::string written = scene::saveSceneToString(scene, resources);
+    // Le fichier cite un NOM de matiere : renommer un fichier de texture sur le disque ne
+    // casse donc aucune scene.
+    CHECK(written.find("\"material\": \"bois\"") != std::string::npos);
+
+    scene::Scene reloaded;
+    REQUIRE(scene::loadSceneFromString(reloaded, resources, written));
+    const scene::Entity loaded = reloaded.findByName("caisse");
+    REQUIRE(loaded != scene::kInvalidEntity);
+    const auto* renderer = reloaded.registry().try_get<scene::MeshRenderer>(loaded);
+    REQUIRE(renderer != nullptr);
+    CHECK(renderer->material == material);
+
+    // Les facteurs vivent dans la TABLE, pas dans la scene : deux entites qui partagent
+    // une matiere partagent ses reglages, et les changer une fois les change partout.
+    const scene::Material* resolved = resources.material(renderer->material);
+    REQUIRE(resolved != nullptr);
+    CHECK(resolved->roughnessFactor == doctest::Approx(0.85f));
+    CHECK(resolved->metallicFactor == doctest::Approx(0.0f));
+
+    CHECK(scene::saveSceneToString(reloaded, resources) == written);
+}

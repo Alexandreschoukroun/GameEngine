@@ -61,6 +61,20 @@ ResourceHandle ResourceTable::addSound(std::string_view name, audio::SoundHandle
     return static_cast<ResourceHandle>(m_sounds.size() - 1);
 }
 
+ResourceHandle ResourceTable::addMaterial(std::string_view name, const Material& material) {
+    if (name.empty()) {
+        core::logError("ResourceTable : nom de materiau manquant");
+        return kInvalidResource;
+    }
+    const ResourceHandle existing = findMaterial(name);
+    if (existing != kInvalidResource) {
+        m_materials[existing].material = material;
+        return existing;
+    }
+    m_materials.push_back(MaterialEntry{std::string(name), material});
+    return static_cast<ResourceHandle>(m_materials.size() - 1);
+}
+
 ResourceHandle ResourceTable::findMesh(std::string_view name) const {
     return findByName(m_meshes, name);
 }
@@ -73,6 +87,10 @@ ResourceHandle ResourceTable::findSound(std::string_view name) const {
     return findByName(m_sounds, name);
 }
 
+ResourceHandle ResourceTable::findMaterial(std::string_view name) const {
+    return findByName(m_materials, name);
+}
+
 const rhi::Mesh* ResourceTable::mesh(ResourceHandle handle) const {
     return handle < m_meshes.size() ? m_meshes[handle].mesh : nullptr;
 }
@@ -83,6 +101,10 @@ const rhi::Texture* ResourceTable::texture(ResourceHandle handle) const {
 
 audio::SoundHandle ResourceTable::sound(ResourceHandle handle) const {
     return handle < m_sounds.size() ? m_sounds[handle].sound : audio::kInvalidSound;
+}
+
+const Material* ResourceTable::material(ResourceHandle handle) const {
+    return handle < m_materials.size() ? &m_materials[handle].material : nullptr;
 }
 
 std::string_view ResourceTable::meshName(ResourceHandle handle) const {
@@ -98,6 +120,11 @@ std::string_view ResourceTable::textureName(ResourceHandle handle) const {
 std::string_view ResourceTable::soundName(ResourceHandle handle) const {
     return handle < m_sounds.size() ? std::string_view(m_sounds[handle].name)
                                     : std::string_view();
+}
+
+std::string_view ResourceTable::materialName(ResourceHandle handle) const {
+    return handle < m_materials.size() ? std::string_view(m_materials[handle].name)
+                                       : std::string_view();
 }
 
 } // namespace scene

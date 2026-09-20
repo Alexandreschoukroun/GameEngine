@@ -98,3 +98,45 @@ TEST_CASE("A mesh without tangents stays valid, a partial one does not") {
     mesh.tangents = {core::Vec4{1.0f, 0.0f, 0.0f, 1.0f}};
     CHECK_FALSE(mesh.isValid());
 }
+
+TEST_CASE("The material described in the file is read") {
+    assets::MeshData mesh;
+    REQUIRE(loadSuzanne(mesh));
+
+    // Suzanne n'a qu'une matiere, donc une seule portion : c'est le cas simple. Un modele
+    // telecharge en aura plusieurs - une peau, des yeux, des vetements.
+    REQUIRE(mesh.materials.size() == 1);
+    REQUIRE(mesh.subMeshes.size() == 1);
+
+    const assets::MaterialData& material = mesh.materials[0];
+    // Les facteurs multiplient toujours, meme sans texture : c'est la convention glTF.
+    CHECK(material.baseColorFactor.r == doctest::Approx(1.0f));
+    CHECK(material.baseColorFactor.a == doctest::Approx(1.0f));
+    CHECK(material.metallicFactor >= 0.0f);
+    CHECK(material.roughnessFactor >= 0.0f);
+
+    // Les chemins sont resolus par rapport AU FICHIER glTF, pas au repertoire courant :
+    // sans cela, un modele range dans un sous-dossier ne trouverait aucune de ses images.
+    CHECK(material.baseColorTexture.find("Suzanne_BaseColor") != std::string::npos);
+    CHECK(material.metallicRoughnessTexture.find("Suzanne_MetallicRoughness") !=
+          std::string::npos);
+    CHECK(material.baseColorTexture.find("models") != std::string::npos);
+}
+
+TEST_CASE("Sub-meshes cover every index exactly once") {
+    assets::MeshData mesh;
+    REQUIRE(loadSuzanne(mesh));
+    REQUIRE(!mesh.subMeshes.empty());
+
+    // Les portions se suivent sans trou ni recouvrement : un trou laisserait des triangles
+    // jamais dessines, un recouvrement les dessinerait deux fois.
+    core::u32 expected = 0;
+    for (const assets::SubMesh& sub : mesh.subMeshes) {
+        CHECK(sub.firstIndex == expected);
+        CHECK(sub.indexCount > 0);
+        expected += sub.indexCount;
+        // Chaque portion designe un materiau existant, ou aucun.
+        CHECK((sub.material == assets::kNoMaterial || sub.material < mesh.materials.size()));
+    }
+    CHECK(expected == mesh.indices.size());
+}

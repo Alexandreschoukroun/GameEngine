@@ -336,9 +336,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "bois_couleur",
-        "metallicRoughness": "mat_rugueux",
-        "normalMap": "bois_relief"
+        "material": "bois"
       },
       "collider": {
         "shape": "box",
@@ -373,9 +371,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "bois_couleur",
-        "metallicRoughness": "mat_rugueux",
-        "normalMap": "bois_relief"
+        "material": "bois"
       },
       "collider": {
         "shape": "box",
@@ -410,9 +406,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "bois_couleur",
-        "metallicRoughness": "mat_rugueux",
-        "normalMap": "bois_relief"
+        "material": "bois"
       },
       "collider": {
         "shape": "box",
@@ -447,9 +441,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "bois_couleur",
-        "metallicRoughness": "mat_rugueux",
-        "normalMap": "bois_relief"
+        "material": "bois"
       },
       "collider": {
         "shape": "box",
@@ -484,9 +476,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "bois_couleur",
-        "metallicRoughness": "mat_rugueux",
-        "normalMap": "bois_relief"
+        "material": "bois"
       },
       "collider": {
         "shape": "box",
@@ -521,9 +511,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "bois_couleur",
-        "metallicRoughness": "mat_rugueux",
-        "normalMap": "bois_relief"
+        "material": "bois"
       },
       "collider": {
         "shape": "box",
@@ -602,8 +590,7 @@
       },
       "mesh": {
         "mesh": "suzanne",
-        "baseColor": "suzanne_couleur",
-        "metallicRoughness": "suzanne_matiere"
+        "material": "suzanne"
       }
     },
     {
@@ -629,9 +616,7 @@
       },
       "mesh": {
         "mesh": "piece",
-        "baseColor": "pierre_couleur",
-        "metallicRoughness": "mat_rugueux",
-        "normalMap": "pierre_relief"
+        "material": "pierre"
       }
     },
     {
@@ -657,8 +642,7 @@
       },
       "mesh": {
         "mesh": "suzanne",
-        "baseColor": "suzanne_couleur",
-        "metallicRoughness": "suzanne_matiere"
+        "material": "suzanne"
       }
     },
     {

@@ -2,6 +2,8 @@
 
 #include "panels.h"
 
+#include "editor/picking.h"
+
 #include "core/log.h"
 #include "platform/input.h"
 #include "platform/window.h"
@@ -212,6 +214,8 @@ void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,
                    const renderer::Camera& camera, Editor::Impl& impl);
 void drawGizmo(scene::Scene& scene, const renderer::Camera& camera, scene::Entity selected,
                TranslationGizmo& gizmo);
+void pickOnClick(scene::Scene& scene, const scene::ResourceTable& resources,
+                 const renderer::Camera& camera, Editor::Impl& impl);
 
 } // namespace
 
@@ -234,7 +238,10 @@ void Editor::draw(scene::Scene& scene, const scene::ResourceTable& resources,
 
     if (impl.visible) {
         drawHierarchy(scene, resources, camera, impl);
+        // Le gizmo D'ABORD : il doit avoir la priorite sur la designation, sans quoi
+        // attraper un bras selectionnerait ce qu'il y a derriere.
         drawGizmo(scene, camera, impl.selected, impl.gizmo);
+        pickOnClick(scene, resources, camera, impl);
     }
 
     ImGui::Render();
@@ -372,6 +379,35 @@ void drawToolbar(scene::Scene& scene, const scene::ResourceTable& resources,
         ImGui::SameLine();
         ImGui::TextDisabled("%s", impl.saveMessage.c_str());
     }
+}
+
+// Un clic dans la vue designe l'objet vise. Trois cas s'en excluent, et chacun pour une
+// raison differente.
+void pickOnClick(scene::Scene& scene, const scene::ResourceTable& resources,
+                 const renderer::Camera& camera, Editor::Impl& impl) {
+    const ImGuiIO& io = ImGui::GetIO();
+    // Sur un panneau : le clic appartient a l'interface.
+    if (io.WantCaptureMouse) {
+        return;
+    }
+    // Sur le gizmo : on manipule la selection courante, on n'en change pas.
+    if (impl.gizmo.isDragging() || impl.gizmo.hovered() != GizmoAxis::None) {
+        return;
+    }
+    if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        return;
+    }
+
+    const core::Mat4 inverse = glm::inverse(camera.viewProjectionMatrix());
+    const Ray ray = screenRay(inverse, core::Vec2(io.MousePos.x, io.MousePos.y),
+                              core::Vec2(io.DisplaySize.x, io.DisplaySize.y));
+
+    // Les matrices monde doivent etre a jour : on teste contre la position affichee, pas
+    // contre celle d'avant le dernier deplacement.
+    scene.updateWorldTransforms();
+    // Cliquer dans le vide DESELECTIONNE : c'est le geste attendu pour sortir d'une
+    // selection, et le seul qui n'exige pas de viser autre chose.
+    impl.selected = pickEntity(scene, resources, ray);
 }
 
 void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,

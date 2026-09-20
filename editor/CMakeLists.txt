@@ -5,6 +5,7 @@ add_library(editor STATIC
     src/editor.cpp
     src/gizmo.cpp
     src/panels.cpp
+    src/picking.cpp
 )
 
 target_include_directories(editor PUBLIC

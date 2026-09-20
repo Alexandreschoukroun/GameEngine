@@ -171,6 +171,19 @@ bool appendPrimitive(const cgltf_primitive& primitive, const core::Mat4& worldMa
 
 } // namespace
 
+bool MeshData::computeBounds(core::Vec3& outMin, core::Vec3& outMax) const {
+    if (positions.empty()) {
+        return false;
+    }
+    outMin = positions[0];
+    outMax = positions[0];
+    for (const core::Vec3& position : positions) {
+        outMin = glm::min(outMin, position);
+        outMax = glm::max(outMax, position);
+    }
+    return true;
+}
+
 bool generateTangents(MeshData& mesh) {
     if (mesh.positions.empty() || mesh.uvs.size() != mesh.positions.size() ||
         mesh.indices.size() < 3) {

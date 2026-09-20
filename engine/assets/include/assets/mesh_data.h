@@ -77,6 +77,16 @@ struct MeshData {
     }
 
     bool hasTangents() const { return tangents.size() == positions.size(); }
+
+    // Boite englobante alignee sur les axes, dans le repere du modele.
+    //
+    // Elle sert a designer un objet du bout de la souris : tester un rayon contre une
+    // boite coute quelques comparaisons, contre chaque triangle cent mille fois plus.
+    // Pour choisir un objet, la boite suffit largement - on ne demande pas au pixel pres
+    // quel objet on vise, on demande lequel est devant.
+    //
+    // Rend faux si le maillage est vide.
+    bool computeBounds(core::Vec3& outMin, core::Vec3& outMax) const;
 };
 
 // Calcule des tangentes a partir des positions et des coordonnees de texture.

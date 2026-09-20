@@ -126,7 +126,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "plancher"
       },
       "collider": {
         "shape": "box",
@@ -164,7 +164,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "plancher"
       },
       "collider": {
         "shape": "box",
@@ -199,7 +199,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "plancher"
       },
       "collider": {
         "shape": "box",
@@ -234,7 +234,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "plancher"
       },
       "collider": {
         "shape": "box",
@@ -269,7 +269,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "plancher"
       },
       "collider": {
         "shape": "box",
@@ -304,7 +304,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "plancher"
       },
       "collider": {
         "shape": "box",
@@ -339,7 +339,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "plancher"
       },
       "collider": {
         "shape": "box",
@@ -418,7 +418,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "laiton"
+        "material": "metal_rouille"
       }
     },
     {
@@ -471,7 +471,7 @@
       },
       "mesh": {
         "mesh": "piece",
-        "material": "pierre"
+        "material": "beton"
       },
       "collider": {
         "shape": "mesh",

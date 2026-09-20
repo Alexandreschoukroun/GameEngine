@@ -52,6 +52,11 @@ public:
     // Matrice monde d'une entite, telle que calculee par la derniere passe.
     core::Mat4 worldMatrix(Entity entity) const;
 
+    // L'environnement n'appartient a aucune entite : c'est une propriete de la scene
+    // entiere, comme le serait plus tard un brouillard ou une reverberation globale.
+    Environment& environment() { return m_environment; }
+    const Environment& environment() const { return m_environment; }
+
     // Acces direct au registre pour attacher des composants et parcourir des vues.
     // Les systemes travaillent dessus ; il n'y a aucune raison de le cacher.
     entt::registry& registry() { return m_registry; }
@@ -61,6 +66,7 @@ private:
     core::Mat4 computeWorld(Entity entity, core::u32 epoch);
 
     entt::registry m_registry;
+    Environment m_environment;
     core::u32 m_epoch = 0;
 };
 

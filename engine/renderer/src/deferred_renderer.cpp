@@ -37,6 +37,8 @@ constexpr core::u32 kUniformLightParams = 31;
 constexpr core::u32 kUniformShadowViewProjection = 39; // une mat4 occupe 39 a 42
 constexpr core::u32 kUniformShadowLightIndex = 43;
 constexpr core::u32 kUniformHasCookie = 44;
+constexpr core::u32 kUniformEnvironmentSky = 45;
+constexpr core::u32 kUniformEnvironmentGround = 46;
 
 // 1024 x 1024 en 24 bits : 3 Mo. Doubler la resolution quadruple la memoire.
 constexpr core::u32 kShadowResolution = 1024;
@@ -230,6 +232,12 @@ void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
         // texture exactement comme elle regarde sa carte de profondeur.
         const bool hasCookie = m_spotCookie != nullptr && shadowLightIndex >= 0;
         m_lightingProgram.setInt(kUniformHasCookie, hasCookie ? 1 : 0);
+        // L'intensite voyage dans le canal alpha du ciel : un uniforme de moins a poser,
+        // et les deux informations changent toujours ensemble.
+        m_lightingProgram.setVec4(kUniformEnvironmentSky,
+                                  core::Vec4(m_environmentSky, m_environmentIntensity));
+        m_lightingProgram.setVec4(kUniformEnvironmentGround,
+                                  core::Vec4(m_environmentGround, 0.0f));
         if (hasCookie) {
             device.bindTexture(*m_spotCookie, kCookieTextureUnit);
         }

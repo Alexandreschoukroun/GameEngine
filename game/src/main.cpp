@@ -294,6 +294,12 @@ protected:
         }
         m_statue = m_scene.findByName("statue");
 
+        // L'environnement est une donnee de la scene, comme les lumieres : le jeu ne fait
+        // que la transmettre au renderer.
+        const scene::Environment& environment = m_scene.environment();
+        m_renderer.setEnvironment(environment.skyColor, environment.groundColor,
+                                  environment.intensity);
+
         if (!m_physics.create()) {
             return false;
         }

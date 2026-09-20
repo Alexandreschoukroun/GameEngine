@@ -77,6 +77,16 @@ public:
     // la recreer.
     bool resize(core::u32 width, core::u32 height);
 
+    // Lumiere que l'environnement renvoie : ce que les murs, le sol et le plafond se
+    // reflechissent entre eux. Sans elle, tout metal est noir - un metal n'a pas de
+    // composante diffuse, il ne fait que reflechir.
+    void setEnvironment(const core::Vec3& skyColor, const core::Vec3& groundColor,
+                        core::f32 intensity) {
+        m_environmentSky = skyColor;
+        m_environmentGround = groundColor;
+        m_environmentIntensity = intensity;
+    }
+
     void setDebugView(DebugView view) { m_debugView = view; }
     DebugView debugView() const { return m_debugView; }
 
@@ -105,6 +115,9 @@ private:
     core::Mat4 m_shadowViewProjection{1.0f};
     const rhi::Texture* m_spotCookie = nullptr;
     DebugView m_debugView = DebugView::Lit;
+    core::Vec3 m_environmentSky{0.05f, 0.055f, 0.07f};
+    core::Vec3 m_environmentGround{0.02f, 0.018f, 0.015f};
+    core::f32 m_environmentIntensity = 1.0f;
 };
 
 } // namespace renderer

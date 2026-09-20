@@ -70,6 +70,20 @@ struct MeshRenderer {
     ResourceHandle material = kInvalidResource;
 };
 
+// Ce que l'environnement renvoie a la scene : la lumiere que les murs, le sol et le
+// plafond se reflechissent entre eux, et que les lampes ne decrivent pas.
+//
+// Ce n'est pas une entite mais une propriete de la SCENE : il n'y en a qu'un, et il n'a
+// pas de position. Deux couleurs suffisent - ce qui vient d'en haut, ce qui vient d'en
+// bas - pour qu'un metal ait quelque chose a reflechir.
+struct Environment {
+    core::Vec3 skyColor{0.05f, 0.055f, 0.07f};
+    core::Vec3 groundColor{0.02f, 0.018f, 0.015f};
+    // Un reglage unique pour doser l'ensemble sans toucher aux teintes. Dans un jeu
+    // d'horreur, c'est lui qui decide si l'obscurite reste noire.
+    core::f32 intensity = 1.0f;
+};
+
 // Emission lumineuse. Ni position ni direction ici : elles viennent du Transform.
 struct LightSource {
     core::Vec3 color{1.0f, 1.0f, 1.0f};

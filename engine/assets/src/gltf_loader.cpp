@@ -58,6 +58,8 @@ bool appendPrimitive(const cgltf_primitive& primitive, const core::Mat4& worldMa
     if (positions == nullptr || normals == nullptr || uvs == nullptr) {
         return false;
     }
+    // Facultative : un maillage sans tangentes s'eclaire par sa seule normale.
+    const cgltf_accessor* tangents = findAttribute(primitive, cgltf_attribute_type_tangent);
 
     // Les indices reperent des sommets a l'interieur de cette primitive : il faut les
     // decaler de ce qui est deja accumule.
@@ -69,6 +71,9 @@ bool appendPrimitive(const cgltf_primitive& primitive, const core::Mat4& worldMa
         !readVectors<core::Vec2, 2>(uvs, out.uvs)) {
         return false;
     }
+    if (tangents != nullptr && !readVectors<core::Vec4, 4>(tangents, out.tangents)) {
+        return false;
+    }
 
     // Une normale ne se transforme pas comme un point : avec une mise a l'echelle non
     // uniforme, la matrice monde la ferait sortir de la perpendiculaire a la surface.
@@ -77,9 +82,20 @@ bool appendPrimitive(const cgltf_primitive& primitive, const core::Mat4& worldMa
 
     // La transformation du noeud amene la geometrie a sa place dans la scene. L'ignorer
     // empilerait tous les objets a l'origine.
+    // Une tangente, elle, se transforme comme une DIRECTION ordinaire : elle est couchee
+    // dans la surface, pas perpendiculaire a elle. Lui appliquer la matrice des normales
+    // la sortirait du plan de la surface, et le repere tangent serait faux.
+    const core::Mat3 linear(worldMatrix);
+
     for (std::size_t i = firstVertex; i < out.positions.size(); ++i) {
         out.positions[i] = core::Vec3(worldMatrix * core::Vec4(out.positions[i], 1.0f));
         out.normals[i] = glm::normalize(normalMatrix * out.normals[i]);
+        if (i < out.tangents.size()) {
+            const core::Vec3 direction = glm::normalize(linear * core::Vec3(out.tangents[i]));
+            // Le signe w survit a la transformation : il decrit l'orientation de la carte
+            // UV, que deplacer l'objet ne change pas.
+            out.tangents[i] = core::Vec4(direction, out.tangents[i].w);
+        }
     }
 
     for (cgltf_size i = 0; i < primitive.indices->count; ++i) {
@@ -126,6 +142,15 @@ bool loadGltfMesh(const char* path, MeshData& out) {
     }
 
     cgltf_free(data);
+
+    // Toutes les primitives sont fusionnees en un seul maillage : si l'une d'elles n'avait
+    // pas de tangentes, le tableau est incomplet. On le vide plutot que de le completer au
+    // hasard - un relief invente sur une moitie du modele se verrait davantage qu'une
+    // absence de relief partout.
+    if (!out.tangents.empty() && out.tangents.size() != out.positions.size()) {
+        core::logWarn("glTF : tangentes partielles, relief desactive pour ce maillage");
+        out.tangents.clear();
+    }
 
     if (!ok || !out.isValid()) {
         core::logError("geometrie glTF inexploitable (primitives non triangulaires, ou "

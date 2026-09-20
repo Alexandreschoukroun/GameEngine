@@ -336,8 +336,9 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "damier",
-        "metallicRoughness": "mat_rugueux"
+        "baseColor": "bois_couleur",
+        "metallicRoughness": "mat_rugueux",
+        "normalMap": "bois_relief"
       },
       "collider": {
         "shape": "box",
@@ -372,8 +373,9 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "damier",
-        "metallicRoughness": "mat_rugueux"
+        "baseColor": "bois_couleur",
+        "metallicRoughness": "mat_rugueux",
+        "normalMap": "bois_relief"
       },
       "collider": {
         "shape": "box",
@@ -408,8 +410,9 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "damier",
-        "metallicRoughness": "mat_rugueux"
+        "baseColor": "bois_couleur",
+        "metallicRoughness": "mat_rugueux",
+        "normalMap": "bois_relief"
       },
       "collider": {
         "shape": "box",
@@ -444,8 +447,9 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "damier",
-        "metallicRoughness": "mat_rugueux"
+        "baseColor": "bois_couleur",
+        "metallicRoughness": "mat_rugueux",
+        "normalMap": "bois_relief"
       },
       "collider": {
         "shape": "box",
@@ -480,8 +484,9 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "damier",
-        "metallicRoughness": "mat_rugueux"
+        "baseColor": "bois_couleur",
+        "metallicRoughness": "mat_rugueux",
+        "normalMap": "bois_relief"
       },
       "collider": {
         "shape": "box",
@@ -516,8 +521,9 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "baseColor": "damier",
-        "metallicRoughness": "mat_rugueux"
+        "baseColor": "bois_couleur",
+        "metallicRoughness": "mat_rugueux",
+        "normalMap": "bois_relief"
       },
       "collider": {
         "shape": "box",
@@ -623,8 +629,9 @@
       },
       "mesh": {
         "mesh": "piece",
-        "baseColor": "damier",
-        "metallicRoughness": "mat_rugueux"
+        "baseColor": "pierre_couleur",
+        "metallicRoughness": "mat_rugueux",
+        "normalMap": "pierre_relief"
       }
     },
     {

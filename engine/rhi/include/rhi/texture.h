@@ -31,6 +31,10 @@ public:
     // Meme regle que Mesh et ShaderProgram : a appeler tant que le contexte GPU est vivant.
     void destroy();
 
+    // Vrai si la texture existe sur le GPU. Utile pour les textures FACULTATIVES, comme
+    // une carte de normales : l'appelant doit pouvoir savoir s'il a quelque chose a lier.
+    bool isValid() const { return m_texture != 0; }
+
 private:
     friend class Device;
 

@@ -82,6 +82,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | **M4** | Physique Jolt, character controller, portes, saisie d'objets | ✅ Terminé |
 | M4.5 | Animation squelettique : squelettes glTF, skinning GPU, lecteur d'animation | À venir |
 | **M5** | Audio : spatialisation, occlusion, matériaux de pas, couche de tension | ✅ Terminé |
+| M5.5 | Matériaux et vrais assets : relief, matériaux glTF, éclairage d'environnement | En cours |
 | M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | À venir |
 | M7 | Lua, triggers, navmesh, perception et IA de l'antagoniste | À venir |
 | M8 | Brouillard volumétrique, post-process, accessibilité | À venir |
@@ -139,6 +140,7 @@ Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minu
 - [`docs/05-scene.md`](docs/05-scene.md) : la scène — entités, hiérarchie, sérialisation, secteurs
 - [`docs/06-physique.md`](docs/06-physique.md) : la physique — Jolt, colliders, personnage, saisie, portes
 - [`docs/07-audio.md`](docs/07-audio.md) : l'audio — voix, sources de scène, occlusion, matériaux, tension
+- [`docs/08-materiaux.md`](docs/08-materiaux.md) : matériaux et relief — espace tangent, cartes de normales, textures générées
 - [`docs/build-et-ci.md`](docs/build-et-ci.md) : build, tests et intégration continue
 
 ## Licence

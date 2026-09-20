@@ -24,6 +24,9 @@ struct DrawItem {
     const rhi::Mesh* mesh = nullptr;
     const rhi::Texture* baseColor = nullptr;
     const rhi::Texture* metallicRoughness = nullptr;
+    // Facultative : sans elle, la surface est eclairee par sa seule normale geometrique.
+    // Elle n'a d'effet que si le maillage porte des tangentes.
+    const rhi::Texture* normalMap = nullptr;
     // Place l'objet dans le monde. Sans elle, toute la geometrie resterait la ou le
     // fichier l'a laissee, et deux exemplaires du meme modele se superposeraient.
     core::Mat4 modelMatrix{1.0f};

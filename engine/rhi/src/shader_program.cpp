@@ -119,6 +119,13 @@ void ShaderProgram::setInt(core::u32 location, core::i32 value) {
     glProgramUniform1i(m_program, static_cast<GLint>(location), value);
 }
 
+void ShaderProgram::setFloat(core::u32 location, core::f32 value) {
+    if (m_program == 0) {
+        return;
+    }
+    glProgramUniform1f(m_program, static_cast<GLint>(location), value);
+}
+
 void ShaderProgram::setVec2(core::u32 location, const core::Vec2& value) {
     if (m_program == 0) {
         return;

@@ -94,6 +94,16 @@ constexpr const char* kWoodStepSound = "audio/pas_bois.wav";
 // pas sans qu'on ait rien d'autre a faire.
 constexpr core::f32 kStrideLength = 0.85f;
 constexpr core::f32 kStepVolume = 0.45f;
+// Cartes de normales. Elles ne contiennent pas des couleurs mais des DIRECTIONS : elles se
+// chargent donc en format lineaire. Les brancher en sRGB ferait decoder chaque composante
+// par le GPU et donnerait un relief faux, penche dans la mauvaise direction.
+constexpr const char* kStoneNormalPath = "textures/pierre_normal.png";
+constexpr const char* kWoodNormalPath = "textures/bois_normal.png";
+// Les couleurs de base assorties. Elles sont tirees du MEME relief que les cartes de
+// normales : si la couleur dessinait des joints a un endroit et le relief a un autre, la
+// surface se contredirait et l'oeil le verrait aussitot.
+constexpr const char* kStoneColorPath = "textures/pierre_couleur.png";
+constexpr const char* kWoodColorPath = "textures/bois_couleur.png";
 // Les trois couches de la musique de tension, jouees en permanence et melangees selon une
 // seule variable.
 constexpr const char* kTensionSounds[3] = {
@@ -134,10 +144,15 @@ void addQuad(std::vector<rhi::Vertex>& vertices, std::vector<core::u32>& indices
              core::f32 vScale) {
     const auto base = static_cast<core::u32>(vertices.size());
     const core::Vec3 n = normal;
-    vertices.push_back({{a.x, a.y, a.z}, {n.x, n.y, n.z}, {0.0f, 0.0f}});
-    vertices.push_back({{b.x, b.y, b.z}, {n.x, n.y, n.z}, {uScale, 0.0f}});
-    vertices.push_back({{c.x, c.y, c.z}, {n.x, n.y, n.z}, {uScale, vScale}});
-    vertices.push_back({{d.x, d.y, d.z}, {n.x, n.y, n.z}, {0.0f, vScale}});
+    // La tangente est la direction dans laquelle U augmente. Sur ce quad, U va de a vers
+    // b : la calculer plutot que de la coder en dur garde les quads corrects quelle que
+    // soit leur orientation dans la piece.
+    const core::Vec3 t = glm::normalize(b - a);
+    const core::f32 w = 1.0f; // aucun de nos quads n'a d'UV miroitees
+    vertices.push_back({{a.x, a.y, a.z}, {n.x, n.y, n.z}, {t.x, t.y, t.z, w}, {0.0f, 0.0f}});
+    vertices.push_back({{b.x, b.y, b.z}, {n.x, n.y, n.z}, {t.x, t.y, t.z, w}, {uScale, 0.0f}});
+    vertices.push_back({{c.x, c.y, c.z}, {n.x, n.y, n.z}, {t.x, t.y, t.z, w}, {uScale, vScale}});
+    vertices.push_back({{d.x, d.y, d.z}, {n.x, n.y, n.z}, {t.x, t.y, t.z, w}, {0.0f, vScale}});
     for (core::u32 index : {0u, 1u, 2u, 0u, 2u, 3u}) {
         indices.push_back(base + index);
     }
@@ -201,8 +216,14 @@ std::vector<rhi::Vertex> toVertices(const assets::MeshData& meshData) {
         const core::Vec3& position = meshData.positions[i];
         const core::Vec3& normal = meshData.normals[i];
         const core::Vec2& uv = meshData.uvs[i];
-        vertices[i] = rhi::Vertex{
-            {position.x, position.y, position.z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}};
+        // Sans tangentes dans le fichier, on en ecrit une nulle : le shader ne s'en sert
+        // pas, puisqu'un maillage sans tangentes ne recoit pas de carte de normales.
+        const core::Vec4 tangent =
+            meshData.hasTangents() ? meshData.tangents[i] : core::Vec4{0.0f, 0.0f, 0.0f, 1.0f};
+        vertices[i] = rhi::Vertex{{position.x, position.y, position.z},
+                                  {normal.x, normal.y, normal.z},
+                                  {tangent.x, tangent.y, tangent.z, tangent.w},
+                                  {uv.x, uv.y}};
     }
     return vertices;
 }
@@ -234,6 +255,11 @@ protected:
         if (!buildCrateMesh()) {
             return false;
         }
+        // L'absence d'une de ces textures n'empeche pas de jouer : on ignore le retour.
+        loadTexture(kStoneNormalPath, m_stoneNormal, rhi::TextureFormat::LinearData);
+        loadTexture(kWoodNormalPath, m_woodNormal, rhi::TextureFormat::LinearData);
+        loadTexture(kStoneColorPath, m_stoneColor, rhi::TextureFormat::SrgbColor);
+        loadTexture(kWoodColorPath, m_woodColor, rhi::TextureFormat::SrgbColor);
         registerResources();
 
         // La scene ne vient plus du code : elle est lue dans un fichier. Modifier
@@ -467,7 +493,8 @@ protected:
                 glm::transpose(glm::inverse(core::Mat3(world.matrix)));
             m_drawItems.push_back(renderer::DrawItem{
                 meshResource, m_resources.texture(mesh.baseColor),
-                m_resources.texture(mesh.metallicRoughness), world.matrix, normalMatrix});
+                m_resources.texture(mesh.metallicRoughness),
+                m_resources.texture(mesh.normalMap), world.matrix, normalMatrix});
         }
 
         // La lampe torche en premier : c'est elle qui porte l'ombre, et le renderer retient
@@ -506,6 +533,10 @@ protected:
         m_crateMesh.destroy();
         m_renderer.destroy();
         m_missingTexture.destroy();
+        m_woodColor.destroy();
+        m_stoneColor.destroy();
+        m_woodNormal.destroy();
+        m_stoneNormal.destroy();
         m_cookie.destroy();
         m_floorMaterial.destroy();
         m_floorBaseColor.destroy();
@@ -520,6 +551,23 @@ private:
     // ses composants. C'est ce qui rendra le chargement depuis un fichier possible.
     // Les ressources recoivent un nom logique : c'est lui qu'ecrivent et relisent les
     // fichiers de scene, jamais une adresse memoire ni un chemin de disque.
+    // Charge une texture de fichier. Aucune n'est indispensable : le jeu se lance meme
+    // s'il en manque une, avec une surface plus pauvre plutot qu'un ecran noir.
+    //
+    // Le FORMAT n'est pas un detail : une couleur de base est destinee a l'oeil et suit la
+    // courbe sRGB, une carte de normales contient des directions et doit rester lineaire.
+    // Intervertir les deux donne soit des couleurs delavees, soit un relief de travers.
+    bool loadTexture(const char* relativePath, rhi::Texture& texture,
+                     rhi::TextureFormat format) {
+        assets::ImageData image;
+        if (!assets::loadImage(platform::assetPath(relativePath).c_str(), image)) {
+            core::logWarn("texture introuvable");
+            core::logWarn(relativePath);
+            return false;
+        }
+        return texture.create(image.width, image.height, image.pixels.data(), format);
+    }
+
     void registerResources() {
         m_resources.addMesh("piece", &m_floorMesh);
         m_resources.addTexture("damier", &m_floorBaseColor);
@@ -531,6 +579,18 @@ private:
         // confondre avec une texture legitime.
         m_resources.addTexture("missing", &m_missingTexture);
         m_resources.addMesh("caisse", &m_crateMesh);
+        if (m_stoneNormal.isValid()) {
+            m_resources.addTexture("pierre_relief", &m_stoneNormal);
+        }
+        if (m_woodNormal.isValid()) {
+            m_resources.addTexture("bois_relief", &m_woodNormal);
+        }
+        if (m_stoneColor.isValid()) {
+            m_resources.addTexture("pierre_couleur", &m_stoneColor);
+        }
+        if (m_woodColor.isValid()) {
+            m_resources.addTexture("bois_couleur", &m_woodColor);
+        }
     }
 
     // Cube de 1 m de cote, centre sur l'origine : la mise a l'echelle du Transform lui
@@ -830,6 +890,10 @@ private:
     rhi::Texture m_floorMaterial;
     rhi::Texture m_cookie;
     rhi::Texture m_missingTexture;
+    rhi::Texture m_stoneNormal;
+    rhi::Texture m_woodNormal;
+    rhi::Texture m_stoneColor;
+    rhi::Texture m_woodColor;
 
     renderer::Flashlight m_flashlight;
     audio::Engine m_audio;

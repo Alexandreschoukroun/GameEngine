@@ -50,12 +50,19 @@ bool Mesh::create(const Vertex* vertices, core::u32 vertexCount, const core::u32
                               static_cast<GLuint>(offsetof(Vertex, normal)));
     glVertexArrayAttribBinding(m_vertexArray, 1, 0);
 
-    // Attribut 2 : les coordonnees de texture, 2 flottants. Les trois attributs partagent
-    // le meme buffer et le meme pas : ils sont entrelaces dans chaque sommet.
+    // Attribut 2 : la tangente, 4 flottants. Avec la normale, elle donne le repere dans
+    // lequel une carte de normales est exprimee.
     glEnableVertexArrayAttrib(m_vertexArray, 2);
-    glVertexArrayAttribFormat(m_vertexArray, 2, 2, GL_FLOAT, GL_FALSE,
-                              static_cast<GLuint>(offsetof(Vertex, uv)));
+    glVertexArrayAttribFormat(m_vertexArray, 2, 4, GL_FLOAT, GL_FALSE,
+                              static_cast<GLuint>(offsetof(Vertex, tangent)));
     glVertexArrayAttribBinding(m_vertexArray, 2, 0);
+
+    // Attribut 3 : les coordonnees de texture, 2 flottants. Tous les attributs partagent
+    // le meme buffer et le meme pas : ils sont entrelaces dans chaque sommet.
+    glEnableVertexArrayAttrib(m_vertexArray, 3);
+    glVertexArrayAttribFormat(m_vertexArray, 3, 2, GL_FLOAT, GL_FALSE,
+                              static_cast<GLuint>(offsetof(Vertex, uv)));
+    glVertexArrayAttribBinding(m_vertexArray, 3, 0);
 
     // Le VAO retient aussi quel buffer d'indices utiliser : un seul objet a lier au moment
     // de dessiner, et non deux.

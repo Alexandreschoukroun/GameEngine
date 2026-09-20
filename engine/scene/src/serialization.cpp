@@ -155,14 +155,7 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
             mesh != nullptr) {
             Json m;
             m["mesh"] = std::string(resources.meshName(mesh->mesh));
-            m["baseColor"] = std::string(resources.textureName(mesh->baseColor));
-            m["metallicRoughness"] =
-                std::string(resources.textureName(mesh->metallicRoughness));
-            // Absente du fichier quand il n'y en a pas : une cle vide decrirait une
-            // texture nommee "", ce qui n'est pas la meme chose qu'aucune texture.
-            if (mesh->normalMap != kInvalidResource) {
-                m["normalMap"] = std::string(resources.textureName(mesh->normalMap));
-            }
+            m["material"] = std::string(resources.materialName(mesh->material));
             node["mesh"] = m;
         }
 
@@ -362,17 +355,14 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
             meshRenderer.mesh = resolveResource(
                 m, "mesh", [&](const std::string& n) { return resources.findMesh(n); },
                 "maillage");
-            meshRenderer.baseColor = resolveResource(
-                m, "baseColor", [&](const std::string& n) { return resources.findTexture(n); },
-                "texture");
-            meshRenderer.metallicRoughness = resolveResource(
-                m, "metallicRoughness",
-                [&](const std::string& n) { return resources.findTexture(n); }, "texture");
-            if (m.contains("normalMap") && m["normalMap"].is_string()) {
-                const std::string name = m["normalMap"].get<std::string>();
-                meshRenderer.normalMap = resources.findTexture(name);
-                if (meshRenderer.normalMap == kInvalidResource) {
-                    core::logWarn("carte de normales inconnue, relief desactive");
+            // Pas de repli sur "missing" pour un materiau : il n'existe pas de matiere
+            // de remplacement, et le maillage se replie deja sur le modele rose. Un nom
+            // inconnu laisse donc l'entite sans matiere, et le rendu la saute.
+            if (m.contains("material") && m["material"].is_string()) {
+                const std::string name = m["material"].get<std::string>();
+                meshRenderer.material = resources.findMaterial(name);
+                if (meshRenderer.material == kInvalidResource) {
+                    core::logWarn("materiau inconnu");
                     core::logWarn(name);
                 }
             }

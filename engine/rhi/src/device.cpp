@@ -1,5 +1,7 @@
 #include "rhi/device.h"
 
+#include <cstdint>
+
 #include "core/assert.h"
 #include "core/log.h"
 #include "rhi/mesh.h"
@@ -192,17 +194,28 @@ void Device::drawFullscreenTriangle(const ShaderProgram& program) {
 }
 
 void Device::draw(const ShaderProgram& program, const Mesh& mesh) {
+    drawRange(program, mesh, 0, mesh.m_indexCount);
+}
+
+void Device::drawRange(const ShaderProgram& program, const Mesh& mesh, core::u32 firstIndex,
+                       core::u32 indexCount) {
     ENGINE_ASSERT(m_created, "Device::create doit reussir avant tout appel GPU");
-    if (program.m_program == 0 || mesh.m_vertexArray == 0 || mesh.m_indexCount == 0) {
+    if (program.m_program == 0 || mesh.m_vertexArray == 0 || indexCount == 0) {
+        return;
+    }
+    // Deborder du tampon d'indices ferait lire de la memoire GPU quelconque : on refuse.
+    if (firstIndex + indexCount > mesh.m_indexCount) {
         return;
     }
 
     glUseProgram(program.m_program);
     glBindVertexArray(mesh.m_vertexArray);
     // DrawElements et non DrawArrays : les triangles sont decrits par des indices, et le
-    // buffer d'indices est deja memorise dans le VAO, d'ou le nullptr.
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.m_indexCount), GL_UNSIGNED_INT,
-                   nullptr);
+    // buffer d'indices est deja memorise dans le VAO. Le dernier argument n'est pas un
+    // pointeur mais un DECALAGE EN OCTETS dans ce buffer - d'ou la multiplication.
+    const auto offset = static_cast<std::uintptr_t>(firstIndex) * sizeof(core::u32);
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount), GL_UNSIGNED_INT,
+                   reinterpret_cast<const void*>(offset));
 }
 
 } // namespace rhi

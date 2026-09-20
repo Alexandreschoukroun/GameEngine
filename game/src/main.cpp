@@ -32,9 +32,10 @@
 
 namespace {
 
+// Seul le fichier glTF est cite : ses textures sont declarees DEDANS, et le chargeur en
+// resout les chemins. C'est ce qui rend l'import d'un modele telecharge immediat - on
+// change cette ligne, et le modele arrive avec ses matieres.
 constexpr const char* kModelPath = "models/suzanne/Suzanne.gltf";
-constexpr const char* kBaseColorPath = "models/suzanne/Suzanne_BaseColor.png";
-constexpr const char* kMetallicRoughnessPath = "models/suzanne/Suzanne_MetallicRoughness.png";
 constexpr const char* kScenePath = "scenes/demo.json";
 
 constexpr core::f32 kLookSensitivity = 0.0022f; // radians par pixel de souris
@@ -491,10 +492,28 @@ protected:
             }
             const core::Mat3 normalMatrix =
                 glm::transpose(glm::inverse(core::Mat3(world.matrix)));
-            m_drawItems.push_back(renderer::DrawItem{
-                meshResource, m_resources.texture(mesh.baseColor),
-                m_resources.texture(mesh.metallicRoughness),
-                m_resources.texture(mesh.normalMap), world.matrix, normalMatrix});
+            // Champs nommes plutot que positionnels : DrawItem s'est deja enrichi deux
+            // fois, et chaque ajout cassait silencieusement l'ordre ici.
+            const scene::Material* material = m_resources.material(mesh.material);
+            if (material == nullptr) {
+                // Entite sans matiere : on la saute plutot que d'en inventer une. Le
+                // maillage, lui, se replie deja sur le modele rose.
+                continue;
+            }
+
+            // Champs nommes plutot que positionnels : DrawItem s'est deja enrichi
+            // plusieurs fois, et chaque ajout cassait silencieusement l'ordre ici.
+            renderer::DrawItem item;
+            item.mesh = meshResource;
+            item.baseColor = m_resources.texture(material->baseColor);
+            item.metallicRoughness = m_resources.texture(material->metallicRoughness);
+            item.normalMap = m_resources.texture(material->normalMap);
+            item.baseColorFactor = material->baseColorFactor;
+            item.metallicFactor = material->metallicFactor;
+            item.roughnessFactor = material->roughnessFactor;
+            item.modelMatrix = world.matrix;
+            item.normalMatrix = normalMatrix;
+            m_drawItems.push_back(item);
         }
 
         // La lampe torche en premier : c'est elle qui porte l'ombre, et le renderer retient
@@ -591,6 +610,32 @@ private:
         if (m_woodColor.isValid()) {
             m_resources.addTexture("bois_couleur", &m_woodColor);
         }
+
+        registerMaterials();
+    }
+
+    // Les matieres de la scene de demonstration. Celle de Suzanne vient du FICHIER, les
+    // deux autres sont decrites ici parce que leurs textures sont generees.
+    void registerMaterials() {
+        scene::Material stone;
+        stone.baseColor = m_resources.findTexture("pierre_couleur");
+        stone.metallicRoughness = m_resources.findTexture("mat_rugueux");
+        stone.normalMap = m_resources.findTexture("pierre_relief");
+        m_resources.addMaterial("pierre", stone);
+
+        scene::Material wood;
+        wood.baseColor = m_resources.findTexture("bois_couleur");
+        wood.metallicRoughness = m_resources.findTexture("mat_rugueux");
+        wood.normalMap = m_resources.findTexture("bois_relief");
+        m_resources.addMaterial("bois", wood);
+
+        scene::Material model;
+        model.baseColor = m_resources.findTexture("suzanne_couleur");
+        model.metallicRoughness = m_resources.findTexture("suzanne_matiere");
+        model.baseColorFactor = m_modelMaterial.baseColorFactor;
+        model.metallicFactor = m_modelMaterial.metallicFactor;
+        model.roughnessFactor = m_modelMaterial.roughnessFactor;
+        m_resources.addMaterial("suzanne", model);
     }
 
     // Cube de 1 m de cote, centre sur l'origine : la mise a l'echelle du Transform lui
@@ -798,10 +843,19 @@ private:
             return false;
         }
 
+        if (meshData.materials.empty()) {
+            core::logWarn("le modele ne declare aucune matiere");
+            return true;
+        }
+        // Une seule matiere pour l'instant : le moteur ne dessine pas encore une portion
+        // par materiau, meme s'il sait desormais les distinguer.
+        m_modelMaterial = meshData.materials[0];
+
         assets::ImageData baseColor;
         assets::ImageData metallicRoughness;
-        if (!assets::loadImage(platform::assetPath(kBaseColorPath).c_str(), baseColor) ||
-            !assets::loadImage(platform::assetPath(kMetallicRoughnessPath).c_str(),
+        // Les chemins viennent du FICHIER, deja resolus par rapport a son emplacement.
+        if (!assets::loadImage(m_modelMaterial.baseColorTexture.c_str(), baseColor) ||
+            !assets::loadImage(m_modelMaterial.metallicRoughnessTexture.c_str(),
                                metallicRoughness)) {
             return false;
         }
@@ -890,6 +944,7 @@ private:
     rhi::Texture m_floorMaterial;
     rhi::Texture m_cookie;
     rhi::Texture m_missingTexture;
+    assets::MaterialData m_modelMaterial;
     rhi::Texture m_stoneNormal;
     rhi::Texture m_woodNormal;
     rhi::Texture m_stoneColor;

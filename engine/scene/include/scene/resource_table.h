@@ -1,6 +1,7 @@
 #pragma once
 
 #include "audio/engine.h"
+#include "core/math.h"
 #include "core/types.h"
 
 #include <string>
@@ -14,10 +15,31 @@ class Texture;
 
 namespace scene {
 
+
 // Une poignee designe une ressource sans pointer dessus. Un pointeur est une adresse
 // memoire : il change a chaque lancement, donc il ne peut pas etre ecrit dans un fichier.
 using ResourceHandle = core::u32;
 inline constexpr ResourceHandle kInvalidResource = 0xFFFFFFFFu;
+
+// Une matiere, telle qu'un fichier glTF la decrit : jusqu'a trois textures, et des
+// facteurs qui les multiplient.
+//
+// Regrouper ces six informations sous un nom a deux effets. D'abord le fichier de scene
+// cite UNE matiere au lieu de trois textures, ce qui est a la fois plus court et plus
+// juste - "du bois", pas "cette couleur avec ce relief". Ensuite c'est l'unite que
+// l'editeur de M6 manipulera, et celle que les modeles importes apportent avec eux.
+struct Material {
+    ResourceHandle baseColor = kInvalidResource;
+    ResourceHandle metallicRoughness = kInvalidResource;
+    // Facultative : sans elle, la surface s'eclaire par sa seule geometrie.
+    ResourceHandle normalMap = kInvalidResource;
+
+    // Multiplient les textures. Valent 1 quand le fichier n'en dit rien, si bien qu'un
+    // materiau sans carte de couleur mais avec un facteur rouge decrit un objet rouge uni.
+    core::Vec4 baseColorFactor{1.0f, 1.0f, 1.0f, 1.0f};
+    core::f32 metallicFactor = 1.0f;
+    core::f32 roughnessFactor = 1.0f;
+};
 
 // Fait la correspondance entre les noms logiques ecrits dans les fichiers de scene
 // ("suzanne", "damier") et les ressources GPU chargees.
@@ -37,15 +59,21 @@ public:
     ResourceHandle findMesh(std::string_view name) const;
     ResourceHandle findTexture(std::string_view name) const;
     ResourceHandle findSound(std::string_view name) const;
+    ResourceHandle addMaterial(std::string_view name, const Material& material);
+    ResourceHandle findMaterial(std::string_view name) const;
 
     const rhi::Mesh* mesh(ResourceHandle handle) const;
     const rhi::Texture* texture(ResourceHandle handle) const;
     audio::SoundHandle sound(ResourceHandle handle) const;
+    // Nul si la poignee est invalide : l'appelant saute alors l'objet plutot que de
+    // dessiner une matiere inventee.
+    const Material* material(ResourceHandle handle) const;
 
     // Nom logique, pour l'ecriture dans un fichier. Chaine vide si la poignee est invalide.
     std::string_view meshName(ResourceHandle handle) const;
     std::string_view textureName(ResourceHandle handle) const;
     std::string_view soundName(ResourceHandle handle) const;
+    std::string_view materialName(ResourceHandle handle) const;
 
 private:
     struct MeshEntry {
@@ -62,9 +90,15 @@ private:
         audio::SoundHandle sound = audio::kInvalidSound;
     };
 
+    struct MaterialEntry {
+        std::string name;
+        Material material;
+    };
+
     std::vector<MeshEntry> m_meshes;
     std::vector<TextureEntry> m_textures;
     std::vector<SoundEntry> m_sounds;
+    std::vector<MaterialEntry> m_materials;
 };
 
 } // namespace scene

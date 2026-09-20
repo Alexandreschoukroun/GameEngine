@@ -62,6 +62,12 @@ public:
     // declenche reellement du travail sur le GPU.
     void draw(const ShaderProgram& program, const Mesh& mesh);
 
+    // Dessine une PORTION du maillage : les indices de firstIndex a firstIndex+count.
+    // Un modele a plusieurs matieres partage un seul tampon de sommets et se dessine en
+    // autant d'appels que de portions - c'est moins cher que de dupliquer la geometrie.
+    void drawRange(const ShaderProgram& program, const Mesh& mesh, core::u32 firstIndex,
+                   core::u32 indexCount);
+
 private:
     bool m_created = false;
     // Le profil core exige un VAO lie pour tout dessin, meme sans attributs : celui-ci

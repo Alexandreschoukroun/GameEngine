@@ -21,6 +21,9 @@ namespace {
 // emplacements consecutifs : d'ou le saut de 7 a 15.
 // Passe de geometrie : 0 = viewProjection, 4 = modele, 8 = matrice des normales.
 constexpr core::u32 kUniformNormalMapStrength = 12;
+constexpr core::u32 kUniformBaseColorFactor = 13;
+constexpr core::u32 kUniformMetallicFactor = 14;
+constexpr core::u32 kUniformRoughnessFactor = 15;
 // Passe d'eclairage.
 constexpr core::u32 kUniformDebugView = 0;
 constexpr core::u32 kUniformNearFar = 1;
@@ -157,7 +160,19 @@ void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
             if (hasNormalMap) {
                 device.bindTexture(*item.normalMap, 2);
             }
-            device.draw(m_geometryProgram, *item.mesh);
+
+            m_geometryProgram.setVec4(kUniformBaseColorFactor, item.baseColorFactor);
+            m_geometryProgram.setFloat(kUniformMetallicFactor, item.metallicFactor);
+            m_geometryProgram.setFloat(kUniformRoughnessFactor, item.roughnessFactor);
+
+            // indexCount nul : tout le maillage. C'est le cas des objets a matiere unique,
+            // qui n'ont aucune raison de decrire une portion.
+            if (item.indexCount == 0) {
+                device.draw(m_geometryProgram, *item.mesh);
+            } else {
+                device.drawRange(m_geometryProgram, *item.mesh, item.firstIndex,
+                                 item.indexCount);
+            }
         }
     }
 

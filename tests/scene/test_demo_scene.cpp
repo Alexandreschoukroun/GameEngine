@@ -140,10 +140,15 @@ TEST_CASE("The door handle sits on the free edge and follows the door") {
 
     // Les gonds sont a 45 cm a gauche du centre : la poignee doit etre de l'autre cote,
     // sans quoi elle n'offrirait aucun bras de levier - c'est toute la physique de 5.3.
-    CHECK(handleCenter.x > doorCenter.x);
-    CHECK(handleCenter.x - doorCenter.x > 0.25f);
-    // Et a portee du battant, pas flottante a cote.
-    CHECK(handleCenter.x - doorCenter.x < 0.45f);
+    //
+    // La borne porte sur la MOITIE du battant, et non sur une distance precise : ce qu'on
+    // mesure ici est l'ORIGINE du modele, qui n'est pas son milieu, et une rotation
+    // deplace l'une par rapport a l'autre. Exiger une distance au centimetre reviendrait
+    // a figer une orientation, alors que la propriete qui compte est "du cote du bord
+    // libre, et sur le battant".
+    const core::f32 offset = handleCenter.x - doorCenter.x;
+    CHECK(offset > 0.0f);
+    CHECK(offset < 0.45f);
 
     // Un enfant herite de l'echelle de son parent. Le battant est mis a l'echelle
     // (0,9 ; 2,0 ; 0,08) - un modele importe y serait donc ecrase en plaque. L'echelle

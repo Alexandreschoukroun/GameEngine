@@ -98,6 +98,26 @@ constexpr core::f32 kStepVolume = 0.45f;
 // Cartes de normales. Elles ne contiennent pas des couleurs mais des DIRECTIONS : elles se
 // chargent donc en format lineaire. Les brancher en sRGB ferait decoder chaque composante
 // par le GPU et donnerait un relief faux, penche dans la mauvaise direction.
+// Matieres libres (CC0, ambientCG), converties au format du moteur par pack_material.
+// Chaque dossier contient exactement trois fichiers : couleur, normale, matiere.
+struct MaterialFiles {
+    const char* name;
+    const char* color;
+    const char* normal;
+    const char* matter;
+};
+
+constexpr MaterialFiles kRealMaterials[] = {
+    {"beton", "textures/beton/couleur.jpg", "textures/beton/normal.png",
+     "textures/beton/matiere.png"},
+    {"plancher", "textures/plancher/couleur.jpg", "textures/plancher/normal.png",
+     "textures/plancher/matiere.png"},
+    {"metal_rouille", "textures/metal_rouille/couleur.jpg",
+     "textures/metal_rouille/normal.png", "textures/metal_rouille/matiere.png"},
+};
+constexpr core::u32 kRealMaterialCount =
+    static_cast<core::u32>(sizeof(kRealMaterials) / sizeof(kRealMaterials[0]));
+
 constexpr const char* kStoneNormalPath = "textures/pierre_normal.png";
 constexpr const char* kWoodNormalPath = "textures/bois_normal.png";
 // Les couleurs de base assorties. Elles sont tirees du MEME relief que les cartes de
@@ -256,6 +276,8 @@ protected:
         if (!buildCrateMesh()) {
             return false;
         }
+        loadRealMaterials();
+
         // L'absence d'une de ces textures n'empeche pas de jouer : on ignore le retour.
         loadTexture(kStoneNormalPath, m_stoneNormal, rhi::TextureFormat::LinearData);
         loadTexture(kWoodNormalPath, m_woodNormal, rhi::TextureFormat::LinearData);
@@ -558,6 +580,11 @@ protected:
         m_crateMesh.destroy();
         m_renderer.destroy();
         m_missingTexture.destroy();
+        for (RealMaterial& material : m_realMaterials) {
+            material.matter.destroy();
+            material.normal.destroy();
+            material.color.destroy();
+        }
         m_whiteTexture.destroy();
         m_metalMaterial.destroy();
         m_woodColor.destroy();
@@ -593,6 +620,41 @@ private:
             return false;
         }
         return texture.create(image.width, image.height, image.pixels.data(), format);
+    }
+
+    // Charge les matieres libres et les declare d'un bloc. Chacune suit la meme structure,
+    // donc une boucle suffit - et ajouter une matiere ne demandera qu'une ligne de plus
+    // dans le tableau.
+    void loadRealMaterials() {
+        for (core::u32 i = 0; i < kRealMaterialCount; ++i) {
+            const MaterialFiles& files = kRealMaterials[i];
+            RealMaterial& slot = m_realMaterials[i];
+            // La couleur est destinee a l'oeil : sRGB. La normale et la matiere sont des
+            // directions et des mesures : lineaires, sans quoi le relief partirait de
+            // travers et la rugosite serait faussee.
+            const bool color =
+                loadTexture(files.color, slot.color, rhi::TextureFormat::SrgbColor);
+            const bool normal =
+                loadTexture(files.normal, slot.normal, rhi::TextureFormat::LinearData);
+            const bool matter =
+                loadTexture(files.matter, slot.matter, rhi::TextureFormat::LinearData);
+            if (!color || !matter) {
+                core::logWarn("matiere incomplete, elle sera ignoree");
+                core::logWarn(files.name);
+                continue;
+            }
+
+            const std::string colorName = std::string(files.name) + "_couleur";
+            const std::string matterName = std::string(files.name) + "_matiere";
+            scene::Material material;
+            material.baseColor = m_resources.addTexture(colorName, &slot.color);
+            material.metallicRoughness = m_resources.addTexture(matterName, &slot.matter);
+            if (normal) {
+                const std::string normalName = std::string(files.name) + "_relief";
+                material.normalMap = m_resources.addTexture(normalName, &slot.normal);
+            }
+            m_resources.addMaterial(files.name, material);
+        }
     }
 
     void registerResources() {
@@ -1002,6 +1064,15 @@ private:
     // ressources n'en garde qu'une vue : ces tableaux doivent lui survivre.
     std::vector<core::Vec3> m_roomPositions;
     std::vector<core::u32> m_roomIndices;
+    // Une matiere libre = trois textures. Le tableau les possede, la table de ressources
+    // n'en garde que des pointeurs.
+    struct RealMaterial {
+        rhi::Texture color;
+        rhi::Texture normal;
+        rhi::Texture matter;
+    };
+    std::array<RealMaterial, kRealMaterialCount> m_realMaterials;
+
     rhi::Texture m_stoneNormal;
     rhi::Texture m_woodNormal;
     rhi::Texture m_stoneColor;

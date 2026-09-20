@@ -21,6 +21,11 @@ Le moteur le trouve dans cet ordre (voir `engine/platform/src/paths.cpp`) :
 | `audio/tension_*.wav` | Généré par `tools/generate_audio.py` | Aucune — produit par ce dépôt |
 | `textures/pierre_*.png` | Généré par `tools/generate_textures.py` | Aucune — produit par ce dépôt |
 | `textures/bois_*.png` | Généré par `tools/generate_textures.py` | Aucune — produit par ce dépôt |
+| `textures/beton/*` | [ambientCG — Concrete032](https://ambientcg.com/view?id=Concrete032) | **CC0 1.0** |
+| `textures/plancher/*` | [ambientCG — Planks039](https://ambientcg.com/view?id=Planks039) | **CC0 1.0** |
+| `textures/platre/*` | [ambientCG — PaintedPlaster016](https://ambientcg.com/view?id=PaintedPlaster016) | **CC0 1.0** |
+| `textures/metal_rouille/*` | [ambientCG — Metal041B](https://ambientcg.com/view?id=Metal041B) | **CC0 1.0** |
+| `textures/carrelage/*` | [ambientCG — Tiles140](https://ambientcg.com/view?id=Tiles140) | **CC0 1.0** |
 
 Le modèle Suzanne est le maillage de test historique de Blender. Il est ici parce qu'il
 est en CC0, donc sans aucune obligation d'attribution ni de citation, et qu'il porte tout
@@ -38,6 +43,34 @@ pourrait pas regénérer.
 
 Ils seront remplacés par de vrais assets le jour où le moteur en vaudra la peine. D'ici là,
 ils suffisent à ce qu'on leur demande : vérifier la spatialisation, l'occlusion et le relief.
+
+## Les matières libres présentes
+
+Cinq matières d'ambientCG, en **1024 × 1024**, converties au format du moteur. La licence
+CC0 1.0 est confirmée par [la page de licence du site](https://ambientcg.com/license) :
+copie, modification et distribution libres, **usage commercial inclus**, sans attribution
+obligatoire — le tableau ci-dessus la mentionne quand même, parce que savoir d'où vient une
+donnée a de la valeur indépendamment de ce que la licence exige.
+
+Chaque dossier contient exactement trois fichiers :
+
+| Fichier | Format | Pourquoi |
+|---|---|---|
+| `couleur.jpg` | JPEG qualité 92 | une couleur : la compression ne s'y voit pas |
+| `normal.png` | PNG sans perte | des **directions** : un artefact déformerait le relief |
+| `matiere.png` | PNG sans perte | des **mesures** : R = occlusion, G = rugosité, B = métallicité |
+
+**Ce qui n'est pas versionné** : les archives d'origine, les cartes de déplacement, les
+variantes DirectX des normales, et l'occlusion ambiante. Cette dernière mérite une
+explication — le shader ne lit aujourd'hui que le vert et le bleu de `matiere.png`, donc
+l'empaqueter n'ajouterait qu'un canal de bruit. Or le bruit ne se compresse pas : cela
+coûtait **1,5 Mo par matière**, définitivement, pour une donnée inutilisée. Le jour où le
+moteur exploitera l'occlusion, il suffira de relancer `pack_material` avec `--ao`.
+
+Le choix du **1K** est délibéré. Une surface vue à plus de deux mètres ne montre pas la
+différence avec du 2K, et Git conserve **chaque version d'un binaire pour toujours**, sans
+compression delta. Un 4K remplacé trois fois, ce sont 200 Mo que plus personne ne pourra
+enlever de l'historique.
 
 ## Importer un jeu de textures libre
 

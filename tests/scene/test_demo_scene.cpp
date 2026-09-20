@@ -32,10 +32,11 @@ scene::ResourceTable gameResources() {
     resources.addSound("souffle", 1);
     resources.addSound("pas_pierre", 2);
     resources.addSound("pas_bois", 3);
-    resources.addMaterial("pierre", scene::Material{});
-    resources.addMaterial("bois", scene::Material{});
+    // Les matieres libres, chargees depuis assets/textures/<nom>/.
+    resources.addMaterial("beton", scene::Material{});
+    resources.addMaterial("plancher", scene::Material{});
+    resources.addMaterial("metal_rouille", scene::Material{});
     resources.addMaterial("suzanne", scene::Material{});
-    resources.addMaterial("laiton", scene::Material{});
 
     scene::CollisionMesh geometry;
     geometry.positions = kDummyPositions;

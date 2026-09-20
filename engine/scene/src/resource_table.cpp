@@ -75,6 +75,21 @@ ResourceHandle ResourceTable::addMaterial(std::string_view name, const Material&
     return static_cast<ResourceHandle>(m_materials.size() - 1);
 }
 
+ResourceHandle ResourceTable::addCollisionMesh(std::string_view name,
+                                               const CollisionMesh& mesh) {
+    if (name.empty() || !mesh.isValid()) {
+        core::logError("ResourceTable : geometrie de collision invalide");
+        return kInvalidResource;
+    }
+    const ResourceHandle existing = findCollisionMesh(name);
+    if (existing != kInvalidResource) {
+        m_collisionMeshes[existing].mesh = mesh;
+        return existing;
+    }
+    m_collisionMeshes.push_back(CollisionMeshEntry{std::string(name), mesh});
+    return static_cast<ResourceHandle>(m_collisionMeshes.size() - 1);
+}
+
 ResourceHandle ResourceTable::findMesh(std::string_view name) const {
     return findByName(m_meshes, name);
 }
@@ -91,6 +106,10 @@ ResourceHandle ResourceTable::findMaterial(std::string_view name) const {
     return findByName(m_materials, name);
 }
 
+ResourceHandle ResourceTable::findCollisionMesh(std::string_view name) const {
+    return findByName(m_collisionMeshes, name);
+}
+
 const rhi::Mesh* ResourceTable::mesh(ResourceHandle handle) const {
     return handle < m_meshes.size() ? m_meshes[handle].mesh : nullptr;
 }
@@ -105,6 +124,10 @@ audio::SoundHandle ResourceTable::sound(ResourceHandle handle) const {
 
 const Material* ResourceTable::material(ResourceHandle handle) const {
     return handle < m_materials.size() ? &m_materials[handle].material : nullptr;
+}
+
+const CollisionMesh* ResourceTable::collisionMesh(ResourceHandle handle) const {
+    return handle < m_collisionMeshes.size() ? &m_collisionMeshes[handle].mesh : nullptr;
 }
 
 std::string_view ResourceTable::meshName(ResourceHandle handle) const {
@@ -125,6 +148,12 @@ std::string_view ResourceTable::soundName(ResourceHandle handle) const {
 std::string_view ResourceTable::materialName(ResourceHandle handle) const {
     return handle < m_materials.size() ? std::string_view(m_materials[handle].name)
                                        : std::string_view();
+}
+
+std::string_view ResourceTable::collisionMeshName(ResourceHandle handle) const {
+    return handle < m_collisionMeshes.size()
+               ? std::string_view(m_collisionMeshes[handle].name)
+               : std::string_view();
 }
 
 } // namespace scene

@@ -59,6 +59,22 @@ public:
                       const core::Vec3& halfExtents, bool isStatic,
                       core::f32 density = 1000.0f);
 
+    // Corps dont la collision suit exactement une geometrie de triangles. C'est ce qui
+    // permet de faire collisionner un NIVEAU entier - un couloir, un escalier, une piece
+    // aux murs obliques - au lieu de l'approcher par des dizaines de boites a la main.
+    //
+    // Obligatoirement STATIQUE : un maillage de triangles n'a ni volume ni masse bien
+    // definis, et aucun moteur physique ne sait faire rouler ca. Le decor ne bouge pas,
+    // c'est donc exactement ce qu'il faut - et ce que Jolt impose.
+    //
+    // Les sommets sont donnes dans le repere du modele ; l'echelle est appliquee par le
+    // moteur. Une echelle negative retournerait les triangles et la collision partirait
+    // a l'envers : elle est refusee.
+    BodyHandle addMesh(const core::Vec3& position, const core::Quat& rotation,
+                       const core::Vec3& scale, const core::Vec3* vertices,
+                       core::u32 vertexCount, const core::u32* indices,
+                       core::u32 indexCount);
+
     core::Vec3 bodyPosition(BodyHandle body) const;
     core::Quat bodyRotation(BodyHandle body) const;
 

@@ -16,6 +16,8 @@
 #include <Jolt/Physics/Body/BodyLockInterface.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Constraints/HingeConstraint.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -266,6 +268,77 @@ core::Vec3 World::bodyVelocity(BodyHandle body) const {
         return core::Vec3{0.0f, 0.0f, 0.0f};
     }
     return fromJolt(m_impl->system.GetBodyInterface().GetLinearVelocity(JPH::BodyID(body)));
+}
+
+BodyHandle World::addMesh(const core::Vec3& position, const core::Quat& rotation,
+                          const core::Vec3& scale, const core::Vec3* vertices,
+                          core::u32 vertexCount, const core::u32* indices,
+                          core::u32 indexCount) {
+    if (m_impl == nullptr || vertices == nullptr || indices == nullptr) {
+        return kInvalidBody;
+    }
+    // Trois indices par triangle : un reste signale une geometrie tronquee, qu'il vaut
+    // mieux refuser que d'interpreter a moitie.
+    if (vertexCount == 0 || indexCount < 3 || indexCount % 3 != 0) {
+        core::logError("collision de maillage : geometrie invalide");
+        return kInvalidBody;
+    }
+    if (scale.x <= 0.0f || scale.y <= 0.0f || scale.z <= 0.0f) {
+        // Une echelle negative retourne les triangles : les faces regarderaient vers
+        // l'interieur, et le personnage traverserait le decor sans rien heurter.
+        core::logError("collision de maillage : echelle nulle ou negative");
+        return kInvalidBody;
+    }
+
+    JPH::VertexList joltVertices;
+    joltVertices.reserve(vertexCount);
+    for (core::u32 i = 0; i < vertexCount; ++i) {
+        joltVertices.push_back(
+            JPH::Float3(vertices[i].x, vertices[i].y, vertices[i].z));
+    }
+
+    JPH::IndexedTriangleList triangles;
+    triangles.reserve(indexCount / 3);
+    for (core::u32 i = 0; i + 2 < indexCount; i += 3) {
+        if (indices[i] >= vertexCount || indices[i + 1] >= vertexCount ||
+            indices[i + 2] >= vertexCount) {
+            core::logError("collision de maillage : indice hors des sommets");
+            return kInvalidBody;
+        }
+        triangles.push_back(JPH::IndexedTriangle(indices[i], indices[i + 1], indices[i + 2]));
+    }
+
+    JPH::MeshShapeSettings shapeSettings(std::move(joltVertices), std::move(triangles));
+    // Jolt construit ici un arbre sur les triangles : c'est ce qui rend le test de
+    // collision logarithmique et non proportionnel au nombre de faces.
+    JPH::ShapeSettings::ShapeResult shape = shapeSettings.Create();
+    if (shape.HasError()) {
+        core::logError("collision de maillage : construction refusee par Jolt");
+        return kInvalidBody;
+    }
+
+    JPH::ShapeRefC finalShape = shape.Get();
+    // L'echelle s'applique par une forme enveloppante plutot qu'en deformant les sommets :
+    // deux objets a des echelles differentes partagent ainsi le meme arbre de triangles.
+    if (scale.x != 1.0f || scale.y != 1.0f || scale.z != 1.0f) {
+        JPH::ScaledShapeSettings scaledSettings(finalShape, toJolt(scale));
+        JPH::ShapeSettings::ShapeResult scaled = scaledSettings.Create();
+        if (scaled.HasError()) {
+            core::logError("collision de maillage : mise a l'echelle refusee");
+            return kInvalidBody;
+        }
+        finalShape = scaled.Get();
+    }
+
+    JPH::BodyInterface& bodies = m_impl->system.GetBodyInterface();
+    JPH::BodyCreationSettings settings(finalShape, toJolt(position), toJolt(rotation),
+                                       JPH::EMotionType::Static, Layers::kStatic);
+    const JPH::BodyID id = bodies.CreateAndAddBody(settings, JPH::EActivation::DontActivate);
+    if (id.IsInvalid()) {
+        core::logError("collision de maillage : creation de corps echouee");
+        return kInvalidBody;
+    }
+    return id.GetIndexAndSequenceNumber();
 }
 
 core::Vec3 World::bodyAngularVelocity(BodyHandle body) const {

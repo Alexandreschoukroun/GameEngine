@@ -5,6 +5,14 @@
 namespace scene {
 
 void createPhysicsBodies(Scene& scene, physics::World& world) {
+    // Sans table, aucune geometrie de collision ne peut etre resolue : les colliders de
+    // maillage seront signales et sautes, les boites fonctionnent normalement.
+    const ResourceTable empty;
+    createPhysicsBodies(scene, world, empty);
+}
+
+void createPhysicsBodies(Scene& scene, physics::World& world,
+                         const ResourceTable& resources) {
     entt::registry& registry = scene.registry();
 
     // Les matrices monde doivent etre a jour : un collider peut etre enfant d'autre chose,
@@ -30,9 +38,24 @@ void createPhysicsBodies(Scene& scene, physics::World& world) {
         const core::Quat rotation =
             transform != nullptr ? transform->rotation : core::Quat(1.0f, 0.0f, 0.0f, 0.0f);
 
-        const physics::BodyHandle handle =
-            world.addBox(position, rotation, collider.halfExtents, collider.isStatic,
-                         collider.density);
+        physics::BodyHandle handle = physics::kInvalidBody;
+        if (collider.shape == ColliderShape::Mesh) {
+            const CollisionMesh* geometry = resources.collisionMesh(collider.collisionMesh);
+            if (geometry == nullptr || !geometry->isValid()) {
+                core::logWarn("collider de maillage sans geometrie, entite sans collision");
+                continue;
+            }
+            // L'echelle du Transform est transmise telle quelle : c'est elle qui permet
+            // de reutiliser une meme geometrie a plusieurs tailles sans la dupliquer.
+            const core::Vec3 scale =
+                transform != nullptr ? transform->scale : core::Vec3{1.0f, 1.0f, 1.0f};
+            handle = world.addMesh(position, rotation, scale, geometry->positions,
+                                   geometry->vertexCount, geometry->indices,
+                                   geometry->indexCount);
+        } else {
+            handle = world.addBox(position, rotation, collider.halfExtents,
+                                  collider.isStatic, collider.density);
+        }
         if (handle == physics::kInvalidBody) {
             core::logError("creation du corps physique echouee pour une entite");
             continue;

@@ -3,6 +3,7 @@
 #include "core/math.h"
 #include "core/types.h"
 #include "physics/world.h"
+#include "scene/resource_table.h"
 #include "scene/scene.h"
 
 namespace scene {
@@ -12,6 +13,10 @@ namespace scene {
 // decor detaille.
 enum class ColliderShape : core::u32 {
     Box = 0,
+    // Collision qui suit exactement une geometrie de triangles. C'est ce qui permet de
+    // faire collisionner un niveau entier au lieu de l'approcher par des dizaines de
+    // boites posees a la main. Obligatoirement statique.
+    Mesh = 1,
 };
 
 // Description de la collision d'une entite, telle qu'elle est ecrite dans le fichier de
@@ -27,6 +32,9 @@ struct Collider {
     // par defaut de Jolt, celle d'un solide plein ; une porte en bois creux est a 150.
     // Ignoree pour un corps statique, dont la masse est infinie par definition.
     core::f32 density = 1000.0f;
+    // Utilise uniquement quand shape vaut Mesh : la geometrie a suivre, citee par son nom
+    // logique comme le reste.
+    ResourceHandle collisionMesh = kInvalidResource;
 };
 
 // Charniere : la porte pivote autour d'un axe, entre deux butees. L'ancrage est donne
@@ -54,6 +62,9 @@ struct PhysicsBody {
 //
 // Appelable a tout moment : une entite ajoutee en cours de partie recevra son corps au
 // prochain appel, sans traitement particulier.
+// La table de ressources est necessaire pour resoudre les geometries de collision. Les
+// entites dont le collider est une boite n'en ont pas besoin, d'ou la surcharge courte.
+void createPhysicsBodies(Scene& scene, physics::World& world, const ResourceTable& resources);
 void createPhysicsBodies(Scene& scene, physics::World& world);
 
 // Recopie la pose des corps dynamiques dans les Transform.

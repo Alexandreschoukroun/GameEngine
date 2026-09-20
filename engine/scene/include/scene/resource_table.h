@@ -41,6 +41,27 @@ struct Material {
     core::f32 roughnessFactor = 1.0f;
 };
 
+// Geometrie de collision : des triangles, sans normales ni UV.
+//
+// C'est volontairement une VUE et non une copie : la table ne possede rien, elle
+// reference, exactement comme pour les maillages GPU. Les donnees vivent la ou le jeu les
+// a chargees, et doivent lui survivre.
+//
+// Elle est separee du maillage d'affichage parce que les deux n'ont pas la meme forme :
+// la collision d'un decor est toujours plus grossiere que sa geometrie visible. Ici elles
+// coincident, mais rien n'y oblige.
+struct CollisionMesh {
+    const core::Vec3* positions = nullptr;
+    core::u32 vertexCount = 0;
+    const core::u32* indices = nullptr;
+    core::u32 indexCount = 0;
+
+    bool isValid() const {
+        return positions != nullptr && indices != nullptr && vertexCount > 0 &&
+               indexCount >= 3 && indexCount % 3 == 0;
+    }
+};
+
 // Fait la correspondance entre les noms logiques ecrits dans les fichiers de scene
 // ("suzanne", "damier") et les ressources GPU chargees.
 //
@@ -60,7 +81,9 @@ public:
     ResourceHandle findTexture(std::string_view name) const;
     ResourceHandle findSound(std::string_view name) const;
     ResourceHandle addMaterial(std::string_view name, const Material& material);
+    ResourceHandle addCollisionMesh(std::string_view name, const CollisionMesh& mesh);
     ResourceHandle findMaterial(std::string_view name) const;
+    ResourceHandle findCollisionMesh(std::string_view name) const;
 
     const rhi::Mesh* mesh(ResourceHandle handle) const;
     const rhi::Texture* texture(ResourceHandle handle) const;
@@ -68,12 +91,14 @@ public:
     // Nul si la poignee est invalide : l'appelant saute alors l'objet plutot que de
     // dessiner une matiere inventee.
     const Material* material(ResourceHandle handle) const;
+    const CollisionMesh* collisionMesh(ResourceHandle handle) const;
 
     // Nom logique, pour l'ecriture dans un fichier. Chaine vide si la poignee est invalide.
     std::string_view meshName(ResourceHandle handle) const;
     std::string_view textureName(ResourceHandle handle) const;
     std::string_view soundName(ResourceHandle handle) const;
     std::string_view materialName(ResourceHandle handle) const;
+    std::string_view collisionMeshName(ResourceHandle handle) const;
 
 private:
     struct MeshEntry {
@@ -98,7 +123,13 @@ private:
     std::vector<MeshEntry> m_meshes;
     std::vector<TextureEntry> m_textures;
     std::vector<SoundEntry> m_sounds;
+    struct CollisionMeshEntry {
+        std::string name;
+        CollisionMesh mesh;
+    };
+
     std::vector<MaterialEntry> m_materials;
+    std::vector<CollisionMeshEntry> m_collisionMeshes;
 };
 
 } // namespace scene

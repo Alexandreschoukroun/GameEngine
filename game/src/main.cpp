@@ -307,7 +307,7 @@ protected:
         // Les corps physiques sont crees a partir des composants Collider lus dans le
         // fichier : decor statique et caisses dynamiques, decrits au meme endroit que le
         // reste de la scene.
-        scene::createPhysicsBodies(m_scene, m_physics);
+        scene::createPhysicsBodies(m_scene, m_physics, m_resources);
 
         m_player = m_physics.addCharacter(kSpawnPosition, kPlayerRadius, kPlayerHeight);
         if (m_player == physics::kInvalidCharacter) {
@@ -621,6 +621,15 @@ private:
             m_resources.addTexture("bois_couleur", &m_woodColor);
         }
 
+        // La geometrie de collision de la piece : un seul collider qui suit exactement
+        // les murs, le sol et le plafond, la ou il fallait six boites posees a la main.
+        scene::CollisionMesh room;
+        room.positions = m_roomPositions.data();
+        room.vertexCount = static_cast<core::u32>(m_roomPositions.size());
+        room.indices = m_roomIndices.data();
+        room.indexCount = static_cast<core::u32>(m_roomIndices.size());
+        m_resources.addCollisionMesh("piece", room);
+
         registerMaterials();
     }
 
@@ -919,6 +928,17 @@ private:
             return false;
         }
 
+        // Le maillage GPU ne se relit pas : une fois les sommets envoyes a la carte, ils
+        // ne sont plus accessibles au processeur. La collision en a pourtant besoin, donc
+        // on en garde une copie - positions et indices seulement, ni normales ni UV.
+        m_roomPositions.clear();
+        m_roomPositions.reserve(vertices.size());
+        for (const rhi::Vertex& vertex : vertices) {
+            m_roomPositions.push_back(
+                core::Vec3{vertex.position[0], vertex.position[1], vertex.position[2]});
+        }
+        m_roomIndices = indices;
+
         const std::vector<core::u8> pixels = makeCheckerboard();
         if (!m_floorBaseColor.create(kCheckerSize, kCheckerSize, pixels.data(),
                                      rhi::TextureFormat::SrgbColor)) {
@@ -978,6 +998,10 @@ private:
     rhi::Texture m_metalMaterial;
     rhi::Texture m_whiteTexture;
     assets::MaterialData m_modelMaterial;
+    // Copie processeur de la geometrie de la piece, pour la collision. La table de
+    // ressources n'en garde qu'une vue : ces tableaux doivent lui survivre.
+    std::vector<core::Vec3> m_roomPositions;
+    std::vector<core::u32> m_roomIndices;
     rhi::Texture m_stoneNormal;
     rhi::Texture m_woodNormal;
     rhi::Texture m_stoneColor;

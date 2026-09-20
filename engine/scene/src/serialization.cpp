@@ -190,7 +190,11 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
             Json c;
             // Une seule forme aujourd'hui, mais ecrite explicitement : ajouter la capsule
             // plus tard ne demandera pas de changer la version du format.
-            c["shape"] = "box";
+            c["shape"] = collider->shape == ColliderShape::Mesh ? "mesh" : "box";
+            if (collider->shape == ColliderShape::Mesh) {
+                c["collisionMesh"] =
+                    std::string(resources.collisionMeshName(collider->collisionMesh));
+            }
             c["halfExtents"] = toJson(collider->halfExtents);
             c["static"] = collider->isStatic;
             // Seuls les corps dynamiques ont une masse : l'ecrire pour un mur ne
@@ -430,6 +434,18 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
                 vec3FromJson(c.value("halfExtents", Json()), collider.halfExtents);
             collider.isStatic = c.value("static", collider.isStatic);
             collider.density = c.value("density", collider.density);
+            if (c.value("shape", std::string("box")) == "mesh") {
+                collider.shape = ColliderShape::Mesh;
+                // Un maillage de triangles ne peut pas etre dynamique : Jolt le refuse, et
+                // pour cause - il n'a ni volume ni masse bien definis.
+                collider.isStatic = true;
+                const std::string name = c.value("collisionMesh", std::string());
+                collider.collisionMesh = resources.findCollisionMesh(name);
+                if (collider.collisionMesh == kInvalidResource) {
+                    core::logWarn("geometrie de collision inconnue");
+                    core::logWarn(name);
+                }
+            }
             loaded.registry().emplace<Collider>(entity, collider);
         }
 

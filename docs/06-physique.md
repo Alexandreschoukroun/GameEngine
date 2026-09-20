@@ -1,6 +1,6 @@
 # 06 — Physique (M4)
 
-*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3). Brique 4a : attraper et pousser (section 4). Brique 4b : les portes à charnière (section 5).*
+*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3). Brique 4a : attraper et pousser (section 4). Brique 4b : les portes à charnière (section 5). Brique 5 : la collision de maillage (section 6).*
 
 Le jalon M4 apporte la physique : colliders, contrôleur de personnage, saisie d'objets et portes. Cette première brique pose le socle — et force au passage une décision restée en suspens depuis M3.
 
@@ -377,3 +377,71 @@ Une contrainte résolue par itération du solveur, pour quelques dizaines de por
 **Ce qui n'existe pas encore** : pas de tiroirs (une glissière, donc une contrainte différente), pas de porte verrouillée ni de clé, pas de poignée qu'on abaisse, et aucun son au contact — c'est M5 qui l'apportera. La masse volumique est réglée objet par objet, alors qu'elle devrait découler d'un **matériau** — la même donnée servira au son des pas et à l'occlusion audio.
 
 **M4 est terminé.** La suite, c'est l'audio — le système central de ce moteur.
+
+---
+
+# 6. Brique 5 — la collision de maillage
+
+## 6.1 Le problème
+
+La collision du décor était décrite par des **boîtes posées à la main**. Six pour une pièce cubique : le sol, le plafond, et quatre murs. C'était acceptable pour une pièce de démonstration, et c'est impraticable pour un vrai niveau.
+
+Un couloir en L, un escalier, un mur oblique, une voûte : rien de tout cela ne s'approche correctement par des boîtes alignées sur les axes. Et surtout, **on ne peut pas importer un niveau** — un modèle téléchargé ou exporté de Blender arrive avec sa géométrie, pas avec une liste de boîtes. Sans collision de maillage, on tomberait au travers à l'infini.
+
+## 6.2 La décision : un arbre de triangles
+
+Jolt sait construire une forme de collision à partir d'une **liste de triangles** (`MeshShape`). Il en fait un arbre spatial, ce qui rend le test de collision logarithmique et non proportionnel au nombre de faces — un décor de cent mille triangles coûte à peine plus qu'un décor de mille.
+
+Deux contraintes viennent avec, et elles ne sont pas négociables.
+
+**Obligatoirement statique.** Un maillage de triangles n'a ni volume ni masse bien définis : il est creux, potentiellement ouvert, et rien ne dit où se trouve son centre de gravité. Aucun moteur physique ne sait faire rouler ça. Ce n'est pas une limitation gênante — le décor ne bouge pas, c'est exactement ce qu'on lui demande. Le chargeur force donc `static` à vrai, quoi que dise le fichier.
+
+**À face unique.** Un triangle a un devant et un derrière, décidés par l'**ordre de ses indices** : le produit vectoriel des deux premières arêtes donne la normale. Une face enroulée à l'envers est traversée sans rien heurter.
+
+C'est le piège de cette brique, et il s'est présenté immédiatement : le premier test faisait tomber une caisse **au travers** du sol, et un rayon venu d'en haut rapportait une normale pointant vers le bas. La géométrie du test était enroulée à l'envers — le moteur, lui, était correct. Un défaut de ce genre ne produit aucune erreur : juste un décor traversable, qu'on ne découvre qu'en y marchant.
+
+Pour la pièce, cela tombe juste : son maillage est **tourné vers l'intérieur** — c'est ce qui permettait déjà de la voir de l'intérieur sans que les murs disparaissent. Les faces regardent donc le joueur, et la collision fonctionne du bon côté.
+
+## 6.3 Collision et affichage restent séparés
+
+La géométrie de collision est une ressource **distincte** du maillage d'affichage, même quand les deux coïncident. La raison est celle de M4 : la collision d'un décor est presque toujours plus grossière que sa géométrie visible. Un mur sculpté de mille triangles se heurte très bien avec deux.
+
+Une conséquence technique force d'ailleurs la séparation : **un maillage GPU ne se relit pas**. Une fois les sommets envoyés à la carte, ils ne sont plus accessibles au processeur. Le jeu garde donc une copie — positions et indices seulement, ni normales ni UV, qui ne servent pas à la collision.
+
+La table de ressources n'en garde qu'une **vue** : elle ne possède rien, comme pour les maillages GPU. Les tableaux doivent lui survivre, et c'est au jeu de s'en assurer.
+
+## 6.4 L'échelle enveloppe la forme
+
+Jolt applique l'échelle par une **forme enveloppante** (`ScaledShape`) plutôt qu'en déformant les sommets. Deux objets de tailles différentes partagent ainsi le même arbre de triangles : une seule construction, une seule empreinte mémoire.
+
+Une échelle **négative** est refusée. Elle retournerait les triangles, donc les faces regarderaient vers l'extérieur, et le décor deviendrait traversable — encore un défaut qui ne se verrait qu'en jouant.
+
+## 6.5 Ce que la scène y gagne
+
+Sept entités de collision disparaissent, remplacées par une ligne sur la pièce elle-même :
+
+```json
+"collider": { "shape": "mesh", "collisionMesh": "piece", "static": true }
+```
+
+La collision suit désormais **exactement** les murs, y compris le plafond, et elle suivra n'importe quelle forme — c'est ce qui rend l'import d'un niveau possible.
+
+La démonstration des deux matières de pas, qui reposait sur deux demi-sols, se fait maintenant par une **estrade en bois** posée sur le sol de pierre. C'est un meilleur exemple : on l'escalade, donc on entend le changement sous ses pieds au lieu de traverser une frontière invisible.
+
+## 6.6 Une limite à connaître
+
+La matière d'une surface est portée par l'**entité**, pas par le triangle. Un décor entier en un seul collider n'a donc qu'un seul son de pas.
+
+Jolt sait associer un matériau à chaque triangle, et c'est la vraie réponse — elle viendra quand un niveau réel en aura besoin. En attendant, les surfaces qui doivent sonner différemment restent des entités séparées, ce qui est de toute façon souvent ce qu'on veut : une estrade, une plaque de métal, une flaque.
+
+## 6.7 Coût
+
+Un arbre construit une fois au chargement, proportionnel au nombre de triangles. Le test de collision est logarithmique. La copie processeur de la géométrie coûte douze octets par sommet plus quatre par indice — pour la pièce de démonstration, quelques kilo-octets.
+
+## 6.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Cinq tests** s'ajoutent : une caisse atterrit sur un sol de maillage au lieu de le traverser, un rayon le touche à la bonne distance avec la bonne normale et ne touche rien au-delà de ses bords, une mise à l'échelle étend réellement sa surface, une géométrie invalide est refusée sans faire tomber le monde, et un corps de maillage est statique donc ne tombe jamais. Le garde-fou de la scène vérifie en plus que chaque collider de maillage cite une géométrie que le jeu enregistre. **91 tests, 594 assertions** au total.
+
+**Ce qui n'existe pas encore** : pas de matériau par triangle, pas de génération automatique d'une collision simplifiée à partir d'un maillage détaillé, et pas de forme convexe pour les objets dynamiques — une caisse reste une boîte.
+
+**Ce qui vient après** : un vrai niveau. Le moteur sait désormais charger une géométrie, ses matériaux et sa collision ; il ne lui manque plus qu'un niveau à charger.

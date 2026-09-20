@@ -104,202 +104,13 @@
       }
     },
     {
-      "id": "0x00000000000d0001",
-      "name": "col_sol_ouest",
-      "transform": {
-        "position": [
-          -3.0,
-          -1.8,
-          0.0
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "collider": {
-        "shape": "box",
-        "halfExtents": [
-          3.0,
-          0.5,
-          6.0
-        ],
-        "static": true
-      },
-      "surface": {
-        "footstep": "pas_pierre"
-      }
-    },
-    {
-      "id": "0x00000000000d0002",
-      "name": "col_plafond",
-      "transform": {
-        "position": [
-          0.0,
-          3.2,
-          0.0
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "collider": {
-        "shape": "box",
-        "halfExtents": [
-          6.0,
-          0.5,
-          6.0
-        ],
-        "static": true
-      }
-    },
-    {
-      "id": "0x00000000000d0003",
-      "name": "col_mur_nord",
-      "transform": {
-        "position": [
-          0.0,
-          0.7,
-          -6.5
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "collider": {
-        "shape": "box",
-        "halfExtents": [
-          6.0,
-          2.0,
-          0.5
-        ],
-        "static": true
-      }
-    },
-    {
-      "id": "0x00000000000d0004",
-      "name": "col_mur_sud",
-      "transform": {
-        "position": [
-          0.0,
-          0.7,
-          6.5
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "collider": {
-        "shape": "box",
-        "halfExtents": [
-          6.0,
-          2.0,
-          0.5
-        ],
-        "static": true
-      }
-    },
-    {
-      "id": "0x00000000000d0005",
-      "name": "col_mur_ouest",
-      "transform": {
-        "position": [
-          -6.5,
-          0.7,
-          0.0
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "collider": {
-        "shape": "box",
-        "halfExtents": [
-          0.5,
-          2.0,
-          6.0
-        ],
-        "static": true
-      }
-    },
-    {
-      "id": "0x00000000000d0006",
-      "name": "col_mur_est",
-      "transform": {
-        "position": [
-          6.5,
-          0.7,
-          0.0
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "collider": {
-        "shape": "box",
-        "halfExtents": [
-          0.5,
-          2.0,
-          6.0
-        ],
-        "static": true
-      }
-    },
-    {
-      "id": "0x00000000000d0007",
-      "name": "col_sol_est",
+      "id": "0x00000000000d0008",
+      "name": "estrade",
       "transform": {
         "position": [
           3.0,
-          -1.8,
-          0.0
+          -1.2,
+          2.5
         ],
         "rotation": [
           0.0,
@@ -308,17 +119,21 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          4.0,
+          0.2,
+          4.0
         ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
       },
       "collider": {
         "shape": "box",
         "halfExtents": [
-          3.0,
-          0.5,
-          6.0
+          2.0,
+          0.1,
+          2.0
         ],
         "static": true
       },
@@ -657,6 +472,19 @@
       "mesh": {
         "mesh": "piece",
         "material": "pierre"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "piece"
+      },
+      "surface": {
+        "footstep": "pas_pierre"
       }
     },
     {

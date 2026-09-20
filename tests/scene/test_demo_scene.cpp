@@ -4,6 +4,7 @@
 #include "scene/audio_sync.h"
 #include "scene/components.h"
 #include "scene/footsteps.h"
+#include "scene/physics_sync.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
 #include "scene/serialization.h"
@@ -17,6 +18,12 @@
 
 namespace {
 
+// Une geometrie de collision minimale mais VALIDE. Son contenu n'a aucune importance :
+// ce qu'on verifie ici, ce sont les noms, pas les triangles.
+const core::Vec3 kDummyPositions[3] = {
+    {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+const core::u32 kDummyIndices[3] = {0, 1, 2};
+
 // Les ressources que le jeu enregistre a l'initialisation. Les poignees valent ce qu'on
 // veut : ce qu'on verifie ici, c'est que les NOMS se correspondent.
 scene::ResourceTable gameResources() {
@@ -29,6 +36,13 @@ scene::ResourceTable gameResources() {
     resources.addMaterial("bois", scene::Material{});
     resources.addMaterial("suzanne", scene::Material{});
     resources.addMaterial("laiton", scene::Material{});
+
+    scene::CollisionMesh geometry;
+    geometry.positions = kDummyPositions;
+    geometry.vertexCount = 3;
+    geometry.indices = kDummyIndices;
+    geometry.indexCount = 3;
+    resources.addCollisionMesh("piece", geometry);
     return resources;
 }
 
@@ -76,7 +90,29 @@ TEST_CASE("Every displayed entity cites a material the game registers") {
         CHECK(renderer.material != scene::kInvalidResource);
         ++rendered;
     }
-    CHECK(rendered == 10);
+    CHECK(rendered == 11);
+}
+
+TEST_CASE("Every mesh collider names a geometry the game registers") {
+    const scene::ResourceTable resources = gameResources();
+    scene::Scene scene;
+    REQUIRE(loadDemo(scene, resources));
+
+    core::u32 meshColliders = 0;
+    for (auto [entity, collider] : scene.registry().view<const scene::Collider>().each()) {
+        (void)entity;
+        if (collider.shape != scene::ColliderShape::Mesh) {
+            continue;
+        }
+        // Une geometrie introuvable laisse l'entite SANS COLLISION : on traverserait les
+        // murs, et rien ne le signalerait avant d'y marcher.
+        CHECK(collider.collisionMesh != scene::kInvalidResource);
+        // Un maillage de triangles est forcement statique, quoi que dise le fichier.
+        CHECK(collider.isStatic);
+        ++meshColliders;
+    }
+    // La piece entiere, en un seul collider, la ou il fallait sept boites.
+    CHECK(meshColliders == 1);
 }
 
 TEST_CASE("The door handle sits on the free edge and follows the door") {

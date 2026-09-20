@@ -11,6 +11,7 @@ add_executable(engine_tests
     physics/test_character.cpp
     physics/test_raycast.cpp
     physics/test_hinge.cpp
+    physics/test_mesh_body.cpp
     scene/test_physics_sync.cpp
     scene/test_audio_sync.cpp
     scene/test_demo_scene.cpp

@@ -13,6 +13,11 @@
 *.user
 CMakeUserPresets.json
 
+# Preferences d'interface ecrites par ImGui au lancement : positions et tailles des
+# fenetres de l'editeur. C'est un reglage PERSONNEL, pas une donnee du projet - le
+# versionner imposerait la disposition d'ecran d'une personne a tous les autres.
+imgui.ini
+
 # OS
 Thumbs.db
 .DS_Store

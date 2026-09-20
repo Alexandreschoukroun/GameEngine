@@ -4,6 +4,8 @@
 #include "platform/input.h"
 #include "platform/window.h"
 #include "scene/components.h"
+#include "scene/editing.h"
+#include "scene/serialization.h"
 
 #if defined(_MSC_VER)
 #pragma warning(push, 0)
@@ -21,6 +23,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -59,6 +62,10 @@ std::string displayName(const scene::Scene& scene, scene::Entity entity) {
 struct Editor::Impl {
     platform::Window* window = nullptr;
     TranslationGizmo gizmo;
+    std::string scenePath;
+    // Dernier resultat d'enregistrement, affiche sous le bouton. Une sauvegarde
+    // silencieuse laisse toujours un doute sur ce qui est parti sur le disque.
+    std::string saveMessage;
     bool visible = false;
     scene::Entity selected = scene::kInvalidEntity;
     // Reutilise d'une image a l'autre : construire la liste des enfants ne doit pas
@@ -118,6 +125,12 @@ void Editor::destroy() {
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
     m_impl.reset();
+}
+
+void Editor::setScenePath(std::string path) {
+    if (m_impl != nullptr) {
+        m_impl->scenePath = std::move(path);
+    }
 }
 
 void Editor::setVisible(bool visible) {
@@ -199,8 +212,8 @@ void drawHierarchyNode(scene::Scene& scene, scene::Entity entity, scene::Entity&
     }
 }
 
-void drawHierarchy(scene::Scene& scene, scene::Entity& selected,
-                   std::vector<scene::Entity>& scratch);
+void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,
+                   const renderer::Camera& camera, Editor::Impl& impl);
 void drawGizmo(scene::Scene& scene, const renderer::Camera& camera, scene::Entity selected,
                TranslationGizmo& gizmo);
 
@@ -226,7 +239,8 @@ void drawComponentSummary(const scene::Scene& scene, scene::Entity entity) {
 
 } // namespace
 
-void Editor::draw(scene::Scene& scene, const renderer::Camera& camera) {
+void Editor::draw(scene::Scene& scene, const scene::ResourceTable& resources,
+                  const renderer::Camera& camera) {
     if (m_impl == nullptr) {
         return;
     }
@@ -243,7 +257,7 @@ void Editor::draw(scene::Scene& scene, const renderer::Camera& camera) {
     ImGui::NewFrame();
 
     if (impl.visible) {
-        drawHierarchy(scene, impl.selected, impl.children);
+        drawHierarchy(scene, resources, camera, impl);
         drawGizmo(scene, camera, impl.selected, impl.gizmo);
     }
 
@@ -339,11 +353,62 @@ void drawGizmo(scene::Scene& scene, const renderer::Camera& camera, scene::Entit
                           IM_COL32(240, 240, 240, 255));
 }
 
-void drawHierarchy(scene::Scene& scene, scene::Entity& selected,
-                   std::vector<scene::Entity>& scratch) {
+// Barre d'outils : creer, dupliquer, supprimer, enregistrer. Les quatre gestes qui
+// separent un afficheur d'un editeur.
+void drawToolbar(scene::Scene& scene, const scene::ResourceTable& resources,
+                 const renderer::Camera& camera, Editor::Impl& impl) {
+    if (ImGui::Button("Nouvelle")) {
+        const scene::Entity created = scene.createEntity("nouvelle entite");
+        // Devant la camera plutot qu'a l'origine : une entite creee hors de vue donne
+        // l'impression que le bouton n'a rien fait.
+        scene.registry().get<scene::Transform>(created).position =
+            camera.position() + camera.forward() * 3.0f;
+        impl.selected = created;
+    }
+
+    const bool hasSelection = impl.selected != scene::kInvalidEntity;
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!hasSelection);
+    if (ImGui::Button("Dupliquer")) {
+        const scene::Entity copy = scene::duplicateEntity(scene, impl.selected);
+        if (copy != scene::kInvalidEntity) {
+            // On selectionne la copie : c'est elle qu'on va deplacer.
+            impl.selected = copy;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Supprimer")) {
+        scene::destroyEntityTree(scene, impl.selected);
+        impl.selected = scene::kInvalidEntity;
+    }
+    ImGui::EndDisabled();
+
+    ImGui::BeginDisabled(impl.scenePath.empty());
+    if (ImGui::Button("Enregistrer")) {
+        const bool saved =
+            scene::saveSceneToFile(scene, resources, impl.scenePath.c_str());
+        // Un retour explicite : une sauvegarde silencieuse laisse toujours un doute sur
+        // ce qui est parti sur le disque.
+        impl.saveMessage = saved ? "scene enregistree" : "echec de l'enregistrement";
+    }
+    ImGui::EndDisabled();
+    if (!impl.saveMessage.empty()) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", impl.saveMessage.c_str());
+    }
+}
+
+void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,
+                   const renderer::Camera& camera, Editor::Impl& impl) {
+    scene::Entity& selected = impl.selected;
+    std::vector<scene::Entity>& scratch = impl.children;
+
     ImGui::SetNextWindowSize(ImVec2(280.0f, 420.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(16.0f, 16.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Hierarchie")) {
+        drawToolbar(scene, resources, camera, impl);
+        ImGui::Separator();
+
         core::u32 count = 0;
         for (auto entity : scene.registry().view<entt::entity>()) {
             (void)entity;
@@ -371,7 +436,22 @@ void drawHierarchy(scene::Scene& scene, scene::Entity& selected,
         if (selected == scene::kInvalidEntity) {
             ImGui::TextDisabled("Aucune entite selectionnee.");
         } else {
-            ImGui::TextUnformatted(displayName(scene, selected).c_str());
+            // Un tampon fixe plutot que la liaison std::string d'ImGui : celle-ci vit
+            // dans un fichier separe que le port vcpkg ne compile pas forcement, et
+            // dependre de cela pour un champ de texte serait fragile.
+            auto* name = scene.registry().try_get<scene::Name>(selected);
+            if (name != nullptr) {
+                char buffer[128];
+                const std::size_t length =
+                    std::min(name->value.size(), sizeof(buffer) - 1);
+                std::memcpy(buffer, name->value.data(), length);
+                buffer[length] = '\0';
+                if (ImGui::InputText("nom", buffer, sizeof(buffer))) {
+                    name->value = buffer;
+                }
+            } else {
+                ImGui::TextUnformatted(displayName(scene, selected).c_str());
+            }
             ImGui::Separator();
 
             auto* transform = scene.registry().try_get<scene::Transform>(selected);

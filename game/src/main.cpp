@@ -312,6 +312,9 @@ protected:
         if (!m_editor.create(window(), inputDevice())) {
             core::logWarn("le jeu demarre sans editeur");
         }
+        // Le meme fichier que celui qu'on a charge : enregistrer depuis l'editeur ecrit
+        // la ou la scene a ete lue, sans quoi la modification serait perdue au relancement.
+        m_editor.setScenePath(platform::assetPath(kScenePath));
 
         // Les modeles EN DERNIER, et ce n'est pas indifferent : un modele dont le fichier
         // ne declare pas de carte de couleur se rabat sur le blanc neutre, et une matiere
@@ -644,7 +647,7 @@ protected:
 
         // L'interface vient APRES la scene : elle se pose par-dessus l'image finie, et
         // elle n'a donc aucune raison de passer par le G-buffer.
-        m_editor.draw(m_scene, m_camera);
+        m_editor.draw(m_scene, m_resources, m_camera);
     }
 
     // Le contexte GPU est encore vivant ici : c'est le seul endroit ou liberer ces objets.

@@ -3,7 +3,10 @@
 #include "core/types.h"
 #include "editor/gizmo.h"
 #include "renderer/camera.h"
+#include "scene/resource_table.h"
 #include "scene/scene.h"
+
+#include <string>
 
 #include <memory>
 
@@ -54,13 +57,23 @@ public:
     //
     // La scene est passee par reference non const : editer, c'est modifier. La camera,
     // elle, ne sert qu'a projeter le gizmo - l'editeur ne la deplace pas.
-    void draw(scene::Scene& scene, const renderer::Camera& camera);
+    void draw(scene::Scene& scene, const scene::ResourceTable& resources,
+              const renderer::Camera& camera);
+
+    // Fichier vers lequel le bouton d'enregistrement ecrit. Sans lui, le bouton reste
+    // desactive : l'editeur n'a aucune raison de deviner ou poser un niveau.
+    void setScenePath(std::string path);
 
     // Entite selectionnee, ou kInvalidEntity. Le jeu s'en sert pour la mettre en evidence.
     scene::Entity selected() const;
 
-private:
+    // Etat interne. Seul le NOM est public : sa definition vit dans le .cpp, donc rien
+    // n'en fuit et le PIMPL tient toujours. Ce qui devient possible, c'est que les
+    // fonctions de dessin - libres, dans un espace de noms anonyme - puissent le nommer
+    // au lieu de recevoir six parametres separes.
     struct Impl;
+
+private:
     std::unique_ptr<Impl> m_impl;
 };
 

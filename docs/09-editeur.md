@@ -1,6 +1,6 @@
 # 09 — L'éditeur (M6)
 
-*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2).*
+*Brique 1 : l'éditeur existe — hiérarchie, inspecteur, bascule (section 1). Brique 2 : les gizmos (section 2). Brique 3 : creer, dupliquer, detruire, enregistrer (section 3).*
 
 # 1. Brique 1 — l'éditeur existe
 
@@ -138,3 +138,63 @@ Trois projections et une inversion de matrice par image, uniquement quand une en
 **Sept tests**, tous sans GPU : la projection et son refus de ce qui est derrière, le rayon d'écran cohérent avec elle, le point le plus proche d'un axe et son refus du cas parallèle, la distance au segment, le survol, la saisie qui déplace **sur l'axe et nulle part ailleurs**, et la taille apparente constante. **108 tests, 36104 assertions** au total.
 
 **Ce qui n'existe pas encore** : pas de rotation ni de mise à l'échelle — seule la translation est manipulable. Pas d'aimantation sur une grille, pas d'annulation, et on ne peut pas sélectionner un objet **en cliquant dessus dans la vue** : il faut passer par la hiérarchie. Ce dernier point réutilisera `screenRay` et le lancer de rayon de M4.
+
+---
+
+# 3. Brique 3 — la boucle d'édition
+
+## 3.1 Le problème
+
+On pouvait sélectionner et déplacer. On ne pouvait ni **créer**, ni **dupliquer**, ni **détruire**, ni **enregistrer** — c'est-à-dire rien de ce qui permet de construire un niveau. Le gizmo déplaçait des objets que seul un fichier édité à la main pouvait faire exister.
+
+## 3.2 Ces opérations appartiennent à la scène, pas à l'éditeur
+
+Elles vivent dans `scene/editing.h` et non dans la couche éditeur, pour deux raisons.
+
+D'abord elles n'ont **rien d'une affaire d'interface** : dupliquer une entité est une opération sur des données. Un script Lua de M7 voudra en faire autant, et il n'aura aucune raison de passer par un panneau.
+
+Ensuite — et c'est ce qui a payé immédiatement — elles deviennent **testables sans fenêtre**. Leurs pièges ne se voient pas à l'œil.
+
+## 3.3 Dupliquer, et ce que ça implique
+
+**Les descendants viennent avec.** Copier une porte sans sa poignée donnerait un objet incomplet, et personne ne penserait à copier la poignée séparément.
+
+**Les copies sont toutes créées avant qu'aucune ne soit reliée.** Un enfant peut apparaître avant son parent dans la liste ; sa copie doit déjà exister pour être désignée.
+
+**Le lien de parenté se remappe — ou pas.** Si le parent est *dans* la copie, on relie à **sa** copie : sinon les deux arbres partageraient des enfants, et ouvrir une porte ferait bouger la poignée de l'autre. Si le parent est *à l'extérieur*, le lien se copie tel quel — dupliquer une poignée doit donner une seconde poignée sur la même porte.
+
+**Trois choses ne sont délibérément pas copiées** : l'identifiant, qui doit rester unique parce qu'il est la clé du fichier ; la matrice monde, qui se recalcule ; et tout ce qui n'existe qu'à l'exécution — corps physique, voix audio — dont la copie désignerait la ressource de l'original. Arrêter le son de la copie couperait celui de l'autre.
+
+## 3.4 La liste explicite, et son coût assumé
+
+`copyDataComponents` énumère les composants un par un. EnTT sait parcourir les types d'un registre, mais pas les copier sans qu'on les ait déclarés quelque part : le choix est entre cette liste et une machinerie de réflexion. Pour une vingtaine de composants, la liste gagne.
+
+Son coût est réel : **ajouter un composant au moteur oblige à l'ajouter ici**, sous peine qu'une duplication le perde en silence. Un test verrouille donc le contrat — il duplique une entité qui les porte tous et vérifie qu'aucun n'a été oublié.
+
+Ce test a servi **avant même d'être fini** : `Parent` manquait à la liste, alors que c'est une donnée sérialisée. La copie n'en avait donc pas, et la relier faisait échouer une assertion d'EnTT. Le défaut a été signalé sans qu'on ait eu à lancer le jeu.
+
+## 3.5 Détruire emporte les descendants
+
+Détruire seulement l'entité laisserait ses enfants pointer sur un parent mort. La scène s'en remet — elle vérifie la validité avant de suivre le lien — mais les enfants **sauteraient à l'origine du monde**, ce qui a l'air d'un bug et n'en est pas un.
+
+Les descendants partent donc en premier : détruire la racine d'abord invaliderait les liens par lesquels on les retrouve.
+
+## 3.6 Enregistrer
+
+Le bouton écrit vers **le fichier d'où la scène a été lue**. C'est la seule destination qui ait du sens : enregistrer ailleurs perdrait la modification au relancement suivant.
+
+Le résultat est affiché. Une sauvegarde silencieuse laisse toujours un doute sur ce qui est parti sur le disque — et le déterminisme du format, acquis en M3, prend ici tout son sens : réenregistrer une scène qu'on n'a pas modifiée ne produit **aucun changement dans Git**.
+
+## 3.7 Une limite à connaître
+
+Une entité créée ou dupliquée **n'a pas de corps physique**. Les corps sont construits au chargement, à partir des `Collider` ; dupliquer une caisse donne donc un objet visible qui ne collisionne pas jusqu'au prochain lancement.
+
+Ce n'est pas difficile à corriger — la fonction qui crée les corps ignore déjà les entités qui en ont un, donc la rappeler suffirait. Mais cela ferait dépendre l'éditeur de la physique, et cette dépendance mérite d'être décidée plutôt que subie. En attendant : enregistrer, relancer.
+
+## 3.8 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Huit tests** s'ajoutent : les descendants sont trouvés à travers toute la chaîne, la duplication copie les données et donne un identifiant neuf, elle emmène les enfants en les reliant à la copie, un enfant dupliqué seul reste attaché au même parent, tous les composants de données survivent, ceux d'exécution ne sont pas copiés, détruire emporte les descendants, et détruire un enfant laisse son parent tranquille. **116 tests, 36153 assertions** au total.
+
+**Ce qui n'existe pas encore** : on ne peut pas **reparenter** à la souris, ni choisir le maillage ou la matière d'une entité créée — elle naît invisible, et il faut encore le fichier pour lui donner un corps. L'inspecteur ne montre toujours que le `Transform` et le nom.
+
+**Ce qui vient après (brique 4)** : l'inspecteur complet — colliders, lumières, sources sonores, et un choix de maillage et de matière parmi ce que la table de ressources connaît. C'est ce qui rendra une entité créée dans l'éditeur réellement utilisable.

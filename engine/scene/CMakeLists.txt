@@ -3,6 +3,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(engine_scene STATIC
     src/audio_sync.cpp
+    src/editing.cpp
     src/footsteps.cpp
     src/physics_sync.cpp
     src/resource_table.cpp

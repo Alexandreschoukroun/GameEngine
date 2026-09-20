@@ -50,6 +50,8 @@ protected:
 
     Window& window() { return m_window; }
     const InputState& input() const { return m_inputState; }
+    // Non const : c'est par la qu'on branche un observateur d'evenements bruts.
+    Input& inputDevice() { return m_input; }
 
 private:
     ApplicationConfig m_config;

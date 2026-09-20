@@ -19,6 +19,7 @@ SDL_Scancode toScancode(Key key) {
         case Key::Tab: return SDL_SCANCODE_TAB;
         case Key::E: return SDL_SCANCODE_E;
         case Key::F: return SDL_SCANCODE_F;
+        case Key::F1: return SDL_SCANCODE_F1;
         case Key::F5: return SDL_SCANCODE_F5;
     }
     return SDL_SCANCODE_UNKNOWN;
@@ -36,6 +37,11 @@ bool InputState::isMouseButtonDown(MouseButton button) const {
     return index < m_mouseDown.size() && m_mouseDown[index];
 }
 
+void Input::setRawEventObserver(RawEventObserver observer, void* user) {
+    m_observer = observer;
+    m_observerUser = user;
+}
+
 void Input::update(InputState& state) {
     state.m_quitRequested = false;
     // Les deplacements de souris sont consommes a chaque frame : ils decrivent ce qui
@@ -46,6 +52,11 @@ void Input::update(InputState& state) {
 
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        // L'observateur voit l'evenement AVANT le moteur : une interface doit pouvoir
+        // decider qu'elle le consomme, ce que le traitement qui suit ne saurait defaire.
+        if (m_observer != nullptr) {
+            m_observer(&event, m_observerUser);
+        }
         switch (event.type) {
             case SDL_EVENT_QUIT:
                 state.m_quitRequested = true;

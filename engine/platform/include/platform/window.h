@@ -35,6 +35,15 @@ public:
     // fenetre : c'est le systeme qui l'a deja fait, on se met a jour.
     void notifyResized(core::u32 width, core::u32 height);
 
+    // Poignees natives, volontairement OPAQUES : un SDL_Window* et un SDL_GLContext.
+    //
+    // Seul l'editeur s'en sert, pour brancher Dear ImGui qui a besoin de la vraie fenetre.
+    // Les rendre en void* respecte la regle 2 du SPEC a la lettre : aucun type SDL
+    // n'apparait ici, et personne ne peut s'en servir par accident - il faut savoir ce
+    // qu'on caste pour en faire quoi que ce soit.
+    void* nativeWindow() const;
+    void* nativeGlContext() const { return m_glContext; }
+
     core::u32 width() const { return m_width; }
     core::u32 height() const { return m_height; }
 

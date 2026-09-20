@@ -83,7 +83,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | M4.5 | Animation squelettique : squelettes glTF, skinning GPU, lecteur d'animation | À venir |
 | **M5** | Audio : spatialisation, occlusion, matériaux de pas, couche de tension | ✅ Terminé |
 | **M5.5** | Matériaux et vrais assets : relief, matériaux glTF, éclairage d'environnement | ✅ Terminé |
-| M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | À venir |
+| M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | 🚧 En cours |
 | M7 | Lua, triggers, navmesh, perception et IA de l'antagoniste | À venir |
 | M8 | Brouillard volumétrique, post-process, accessibilité | À venir |
 | M9 | Packaging et jeu de démonstration jouable de 15 minutes | À venir |
@@ -111,7 +111,7 @@ ctest --preset windows-msvc-debug
 .\build\windows-msvc\game\Debug\game.exe
 ```
 
-Commandes : **Z Q S D** pour se déplacer (les touches suivent la disposition physique, donc W A S D sur un clavier QWERTZ ou QWERTY), **Espace** pour sauter, **Maj gauche** pour courir, **Ctrl gauche** pour s'accroupir, la **souris** pour regarder, **clic gauche maintenu** pour attraper un objet ou tirer sur une porte, **F** pour allumer ou éteindre la lampe torche, **Tab** pour faire défiler les couches du G-buffer, **Échap** pour quitter.
+Commandes : **Z Q S D** pour se déplacer (les touches suivent la disposition physique, donc W A S D sur un clavier QWERTZ ou QWERTY), **Espace** pour sauter, **Maj gauche** pour courir, **Ctrl gauche** pour s'accroupir, la **souris** pour regarder, **clic gauche maintenu** pour attraper un objet ou tirer sur une porte, **F** pour allumer ou éteindre la lampe torche, **F1** pour ouvrir l'éditeur, **Tab** pour faire défiler les couches du G-buffer, **Échap** pour quitter.
 
 Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minutes. Les suivants sont instantanés. La CI GitHub Actions exécute exactement ces commandes, en Debug et en Release, à chaque push. Détails dans [`docs/build-et-ci.md`](docs/build-et-ci.md).
 
@@ -141,6 +141,7 @@ Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minu
 - [`docs/06-physique.md`](docs/06-physique.md) : la physique — Jolt, colliders, personnage, saisie, portes
 - [`docs/07-audio.md`](docs/07-audio.md) : l'audio — voix, sources de scène, occlusion, matériaux, tension
 - [`docs/08-materiaux.md`](docs/08-materiaux.md) : matériaux et relief — espace tangent, cartes de normales, textures générées
+- [`docs/09-editeur.md`](docs/09-editeur.md) : l'éditeur — ImGui en mode immédiat, hiérarchie, inspecteur
 - [`docs/build-et-ci.md`](docs/build-et-ci.md) : build, tests et intégration continue
 
 ## Licence

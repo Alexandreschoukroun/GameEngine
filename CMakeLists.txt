@@ -16,6 +16,7 @@ option(GAMEENGINE_BUILD_TESTS "Build the doctest test suite" ON)
 option(GAMEENGINE_PROFILING "Instrument the engine for the Tracy profiler" ON)
 
 add_subdirectory(engine)
+add_subdirectory(editor)
 add_subdirectory(game)
 add_subdirectory(tools)
 

@@ -3,6 +3,7 @@ find_package(SDL3 CONFIG REQUIRED)
 
 add_library(editor STATIC
     src/editor.cpp
+    src/gizmo.cpp
 )
 
 target_include_directories(editor PUBLIC

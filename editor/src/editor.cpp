@@ -58,6 +58,7 @@ std::string displayName(const scene::Scene& scene, scene::Entity entity) {
 
 struct Editor::Impl {
     platform::Window* window = nullptr;
+    TranslationGizmo gizmo;
     bool visible = false;
     scene::Entity selected = scene::kInvalidEntity;
     // Reutilise d'une image a l'autre : construire la liste des enfants ne doit pas
@@ -134,7 +135,15 @@ void Editor::toggle() {
 bool Editor::isVisible() const { return m_impl != nullptr && m_impl->visible; }
 
 bool Editor::capturesMouse() const {
-    return isVisible() && ImGui::GetIO().WantCaptureMouse;
+    if (!isVisible()) {
+        return false;
+    }
+    // Le gizmo compte autant qu'une fenetre : il vit DANS la vue, la ou ImGui considere
+    // que la souris est libre. Sans cette ligne, tirer sur un bras ferait pivoter la
+    // camera en meme temps, et l'objet suivrait un regard qui bouge.
+    const bool gizmoBusy = m_impl->gizmo.isDragging() ||
+                           m_impl->gizmo.hovered() != GizmoAxis::None;
+    return ImGui::GetIO().WantCaptureMouse || gizmoBusy;
 }
 
 bool Editor::capturesKeyboard() const {
@@ -192,6 +201,8 @@ void drawHierarchyNode(scene::Scene& scene, scene::Entity entity, scene::Entity&
 
 void drawHierarchy(scene::Scene& scene, scene::Entity& selected,
                    std::vector<scene::Entity>& scratch);
+void drawGizmo(scene::Scene& scene, const renderer::Camera& camera, scene::Entity selected,
+               TranslationGizmo& gizmo);
 
 // Liste, en lecture seule, ce que porte l'entite. Savoir de quoi un objet est fait est la
 // premiere question qu'on se pose devant un editeur.
@@ -215,7 +226,7 @@ void drawComponentSummary(const scene::Scene& scene, scene::Entity entity) {
 
 } // namespace
 
-void Editor::draw(scene::Scene& scene) {
+void Editor::draw(scene::Scene& scene, const renderer::Camera& camera) {
     if (m_impl == nullptr) {
         return;
     }
@@ -233,6 +244,7 @@ void Editor::draw(scene::Scene& scene) {
 
     if (impl.visible) {
         drawHierarchy(scene, impl.selected, impl.children);
+        drawGizmo(scene, camera, impl.selected, impl.gizmo);
     }
 
     ImGui::Render();
@@ -242,6 +254,90 @@ void Editor::draw(scene::Scene& scene) {
 }
 
 namespace {
+
+// Couleurs des trois bras. L'association X rouge, Y vert, Z bleu est universelle dans les
+// outils 3D : s'en ecarter desorienterait quiconque a deja touche a Blender ou Unity.
+constexpr ImU32 kAxisColors[3] = {
+    IM_COL32(220, 70, 70, 255),
+    IM_COL32(90, 200, 90, 255),
+    IM_COL32(80, 130, 230, 255),
+};
+constexpr ImU32 kHighlight = IM_COL32(255, 220, 90, 255);
+
+void drawGizmo(scene::Scene& scene, const renderer::Camera& camera, scene::Entity selected,
+               TranslationGizmo& gizmo) {
+    if (selected == scene::kInvalidEntity) {
+        return;
+    }
+    auto* transform = scene.registry().try_get<scene::Transform>(selected);
+    if (transform == nullptr) {
+        return;
+    }
+
+    // Le gizmo se place sur la position MONDE : un objet enfant se manipule la ou on le
+    // voit, pas la ou son parent l'imagine.
+    scene.updateWorldTransforms();
+    const core::Mat4 world = scene.worldMatrix(selected);
+    const core::Vec3 origin(world[3]);
+
+    const ImGuiIO& io = ImGui::GetIO();
+    TranslationGizmo::Frame frame;
+    frame.viewProjection = camera.viewProjectionMatrix();
+    frame.cameraPosition = camera.position();
+    frame.mouse = core::Vec2(io.MousePos.x, io.MousePos.y);
+    frame.viewport = core::Vec2(io.DisplaySize.x, io.DisplaySize.y);
+    // Une fenetre survolee garde la souris : on ne veut pas attraper un bras a travers un
+    // panneau. Mais une saisie EN COURS continue, meme si le curseur passe dessus.
+    const bool overPanel = io.WantCaptureMouse && !gizmo.isDragging();
+    frame.mousePressed = !overPanel && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+    frame.mouseHeld = !overPanel && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+
+    const core::Vec3 delta = gizmo.update(frame, origin);
+
+    if (glm::dot(delta, delta) > 0.0f) {
+        // Le deplacement est calcule dans le MONDE, le Transform vit dans le repere du
+        // parent. Sans cette conversion, deplacer la poignee d'une porte mise a l'echelle
+        // (0,9 ; 2,0 ; 0,08) l'enverrait douze fois trop loin sur un axe et huit fois trop
+        // court sur un autre.
+        core::Vec3 localDelta = delta;
+        const auto* parent = scene.registry().try_get<scene::Parent>(selected);
+        if (parent != nullptr && scene.isValid(parent->value)) {
+            const core::Mat3 parentLinear(scene.worldMatrix(parent->value));
+            localDelta = glm::inverse(parentLinear) * delta;
+        }
+        transform->position += localDelta;
+    }
+
+    // --- dessin ---------------------------------------------------------------------
+    //
+    // La liste d'arriere-plan : le gizmo se pose sur la scene mais passe SOUS les
+    // panneaux, ce qui evite qu'un bras ne barre l'inspecteur.
+    ImDrawList* draw = ImGui::GetBackgroundDrawList();
+    core::Vec2 originScreen{0.0f, 0.0f};
+    if (!worldToScreen(frame.viewProjection, origin, frame.viewport, originScreen)) {
+        return;
+    }
+    const core::f32 arm = TranslationGizmo::armLength(frame.cameraPosition, origin);
+    const GizmoAxis active =
+        gizmo.isDragging() ? gizmo.dragged() : gizmo.hovered();
+
+    core::u32 index = 0;
+    for (const GizmoAxis axis : {GizmoAxis::X, GizmoAxis::Y, GizmoAxis::Z}) {
+        core::Vec2 tipScreen{0.0f, 0.0f};
+        const core::Vec3 tip = origin + TranslationGizmo::axisDirection(axis) * arm;
+        if (worldToScreen(frame.viewProjection, tip, frame.viewport, tipScreen)) {
+            const bool lit = axis == active;
+            draw->AddLine(ImVec2(originScreen.x, originScreen.y),
+                          ImVec2(tipScreen.x, tipScreen.y),
+                          lit ? kHighlight : kAxisColors[index], lit ? 4.0f : 2.5f);
+            draw->AddCircleFilled(ImVec2(tipScreen.x, tipScreen.y), lit ? 6.0f : 4.0f,
+                                  lit ? kHighlight : kAxisColors[index]);
+        }
+        ++index;
+    }
+    draw->AddCircleFilled(ImVec2(originScreen.x, originScreen.y), 3.0f,
+                          IM_COL32(240, 240, 240, 255));
+}
 
 void drawHierarchy(scene::Scene& scene, scene::Entity& selected,
                    std::vector<scene::Entity>& scratch) {

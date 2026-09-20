@@ -5,6 +5,7 @@ add_executable(engine_tests
     core/test_time.cpp
     assets/test_gltf.cpp
     renderer/test_camera.cpp
+    editor/test_gizmo.cpp
     scene/test_serialization.cpp
     scene/test_sector_graph.cpp
     physics/test_world.cpp
@@ -25,7 +26,7 @@ add_executable(engine_tests
 # Ne sont liees ici que les couches testables sans GPU ni fenetre : c'est ce qui permet
 # a la CI de lancer ces tests sur une machine sans carte graphique. L'audio en fait partie
 # grace au backend silencieux de miniaudio, et platform n'y sert qu'a resoudre les chemins.
-target_link_libraries(engine_tests PRIVATE engine::core engine::platform engine::assets engine::renderer engine::scene engine::physics engine::audio doctest::doctest)
+target_link_libraries(engine_tests PRIVATE engine::core engine::platform engine::assets engine::renderer engine::scene engine::physics engine::audio editor::editor doctest::doctest)
 
 set_project_warnings(engine_tests)
 

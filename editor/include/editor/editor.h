@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/types.h"
+#include "editor/gizmo.h"
+#include "renderer/camera.h"
 #include "scene/scene.h"
 
 #include <memory>
@@ -50,8 +52,9 @@ public:
     // Dessine l'interface et applique les modifications a la scene. A appeler une fois par
     // image, APRES le rendu de la scene : l'interface se pose par-dessus.
     //
-    // La scene est passee par reference non const : editer, c'est modifier.
-    void draw(scene::Scene& scene);
+    // La scene est passee par reference non const : editer, c'est modifier. La camera,
+    // elle, ne sert qu'a projeter le gizmo - l'editeur ne la deplace pas.
+    void draw(scene::Scene& scene, const renderer::Camera& camera);
 
     // Entite selectionnee, ou kInvalidEntity. Le jeu s'en sert pour la mettre en evidence.
     scene::Entity selected() const;

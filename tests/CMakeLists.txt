@@ -9,6 +9,7 @@ add_executable(engine_tests
     scene/test_sector_graph.cpp
     physics/test_world.cpp
     physics/test_character.cpp
+    physics/test_crouch.cpp
     physics/test_raycast.cpp
     physics/test_hinge.cpp
     physics/test_mesh_body.cpp

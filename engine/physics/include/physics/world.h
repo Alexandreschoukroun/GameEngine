@@ -126,6 +126,17 @@ public:
     CharacterHandle addCharacter(const core::Vec3& feetPosition, core::f32 radius,
                                  core::f32 height);
 
+    // Change la taille du personnage, les pieds restant au sol - c'est ce qui permet de
+    // s'accroupir et de se relever.
+    //
+    // Rend FAUX si le decor s'y oppose : se relever sous un plafond bas ferait entrer la
+    // capsule dans la geometrie, et le personnage serait ejecte ou traverserait. Le refus
+    // est donc la reponse juste, et c'est a l'appelant de rester accroupi.
+    bool setCharacterHeight(CharacterHandle character, core::f32 height);
+
+    // Hauteur actuelle, en metres.
+    core::f32 characterHeight(CharacterHandle character) const;
+
     void setCharacterVelocity(CharacterHandle character, const core::Vec3& velocity);
     core::Vec3 characterVelocity(CharacterHandle character) const;
     core::Vec3 characterPosition(CharacterHandle character) const;

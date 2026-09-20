@@ -139,6 +139,10 @@ struct World::Impl {
 
     // Les personnages sont comptes par reference chez Jolt : Ref les libere avec le monde.
     std::vector<JPH::Ref<JPH::CharacterVirtual>> characters;
+    // Rayon et hauteur courante de chacun : une capsule Jolt ne se relit pas, il faut
+    // donc garder de quoi la reconstruire.
+    std::vector<core::f32> characterRadii;
+    std::vector<core::f32> characterHeights;
 
     // Corps tenus par une charniere. Une liste suffit : il y en aura quelques dizaines
     // dans un niveau, pas des milliers.
@@ -460,6 +464,25 @@ JPH::CharacterVirtual* characterAt(const std::vector<JPH::Ref<JPH::CharacterVirt
 
 } // namespace
 
+namespace {
+
+// Capsule d'un personnage, posee sur ses pieds.
+//
+// Une capsule et non une boite : elle glisse le long des murs et des coins au lieu de s'y
+// accrocher. La demi-hauteur exclut les deux calottes spheriques, et le decalage vers le
+// haut fait que la position du personnage designe ses PIEDS - ce qui rend
+// l'accroupissement naturel, puisque la capsule raccourcit par le haut.
+JPH::Ref<JPH::Shape> makeCharacterShape(core::f32 radius, core::f32 height) {
+    const core::f32 halfHeight = height * 0.5f - radius;
+    return JPH::RotatedTranslatedShapeSettings(
+               JPH::Vec3(0.0f, halfHeight + radius, 0.0f), JPH::Quat::sIdentity(),
+               new JPH::CapsuleShape(halfHeight, radius))
+        .Create()
+        .Get();
+}
+
+} // namespace
+
 CharacterHandle World::addCharacter(const core::Vec3& feetPosition, core::f32 radius,
                                     core::f32 height) {
     if (m_impl == nullptr || height <= 2.0f * radius) {
@@ -467,17 +490,7 @@ CharacterHandle World::addCharacter(const core::Vec3& feetPosition, core::f32 ra
         return kInvalidCharacter;
     }
 
-    // Une capsule, et non une boite : elle glisse le long des murs et des coins au lieu de
-    // s'y accrocher. La demi-hauteur exclut les deux calottes spheriques.
-    const core::f32 halfHeight = height * 0.5f - radius;
-    const JPH::Ref<JPH::Shape> capsule =
-        JPH::RotatedTranslatedShapeSettings(
-            // Decalage vers le haut : la position du personnage designe ses pieds, alors
-            // qu'une capsule est centree sur son milieu.
-            JPH::Vec3(0.0f, halfHeight + radius, 0.0f), JPH::Quat::sIdentity(),
-            new JPH::CapsuleShape(halfHeight, radius))
-            .Create()
-            .Get();
+    const JPH::Ref<JPH::Shape> capsule = makeCharacterShape(radius, height);
 
     JPH::Ref<JPH::CharacterVirtualSettings> settings = new JPH::CharacterVirtualSettings();
     settings->mShape = capsule;
@@ -490,7 +503,42 @@ CharacterHandle World::addCharacter(const core::Vec3& feetPosition, core::f32 ra
 
     m_impl->characters.push_back(new JPH::CharacterVirtual(
         settings, toJolt(feetPosition), JPH::Quat::sIdentity(), &m_impl->system));
+    // Le rayon est conserve : redimensionner la capsule demande de la reconstruire, et
+    // une capsule ne se relit pas.
+    m_impl->characterRadii.push_back(radius);
+    m_impl->characterHeights.push_back(height);
     return static_cast<CharacterHandle>(m_impl->characters.size() - 1);
+}
+
+bool World::setCharacterHeight(CharacterHandle character, core::f32 height) {
+    if (m_impl == nullptr || character >= m_impl->characters.size()) {
+        return false;
+    }
+    const core::f32 radius = m_impl->characterRadii[character];
+    if (height <= 2.0f * radius) {
+        return false;
+    }
+    JPH::CharacterVirtual* c = m_impl->characters[character].GetPtr();
+
+    // Jolt teste la nouvelle forme contre le decor et REFUSE si elle y penetrerait trop.
+    // C'est exactement le test "puis-je me relever ici ?", et il vaut mieux que le notre :
+    // il consulte la geometrie reelle plutot qu'un rayon qui pourrait passer a cote.
+    const bool accepted = c->SetShape(
+        makeCharacterShape(radius, height), 0.02f,
+        m_impl->system.GetDefaultBroadPhaseLayerFilter(Layers::kCharacter),
+        m_impl->system.GetDefaultLayerFilter(Layers::kCharacter), {}, {},
+        m_impl->tempAllocator);
+    if (accepted) {
+        m_impl->characterHeights[character] = height;
+    }
+    return accepted;
+}
+
+core::f32 World::characterHeight(CharacterHandle character) const {
+    if (m_impl == nullptr || character >= m_impl->characterHeights.size()) {
+        return 0.0f;
+    }
+    return m_impl->characterHeights[character];
 }
 
 void World::setCharacterVelocity(CharacterHandle character, const core::Vec3& velocity) {

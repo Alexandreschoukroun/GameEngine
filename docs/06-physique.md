@@ -1,6 +1,6 @@
 # 06 — Physique (M4)
 
-*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3). Brique 4a : attraper et pousser (section 4). Brique 4b : les portes à charnière (section 5). Brique 5 : la collision de maillage (section 6).*
+*Brique 1 : Jolt intégré, monde physique. Brique 2 : les colliders deviennent des données (section 2). Brique 3 : le contrôleur de personnage (section 3). Brique 4a : attraper et pousser (section 4). Brique 4b : les portes à charnière (section 5). Brique 5 : la collision de maillage (section 6). Brique 6 : s'accroupir (section 7).*
 
 Le jalon M4 apporte la physique : colliders, contrôleur de personnage, saisie d'objets et portes. Cette première brique pose le socle — et force au passage une décision restée en suspens depuis M3.
 
@@ -445,3 +445,47 @@ Un arbre construit une fois au chargement, proportionnel au nombre de triangles.
 **Ce qui n'existe pas encore** : pas de matériau par triangle, pas de génération automatique d'une collision simplifiée à partir d'un maillage détaillé, et pas de forme convexe pour les objets dynamiques — une caisse reste une boîte.
 
 **Ce qui vient après** : un vrai niveau. Le moteur sait désormais charger une géométrie, ses matériaux et sa collision ; il ne lui manque plus qu'un niveau à charger.
+
+---
+
+# 7. Brique 6 — s'accroupir
+
+## 7.1 Le problème
+
+Le joueur ne pouvait pas se baisser. C'est un manque de gameplay avant d'être un manque technique : dans ce genre, se baisser sert à **passer sous un obstacle**, à **se cacher derrière un meuble**, et bientôt à **faire moins de bruit** quand une créature écoutera.
+
+## 7.2 La capsule raccourcit par le haut
+
+La position d'un personnage désigne ses **pieds** — un choix fait en M4 pour n'avoir pas à se demander où passe le milieu de la capsule. Il paie ici : raccourcir la capsule la fait descendre par le haut, les pieds restant plantés au sol.
+
+Si la position avait désigné le centre, s'accroupir aurait enfoncé le joueur dans le sol et se relever l'aurait projeté en l'air. Un test vérifie explicitement que les pieds ne bougent pas.
+
+## 7.3 Se relever se négocie, il ne se décide pas
+
+C'est le point intéressant de la brique. S'accroupir réussit toujours ; **se relever peut échouer**.
+
+Sous un plafond bas, agrandir la capsule la ferait pénétrer dans la géométrie. Un moteur physique réagit à ça en éjectant violemment le corps, ou en le laissant traverser — dans les deux cas, un défaut spectaculaire.
+
+L'implémentation naïve serait un rayon vers le haut : « y a-t-il quelque chose au-dessus ? ». Elle est fausse dans les cas qui comptent. Un rayon est **infiniment fin** : il peut passer entre deux tuyaux, ou à côté d'un pilier que l'épaule toucherait, et conclure à tort qu'on peut se lever.
+
+Jolt fait mieux : `CharacterVirtual::SetShape` **teste la forme entière** contre le décor et refuse si elle y pénétrerait trop. C'est exactement la question posée — « cette capsule tient-elle ici ? » — et non une approximation de cette question. Le moteur se contente donc de relayer le refus.
+
+Conséquence sur le code appelant : il ne suffit pas de lire la touche. Le jeu demande la hauteur voulue à chaque pas, puis lit l'état **réellement obtenu** pour décider de la vitesse et de la hauteur de l'œil. Sans cela, un joueur coincé accroupi sous une dalle marcherait à la vitesse d'un homme debout.
+
+## 7.4 L'œil glisse, il ne saute pas
+
+La hauteur de l'œil rejoint sa cible par lissage exponentiel, comme l'inertie de la lampe torche et l'occlusion audio. Un changement instantané ne se lit pas comme un corps qui se baisse : il se lit comme une **coupure de caméra**.
+
+## 7.5 Le prix de se baisser
+
+Accroupi, on avance à 1,4 m/s au lieu de 3. Ce n'est pas une punition arbitraire : c'est ce qui fait de l'accroupissement un **choix** plutôt qu'un état par défaut. Le jour où la créature entendra les pas, la lenteur sera le prix du silence — et c'est là que la brique prendra tout son sens.
+
+## 7.6 Coût
+
+Une reconstruction de capsule et un test de pénétration au moment où la touche change d'état. Rien par frame.
+
+## 7.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Cinq tests** s'ajoutent : s'accroupir raccourcit sans déplacer les pieds, se relever est permis quand la place existe, un plafond bas le refuse et laisse le personnage dans son état précédent, accroupi on passe sous un linteau qui bloque debout, et une hauteur impossible est refusée. **100 tests** au total.
+
+**Ce qui n'existe pas encore** : les pas ne sont pas plus silencieux accroupi — il n'y a personne pour les entendre. Pas de position couchée, pas de passage automatique sous un obstacle, et la transition de hauteur n'a pas d'animation de corps, seulement un déplacement de l'œil.

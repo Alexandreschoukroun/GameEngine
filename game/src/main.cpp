@@ -61,6 +61,15 @@ constexpr core::f32 kJumpSpeed = 4.2f;
 constexpr core::f32 kPlayerHeight = 1.8f;
 constexpr core::f32 kPlayerRadius = 0.35f;
 constexpr core::f32 kEyeHeight = 1.65f;
+// Accroupi : la capsule raccourcit par le haut, les pieds restent au sol.
+constexpr core::f32 kCrouchHeight = 1.0f;
+constexpr core::f32 kCrouchEyeHeight = 0.85f;
+// On avance moins vite accroupi. Ce n'est pas qu'une contrainte : c'est ce qui donne son
+// prix au fait de se baisser, et ce qui en fera un choix quand une creature ecoutera.
+constexpr core::f32 kCrouchSpeed = 1.4f;
+// Vitesse a laquelle l'oeil rejoint sa nouvelle hauteur. Un saut instantane donnerait
+// l'impression d'un changement de camera, pas d'un mouvement du corps.
+constexpr core::f32 kCrouchBlendRate = 12.0f;
 constexpr core::Vec3 kSpawnPosition{0.0f, -1.2f, 3.0f};
 
 // --- Saisie d'objets --------------------------------------------------------------------
@@ -459,8 +468,20 @@ protected:
             wish = glm::normalize(wish);
         }
 
-        const core::f32 speed =
-            input().isKeyDown(Key::LeftShift) ? kSprintSpeed : kWalkSpeed;
+        // S'accroupir se demande, se relever se NEGOCIE : la physique refuse si le decor
+        // s'y oppose, et on reste donc baisse sous un plafond bas.
+        const bool wantsCrouch = input().isKeyDown(Key::LeftControl);
+        const core::f32 wantedHeight = wantsCrouch ? kCrouchHeight : kPlayerHeight;
+        if (m_physics.characterHeight(m_player) != wantedHeight) {
+            m_physics.setCharacterHeight(m_player, wantedHeight);
+        }
+        // L'etat REEL, pas celui demande : c'est lui qui decide de la vitesse et de
+        // l'oeil, sinon on marcherait vite en restant coince accroupi.
+        m_crouched = m_physics.characterHeight(m_player) < kPlayerHeight;
+
+        const core::f32 speed = m_crouched ? kCrouchSpeed
+                                : input().isKeyDown(Key::LeftShift) ? kSprintSpeed
+                                                                    : kWalkSpeed;
         const bool onGround = m_physics.characterOnGround(m_player);
         core::Vec3 velocity = m_physics.characterVelocity(m_player);
 
@@ -510,7 +531,12 @@ protected:
 
         // Les yeux suivent le corps. Le sens compte : c'est la simulation qui decide ou se
         // trouve le joueur, la camera ne fait que la regarder.
-        m_camera.setPosition(feet + core::Vec3{0.0f, kEyeHeight, 0.0f});
+        //
+        // La hauteur de l'oeil glisse vers sa cible au lieu d'y sauter : un changement
+        // instantane se lit comme une coupure de camera, pas comme un corps qui se baisse.
+        const core::f32 targetEye = m_crouched ? kCrouchEyeHeight : kEyeHeight;
+        m_eyeHeight += (targetEye - m_eyeHeight) * (1.0f - std::exp(-kCrouchBlendRate * delta));
+        m_camera.setPosition(feet + core::Vec3{0.0f, m_eyeHeight, 0.0f});
     }
 
     void onResize(core::u32 width, core::u32 height) override {
@@ -1130,6 +1156,8 @@ private:
     audio::TensionLayer m_tension;
     core::f32 m_tensionLevel = 0.0f;
     core::Vec3 m_lastFeet = kSpawnPosition;
+    core::f32 m_eyeHeight = kEyeHeight;
+    bool m_crouched = false;
     physics::World m_physics;
     physics::CharacterHandle m_player = physics::kInvalidCharacter;
     physics::BodyHandle m_heldBody = physics::kInvalidBody;

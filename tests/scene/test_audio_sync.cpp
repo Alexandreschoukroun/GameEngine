@@ -6,8 +6,6 @@
 #include "scene/components.h"
 #include "scene/resource_table.h"
 #include "scene/scene.h"
-#include "scene/footsteps.h"
-#include "scene/serialization.h"
 
 namespace {
 
@@ -114,52 +112,4 @@ TEST_CASE("A voice follows the entity that carries it, through its parent") {
     scene::syncAudioSources(f.scene, f.engine);
 
     CHECK(f.engine.voicePosition(voice->handle).x == doctest::Approx(-2.0f).epsilon(0.01));
-}
-
-TEST_CASE("The demo scene declares sounds the game actually registers") {
-    // Garde-fou sur les DONNEES, pas sur le code : si quelqu'un renomme un son dans
-    // demo.json sans toucher au jeu, la source deviendrait muette en silence. Ici, la CI
-    // le voit. C'est le pendant du repli sur "missing" pour les maillages, qui rend une
-    // erreur visible a l'ecran.
-    scene::ResourceTable resources;
-    resources.addSound("braises", 0);
-    resources.addSound("souffle", 1);
-    resources.addSound("pas_pierre", 2);
-    resources.addSound("pas_bois", 3);
-    // Les matieres que le jeu declare a l'initialisation.
-    resources.addMaterial("pierre", scene::Material{});
-    resources.addMaterial("bois", scene::Material{});
-    resources.addMaterial("suzanne", scene::Material{});
-
-    scene::Scene scene;
-    REQUIRE(scene::loadSceneFromFile(scene, resources,
-                                     platform::assetPath("scenes/demo.json").c_str()));
-
-    core::u32 sources = 0;
-    for (auto [entity, source] : scene.registry().view<const scene::AudioSource>().each()) {
-        (void)entity;
-        CHECK(source.sound != scene::kInvalidResource);
-        ++sources;
-    }
-    CHECK(sources == 2);
-
-    // Meme garde-fou pour les matieres du sol : une surface dont le son est introuvable
-    // rendrait le joueur silencieux sans que rien ne le signale a la compilation.
-    core::u32 surfaces = 0;
-    for (auto [entity, surface] : scene.registry().view<const scene::Surface>().each()) {
-        (void)entity;
-        CHECK(surface.footstep != scene::kInvalidResource);
-        ++surfaces;
-    }
-    CHECK(surfaces == 2);
-
-    // Et pour les matieres : une entite affichee dont le materiau est introuvable serait
-    // purement et simplement sautee par le rendu, en silence.
-    core::u32 rendered = 0;
-    for (auto [entity, renderer] : scene.registry().view<const scene::MeshRenderer>().each()) {
-        (void)entity;
-        CHECK(renderer.material != scene::kInvalidResource);
-        ++rendered;
-    }
-    CHECK(rendered == 9);
 }

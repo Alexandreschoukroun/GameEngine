@@ -6,7 +6,7 @@ Un moteur de jeu **open source** en **C++20**, spécialisé dans les jeux d'**ho
 
 Pas de moteur généraliste ici. Tout est pensé pour un seul genre : des intérieurs clos et sombres, une lampe torche, du brouillard, un son qui trahit ce qui se passe derrière une porte, et une créature qui vous traque.
 
-> **État actuel : jalons M0 à M5 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs, colliders — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. On s'y déplace, on attrape les objets et on ouvre les portes à la main — et on l'entend : sons spatialisés, occlusion par les murs et les portes, pas qui dépendent de la matière du sol, musique de tension paramétrique. Voir la [feuille de route](#feuille-de-route).
+> **État actuel : jalons M0 à M5.5 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs, colliders — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. On s'y déplace, on attrape les objets et on ouvre les portes à la main — et on l'entend : sons spatialisés, occlusion par les murs et les portes, pas qui dépendent de la matière du sol, musique de tension paramétrique. Les surfaces ont du relief, les modèles glTF arrivent avec leurs matériaux, et l'éclairage d'environnement fait exister les métaux. Voir la [feuille de route](#feuille-de-route).
 
 ## Objectifs
 
@@ -82,7 +82,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | **M4** | Physique Jolt, character controller, portes, saisie d'objets | ✅ Terminé |
 | M4.5 | Animation squelettique : squelettes glTF, skinning GPU, lecteur d'animation | À venir |
 | **M5** | Audio : spatialisation, occlusion, matériaux de pas, couche de tension | ✅ Terminé |
-| M5.5 | Matériaux et vrais assets : relief, matériaux glTF, éclairage d'environnement | En cours |
+| **M5.5** | Matériaux et vrais assets : relief, matériaux glTF, éclairage d'environnement | ✅ Terminé |
 | M6 | Éditeur : viewport, hiérarchie, inspecteur, gizmos | À venir |
 | M7 | Lua, triggers, navmesh, perception et IA de l'antagoniste | À venir |
 | M8 | Brouillard volumétrique, post-process, accessibilité | À venir |

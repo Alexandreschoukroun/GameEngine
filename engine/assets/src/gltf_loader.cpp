@@ -13,6 +13,7 @@
 #pragma warning(pop)
 #endif
 
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 
@@ -170,6 +171,82 @@ bool appendPrimitive(const cgltf_primitive& primitive, const core::Mat4& worldMa
 
 } // namespace
 
+bool generateTangents(MeshData& mesh) {
+    if (mesh.positions.empty() || mesh.uvs.size() != mesh.positions.size() ||
+        mesh.indices.size() < 3) {
+        return false;
+    }
+
+    // On accumule dans deux tableaux : la direction de U et celle de V. La seconde ne
+    // finit pas dans le resultat, mais elle decide du SIGNE - donc du sens de la
+    // bitangente, donc du cote vers lequel le relief ressort.
+    std::vector<core::Vec3> tangentSum(mesh.positions.size(), core::Vec3(0.0f));
+    std::vector<core::Vec3> bitangentSum(mesh.positions.size(), core::Vec3(0.0f));
+
+    for (std::size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+        const core::u32 i0 = mesh.indices[i];
+        const core::u32 i1 = mesh.indices[i + 1];
+        const core::u32 i2 = mesh.indices[i + 2];
+        if (i0 >= mesh.positions.size() || i1 >= mesh.positions.size() ||
+            i2 >= mesh.positions.size()) {
+            return false;
+        }
+
+        const core::Vec3 edge1 = mesh.positions[i1] - mesh.positions[i0];
+        const core::Vec3 edge2 = mesh.positions[i2] - mesh.positions[i0];
+        const core::Vec2 deltaUv1 = mesh.uvs[i1] - mesh.uvs[i0];
+        const core::Vec2 deltaUv2 = mesh.uvs[i2] - mesh.uvs[i0];
+
+        // Determinant de la matrice des UV. Nul quand les trois sommets partagent la meme
+        // coordonnee de texture : le triangle est degenere dans l'espace UV et ne dit
+        // rien sur la direction de U. On le saute plutot que de diviser par zero.
+        const core::f32 determinant = deltaUv1.x * deltaUv2.y - deltaUv2.x * deltaUv1.y;
+        if (std::abs(determinant) < 1e-12f) {
+            continue;
+        }
+        const core::f32 inverse = 1.0f / determinant;
+
+        const core::Vec3 tangent = (edge1 * deltaUv2.y - edge2 * deltaUv1.y) * inverse;
+        const core::Vec3 bitangent = (edge2 * deltaUv1.x - edge1 * deltaUv2.x) * inverse;
+
+        for (const core::u32 index : {i0, i1, i2}) {
+            tangentSum[index] += tangent;
+            bitangentSum[index] += bitangent;
+        }
+    }
+
+    mesh.tangents.assign(mesh.positions.size(), core::Vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    for (std::size_t i = 0; i < mesh.positions.size(); ++i) {
+        const core::Vec3& normal = mesh.normals[i];
+        core::Vec3 tangent = tangentSum[i];
+
+        // Un sommet qu'aucun triangle exploitable n'a touche : on fabrique une tangente
+        // quelconque mais VALIDE, perpendiculaire a la normale. Le relief y sera faux,
+        // mais le repere ne degenerera pas.
+        if (glm::dot(tangent, tangent) < 1e-16f) {
+            const core::Vec3 reference =
+                std::abs(normal.y) < 0.9f ? core::Vec3{0.0f, 1.0f, 0.0f}
+                                          : core::Vec3{1.0f, 0.0f, 0.0f};
+            tangent = glm::cross(reference, normal);
+        }
+
+        // Gram-Schmidt : on retire la part parallele a la normale, exactement ce que fait
+        // le shader. Le faire ici aussi evite de lui donner un repere deja tordu.
+        tangent = tangent - normal * glm::dot(normal, tangent);
+        if (glm::dot(tangent, tangent) < 1e-16f) {
+            tangent = glm::cross(core::Vec3{0.0f, 0.0f, 1.0f}, normal);
+        }
+        tangent = glm::normalize(tangent);
+
+        // Le signe : si la bitangente reconstruite pointe a l'oppose de celle que les
+        // UV decrivent, c'est que la carte est miroitee a cet endroit.
+        const core::f32 handedness =
+            glm::dot(glm::cross(normal, tangent), bitangentSum[i]) < 0.0f ? -1.0f : 1.0f;
+        mesh.tangents[i] = core::Vec4(tangent, handedness);
+    }
+    return true;
+}
+
 bool loadGltfMesh(const char* path, MeshData& out) {
     cgltf_options options{};
     cgltf_data* data = nullptr;
@@ -218,7 +295,15 @@ bool loadGltfMesh(const char* path, MeshData& out) {
     // hasard - un relief invente sur une moitie du modele se verrait davantage qu'une
     // absence de relief partout.
     if (!out.tangents.empty() && out.tangents.size() != out.positions.size()) {
-        core::logWarn("glTF : tangentes partielles, relief desactive pour ce maillage");
+        core::logWarn("glTF : tangentes partielles, elles seront recalculees");
+        out.tangents.clear();
+    }
+
+    // glTF n'oblige pas un fichier a fournir ses tangentes, meme avec une carte de
+    // normales : la plupart des modeles telecharges n'en ont pas. On les calcule, sans
+    // quoi le repere tangent serait nul et l'eclairage casse.
+    if (out.tangents.empty() && !out.positions.empty() && !generateTangents(out)) {
+        core::logWarn("glTF : tangentes incalculables, relief desactive pour ce maillage");
         out.tangents.clear();
     }
 

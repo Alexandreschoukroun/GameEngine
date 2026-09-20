@@ -1,6 +1,6 @@
 # 08 — Matériaux et relief (M5.5)
 
-*Brique 1 : les cartes de normales et les textures générées (section 1). Brique 2 : les matériaux du fichier glTF (section 2). Brique 3 : l'éclairage d'environnement (section 3).*
+*Brique 1 : les cartes de normales et les textures générées (section 1). Brique 2 : les matériaux du fichier glTF (section 2). Brique 3 : l'éclairage d'environnement (section 3). Brique 4 : l'import de modèles (section 4).*
 
 Ce jalon intercalaire prépare l'éditeur de M6. Un éditeur qui ne sait éditer que des caisses grises n'apprend rien à personne : avant de pouvoir poser des objets à la souris, il faut que ces objets ressemblent à quelque chose.
 
@@ -277,3 +277,82 @@ Deux interpolations de couleurs, une réflexion, six opérations pour l'approxim
 **Ce qui n'existe pas encore** : l'environnement est le **même partout** dans la scène. Une cave et un couloir éclairé devraient renvoyer des lumières différentes — c'est le graphe de secteurs de M3 qui portera cette information, exactement comme il portera la réverbération audio. Il n'y a pas non plus d'occlusion ambiante réelle : un recoin reçoit autant d'ambiante qu'un mur dégagé, alors qu'il devrait en recevoir moins.
 
 **Ce qui vient après** : M5.5 a atteint son objectif — des surfaces qui ressemblent à quelque chose, et des modèles qu'on peut importer. La suite est l'**éditeur M6**, ou l'**animation squelettique M4.5**, selon ce qui manque le plus.
+
+---
+
+# 4. Brique 4 — importer un modèle
+
+## 4.1 Le problème
+
+Le moteur savait lire un fichier glTF et ses matériaux, mais chaque modèle demandait encore du code écrit à la main : charger le maillage, charger ses textures, déclarer sa matière. Suzanne avait sa fonction, et ajouter un objet en aurait demandé une autre.
+
+Et surtout, un constat venu de l'usage : la poignée de porte était un **cube**. Pas parce que le moteur ne savait pas faire mieux, mais parce que rien ne permettait de poser un vrai objet sans écrire du code pour lui.
+
+## 4.2 Un tableau, pas une fonction par objet
+
+L'import est désormais générique : un fichier, un nom logique.
+
+```cpp
+constexpr ImportedModelFile kImportedModels[] = {
+    {"models/suzanne/Suzanne.gltf", "suzanne"},
+    {"models/loquet/gate_latch_01_1k.gltf", "loquet"},
+};
+```
+
+La fonction qui les charge **ne connaît aucun des deux**. Elle lit ce que le fichier déclare : géométrie, couleur de base, métallicité/rugosité, carte de normales, et les facteurs. Ajouter un objet, c'est ajouter une ligne.
+
+Quand une carte manque, un repli neutre prend sa place — un blanc à multiplier par le facteur de couleur, une rugosité moyenne. C'est le cas fréquent : beaucoup de modèles simples n'ont aucune texture et ne sont que des facteurs.
+
+Un détail d'ordre a de l'importance : les modèles se chargent **en dernier**, après les textures de repli. Un modèle sans carte de couleur qui chercherait un blanc neutre pas encore enregistré resterait sans rien à afficher.
+
+## 4.3 Le piège : la plupart des modèles n'ont pas de tangentes
+
+Le loquet téléchargé déclare une carte de normales et **ne fournit aucune tangente**. Ce n'est pas un défaut du fichier : la spécification glTF ne l'y oblige pas, elle se contente de dire que le lecteur *devrait* les calculer. La majorité des modèles en ligne sont dans ce cas.
+
+Les conséquences étaient sérieuses. Sans tangente, le vecteur passé au shader vaut zéro ; le repère tangent se construit sur `normalize(0)`, donc sur des NaN. Le résultat n'est pas « un peu moins beau » : c'est un objet noir ou clignotant, sans le moindre message d'erreur.
+
+Le chargeur **calcule donc les tangentes** quand le fichier n'en donne pas. La méthode est classique : chaque triangle donne la direction dans laquelle U augmente, déduite de ses arêtes et de leurs différences d'UV ; chaque sommet accumule les contributions des triangles qui le partagent ; puis on normalise, on orthogonalise par rapport à la normale, et on déduit le signe de la bitangente.
+
+Trois cas dégénérés sont traités explicitement, parce qu'ils existent dans de vrais fichiers :
+
+- un triangle dont les trois sommets partagent la même coordonnée de texture ne dit rien sur la direction de U — on le saute au lieu de diviser par zéro ;
+- un sommet qu'aucun triangle exploitable n'a touché reçoit une tangente **quelconque mais valide**, perpendiculaire à sa normale. Le relief y sera faux ; le repère, lui, ne dégénérera pas ;
+- sans coordonnées de texture du tout, la fonction **refuse** plutôt que d'inventer une direction arbitraire.
+
+## 4.4 Comment on vérifie un calcul comme celui-là
+
+C'est la question intéressante : comment savoir si des tangentes calculées sont *justes* ?
+
+Suzanne fournit la réponse. Ses tangentes viennent de **MikkTSpace**, la référence du domaine. On les met de côté, on recalcule les nôtres, et on compare — après orthogonalisation, c'est-à-dire en comparant ce que le shader utilisera réellement.
+
+Le résultat : **plus de 90 %** des sommets alignés à mieux que 0,9 de produit scalaire, et **plus de 98 %** de même orientation. On n'exige pas l'identité, et c'est délibéré : sur les coutures de la carte UV, plusieurs directions sont légitimes et les deux algorithmes peuvent différer sans qu'aucun ait tort. Le **signe**, lui, ne souffre aucune ambiguïté — s'y tromper creuserait les bosses — d'où un seuil bien plus exigeant.
+
+Un second test vérifie la propriété qui compte vraiment, sur chaque sommet : aucun repère dégénéré, tangente unitaire, perpendiculaire exacte après correction.
+
+## 4.5 L'échelle héritée, à nouveau
+
+Le loquet est enfant de la porte, qui est mise à l'échelle `(0,9 ; 2,0 ; 0,08)`. Un modèle réel y serait **écrasé en plaque**.
+
+Son échelle locale annule donc celle du parent :
+
+```
+échelle locale = 1 / (0,9 ; 2,0 ; 0,08) = (1,111 ; 0,5 ; 12,5)
+```
+
+Des valeurs illisibles, qui signifient simplement « garde ta taille ». Un test vérifie que l'échelle résultante **dans le monde** vaut bien 1 sur les trois axes — c'est le résultat qui compte, pas les nombres du fichier.
+
+Sa position demande la même gymnastique, plus une correction supplémentaire : l'origine du modèle n'est pas son centre. Son englobant va de −17,8 cm à +3,1 cm en X, et placer l'entité place son **origine**, pas son milieu.
+
+Cette accumulation de compensations est le signe d'un vrai défaut de conception : la porte est un cube mis à l'échelle, et tout ce qui s'y accroche en paie le prix. Un maillage de porte dédié le ferait disparaître.
+
+## 4.6 Coût
+
+Le calcul des tangentes est linéaire en nombre de triangles, une fois au chargement. Pour les 11 808 sommets de Suzanne, il ne se mesure pas.
+
+## 4.7 Ce qui marche / ce qui ne marche pas / ce qui vient après
+
+**Quatre tests** s'ajoutent : les tangentes calculées concordent avec MikkTSpace, elles forment un repère utilisable sur chaque sommet, un modèle téléchargé sans tangentes en reçoit, et l'absence de coordonnées de texture est refusée. **95 tests** au total.
+
+**Ce qui n'existe pas encore** : une entité par portion. Le moteur sait distinguer les portions et leurs matériaux, mais le rendu n'en lie encore qu'une par entité — un modèle à plusieurs matières n'affichera que la première correctement. Et l'orientation d'un modèle importé se règle à la main, faute de convention partagée entre les banques.
+
+**Ce qui vient après** : le générateur de niveau. Le moteur sait maintenant charger une géométrie, ses matériaux, ses tangentes et sa collision ; il ne lui manque qu'un niveau à charger.

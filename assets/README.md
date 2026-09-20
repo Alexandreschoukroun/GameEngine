@@ -26,6 +26,7 @@ Le moteur le trouve dans cet ordre (voir `engine/platform/src/paths.cpp`) :
 | `textures/platre/*` | [ambientCG — PaintedPlaster016](https://ambientcg.com/view?id=PaintedPlaster016) | **CC0 1.0** |
 | `textures/metal_rouille/*` | [ambientCG — Metal041B](https://ambientcg.com/view?id=Metal041B) | **CC0 1.0** |
 | `textures/carrelage/*` | [ambientCG — Tiles140](https://ambientcg.com/view?id=Tiles140) | **CC0 1.0** |
+| `models/loquet/*` | [Poly Haven — gate_latch_01](https://polyhaven.com/a/gate_latch_01) | **CC0 1.0** |
 
 Le modèle Suzanne est le maillage de test historique de Blender. Il est ici parce qu'il
 est en CC0, donc sans aucune obligation d'attribution ni de citation, et qu'il porte tout
@@ -71,6 +72,27 @@ Le choix du **1K** est délibéré. Une surface vue à plus de deux mètres ne m
 différence avec du 2K, et Git conserve **chaque version d'un binaire pour toujours**, sans
 compression delta. Un 4K remplacé trois fois, ce sont 200 Mo que plus personne ne pourra
 enlever de l'historique.
+
+## Importer un modèle
+
+[Poly Haven](https://polyhaven.com/models) propose ses modèles **directement en glTF**,
+sous CC0, avec les normales en `nor_gl` et une carte `arm` déjà empaquetée à la convention
+glTF — exactement ce que le moteur attend. Il n'y a donc **aucune conversion à faire** :
+on dépose le `.gltf`, son `.bin` et ses textures, et on ajoute une ligne au tableau des
+modèles importés.
+
+Deux points de vigilance :
+
+**Les tangentes sont souvent absentes.** La spécification glTF n'oblige pas un fichier à
+les fournir, même avec une carte de normales. Le moteur les calcule désormais tout seul
+— sans quoi l'éclairage de l'objet partirait en NaN.
+
+**Le format des textures d'un modèle n'est pas celui d'un mur.** Pour une matière qui
+couvre une paroi entière, le PNG s'impose sur les normales. Pour un objet de quinze
+centimètres, les artefacts JPEG tombent sous la taille du pixel à toute distance
+réaliste — et le PNG y coûtait 8,8 Mo contre 2 Mo, soit plus que les cinq matières de
+murs réunies. La règle n'est pas « PNG toujours », c'est « ne pas compresser là où ça se
+voit ».
 
 ## Importer un jeu de textures libre
 

@@ -1,0 +1,119 @@
+{
+ "asset": {
+  "version": "2.0",
+  "generator": "GameEngine tools/generate_level.py"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "niveau_carrelage"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "niveau_carrelage",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "carrelage",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "niveau_carrelage.bin",
+   "byteLength": 10336
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 3264,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 3264,
+   "byteLength": 3264,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 6528,
+   "byteLength": 2176,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 8704,
+   "byteLength": 1632,
+   "target": 34963
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 272,
+   "type": "VEC3",
+   "min": [
+    -4,
+    0.0,
+    0
+   ],
+   "max": [
+    4,
+    0.0,
+    16
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 272,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 272,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 408,
+   "type": "SCALAR"
+  }
+ ]
+}

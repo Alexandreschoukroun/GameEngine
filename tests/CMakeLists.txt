@@ -18,6 +18,7 @@ add_executable(engine_tests
     scene/test_physics_sync.cpp
     scene/test_audio_sync.cpp
     scene/test_demo_scene.cpp
+    scene/test_niveau.cpp
     scene/test_editing.cpp
     scene/test_occlusion.cpp
     scene/test_footsteps.cpp

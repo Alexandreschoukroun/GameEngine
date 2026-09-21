@@ -47,10 +47,17 @@ struct ImportedModelFile {
 constexpr ImportedModelFile kImportedModels[] = {
     {"models/suzanne/Suzanne.gltf", "suzanne"},
     {"models/loquet/gate_latch_01_1k.gltf", "loquet"},
+    // Le niveau, genere par tools/generate_level.py. Un fichier par matiere : le moteur
+    // ne lie qu'un materiau par entite, donc regrouper la geometrie par matiere est ce
+    // qui permet a un sol carrele et a un parquet de coexister.
+    {"models/niveau/niveau_beton.gltf", "niveau_beton"},
+    {"models/niveau/niveau_platre.gltf", "niveau_platre"},
+    {"models/niveau/niveau_carrelage.gltf", "niveau_carrelage"},
+    {"models/niveau/niveau_plancher.gltf", "niveau_plancher"},
 };
 constexpr core::u32 kImportedModelCount =
     static_cast<core::u32>(sizeof(kImportedModels) / sizeof(kImportedModels[0]));
-constexpr const char* kScenePath = "scenes/demo.json";
+constexpr const char* kScenePath = "scenes/niveau.json";
 
 constexpr core::f32 kLookSensitivity = 0.0022f; // radians par pixel de souris
 constexpr core::f32 kWalkSpeed = 3.0f;          // metres par seconde
@@ -77,7 +84,8 @@ constexpr core::f32 kCrouchBlendRate = 12.0f;
 constexpr core::f32 kFlySpeed = 6.0f;      // metres par seconde
 constexpr core::f32 kFlyFastSpeed = 16.0f; // avec Maj : traverser un niveau ne doit pas
                                            // prendre une minute
-constexpr core::Vec3 kSpawnPosition{0.0f, -1.2f, 3.0f};
+// Dans le hall du niveau, face au couloir. Le sol du niveau est a y = 0.
+constexpr core::Vec3 kSpawnPosition{0.0f, 0.05f, 2.0f};
 
 // --- Saisie d'objets --------------------------------------------------------------------
 constexpr core::f32 kGrabRange = 2.6f;     // portee du bras, en metres
@@ -143,6 +151,12 @@ constexpr MaterialFiles kRealMaterials[] = {
      "textures/plancher/matiere.png"},
     {"metal_rouille", "textures/metal_rouille/couleur.jpg",
      "textures/metal_rouille/normal.png", "textures/metal_rouille/matiere.png"},
+    // Les deux matieres que le niveau a rendues necessaires : du platre pour les murs,
+    // du carrelage pour le sol du hall et du couloir.
+    {"platre", "textures/platre/couleur.jpg", "textures/platre/normal.png",
+     "textures/platre/matiere.png"},
+    {"carrelage", "textures/carrelage/couleur.jpg", "textures/carrelage/normal.png",
+     "textures/carrelage/matiere.png"},
 };
 constexpr core::u32 kRealMaterialCount =
     static_cast<core::u32>(sizeof(kRealMaterials) / sizeof(kRealMaterials[0]));
@@ -1129,6 +1143,10 @@ private:
         rhi::Texture baseColor;
         rhi::Texture metallicRoughness;
         rhi::Texture normalMap;
+        // Copie processeur de la geometrie : la table de ressources n'en garde qu'une vue,
+        // ces tableaux doivent donc lui survivre.
+        std::vector<core::Vec3> positions;
+        std::vector<core::u32> indices;
     };
 
     // Importe un modele glTF : sa geometrie, et les textures que SON FICHIER declare.
@@ -1149,6 +1167,18 @@ private:
         scene::MeshBounds bounds;
         bounds.valid = meshData.computeBounds(bounds.min, bounds.max);
         m_resources.addMesh(file.name, &out.mesh, bounds);
+
+        // La geometrie reste aussi cote PROCESSEUR, pour la collision : un maillage GPU
+        // ne se relit pas. C'est ce qui rend un niveau importe praticable au lieu d'etre
+        // un decor qu'on traverse.
+        out.positions = meshData.positions;
+        out.indices = meshData.indices;
+        scene::CollisionMesh collision;
+        collision.positions = out.positions.data();
+        collision.vertexCount = static_cast<core::u32>(out.positions.size());
+        collision.indices = out.indices.data();
+        collision.indexCount = static_cast<core::u32>(out.indices.size());
+        m_resources.addCollisionMesh(file.name, collision);
 
         if (meshData.materials.empty()) {
             core::logWarn("modele sans matiere declaree");

@@ -1,0 +1,119 @@
+{
+ "asset": {
+  "version": "2.0",
+  "generator": "GameEngine tools/generate_level.py"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "niveau_platre"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "niveau_platre",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "platre",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "niveau_platre.bin",
+   "byteLength": 14288
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 4512,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 4512,
+   "byteLength": 4512,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 9024,
+   "byteLength": 3008,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 12032,
+   "byteLength": 2256,
+   "target": 34963
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 376,
+   "type": "VEC3",
+   "min": [
+    -8,
+    0.0,
+    0
+   ],
+   "max": [
+    8,
+    3.0,
+    21
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 376,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 376,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 564,
+   "type": "SCALAR"
+  }
+ ]
+}

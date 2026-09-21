@@ -58,6 +58,7 @@ constexpr ImportedModelFile kImportedModels[] = {
     {"models/niveau/niveau_brique.gltf", "niveau_brique"},
     {"models/niveau/niveau_carrelage.gltf", "niveau_carrelage"},
     {"models/niveau/niveau_carrelage_mural.gltf", "niveau_carrelage_mural"},
+    {"models/niveau/niveau_metal_rouille.gltf", "niveau_metal_rouille"},
     {"models/niveau/niveau_papier_peint.gltf", "niveau_papier_peint"},
     {"models/niveau/niveau_plancher.gltf", "niveau_plancher"},
     {"models/niveau/niveau_platre.gltf", "niveau_platre"},

@@ -97,6 +97,18 @@ BEAM_WIDTH = 0.26      # poutre
 BEAM_DROP = 0.34
 BEAM_SPACING = 3.0
 
+# --- portes ---------------------------------------------------------------------------------
+#
+# Le battant est un cube d'unite mis a l'echelle : le moteur n'a pas besoin d'un modele
+# pour une planche. La poignee, elle, est un vrai modele importe - c'est la ou la forme
+# compte.
+LEAF_WIDTH = 0.96      # 2 cm de jeu de chaque cote dans une baie de 1,00 m
+LEAF_HEIGHT = 2.04
+LEAF_THICKNESS = 0.06
+LEAF_CLEARANCE = 0.02  # le bas du battant ne frotte pas le sol
+LEAF_DENSITY = 300.0   # kg/m3 : une porte pleine en bois, pas un bloc de pierre
+HINGE_FRICTION = 15.0  # N.m - de quoi l'arreter en deux secondes environ
+
 TRIM = "bois"          # plinthes, cimaises, chambranles, poutres
 CEILING = "platre"     # plafonds, corniches et tableaux d'embrasure
 
@@ -113,6 +125,7 @@ MATERIAL_SIZE = {
     "carrelage_mural": 1.0,
     "plancher": 1.5,
     "bois": 1.2,
+    "metal_rouille": 1.0,
 }
 
 # Le bruit des pas depend de la matiere foulee. Seules les matieres de SOL comptent
@@ -176,6 +189,71 @@ LIGHTS = [
     ("lampe_salle_eau",   "salle_eau",  [0.72, 0.84, 1.00], 8.0),
     ("lampe_reserve",     "reserve",    [0.70, 0.80, 1.00], 8.0),
     ("lampe_refectoire",  "refectoire", [1.00, 0.84, 0.62], 13.0),
+]
+
+# --- le mobilier -----------------------------------------------------------------------------
+#
+# Chaque meuble est un pave, donne en coordonnees du MONDE. C'est plus verbeux qu'un
+# reperage relatif a la piece, et c'est voulu : on lit le plan et le mobilier dans le meme
+# systeme, donc on peut verifier une position a l'oeil sur le tableau des pieces.
+#
+# Ils sont emis dans les maillages du niveau, avec le reste du decor. Ils heritent donc de
+# sa collision de maillage sans une ligne de plus - un etabli arrete le joueur comme un
+# mur. C'est le bon compromis pour du mobilier lourd, qui n'a aucune raison de bouger ;
+# ce qui doit se pousser est une entite a part, plus bas.
+Furniture = collections.namedtuple("Furniture", "room material x0 x1 y0 y1 z0 z1 name")
+
+
+def piece(room, material, x0, x1, y1, z0, z1, name, y0=0.0):
+    return Furniture(room, material, x0, x1, y0, y1, z0, z1, name)
+
+
+FURNITURE = [
+    piece("hall", "bois", 3.0, 6.0, 1.05, 1.0, 2.0, "comptoir"),
+
+    piece("bureau", "bois", -12.0, -10.4, 0.78, 4.4, 5.2, "table"),
+    piece("bureau", "bois", -12.8, -12.4, 2.00, 1.0, 4.0, "etagere"),
+
+    piece("vestiaire", "metal_rouille", 8.0, 12.0, 2.00, 4.8, 5.4, "casiers"),
+
+    piece("atelier", "bois", 6.0, 12.0, 0.85, 10.0, 11.0, "etabli_sud"),
+    piece("atelier", "bois", 3.0, 9.0, 0.85, 17.0, 18.0, "etabli_nord"),
+    piece("atelier", "metal_rouille", 12.5, 13.5, 2.20, 11.0, 16.0, "rack", y0=0.8),
+
+    piece("laverie", "metal_rouille", 3.0, 8.0, 0.90, 23.5, 24.4, "bacs"),
+
+    piece("chaufferie", "metal_rouille", 13.0, 15.0, 2.20, 21.0, 23.0, "chaudiere"),
+    piece("chaufferie", "metal_rouille", 10.3, 15.7, 3.60, 24.0, 24.3, "tuyaux", y0=3.3),
+
+    piece("chambre_1", "bois", -9.5, -7.5, 0.55, 12.8, 14.8, "lit"),
+    piece("chambre_1", "bois", -9.5, -9.0, 0.60, 14.2, 14.7, "chevet"),
+
+    piece("chambre_2", "bois", -9.5, -7.5, 0.55, 16.5, 18.5, "lit"),
+    piece("chambre_2", "bois", -9.5, -9.0, 0.60, 18.8, 19.3, "chevet"),
+
+    piece("salle_eau", "metal_rouille", -15.5, -11.0, 0.90, 13.5, 14.4, "lavabos"),
+
+    piece("reserve", "bois", -9.5, -9.0, 2.20, 22.0, 26.0, "rayonnage_ouest"),
+    piece("reserve", "bois", -9.5, -3.0, 2.20, 26.2, 26.7, "rayonnage_nord"),
+
+    piece("refectoire", "bois", 0.0, 6.0, 0.78, 29.0, 29.9, "table_sud"),
+    piece("refectoire", "bois", 0.0, 6.0, 0.45, 28.4, 28.8, "banc_sud"),
+    piece("refectoire", "bois", 0.0, 6.0, 0.78, 32.0, 32.9, "table_nord"),
+    piece("refectoire", "bois", 0.0, 6.0, 0.45, 33.1, 33.5, "banc_nord"),
+]
+
+# Ce qui doit pouvoir etre pousse et souleve. Ce sont des ENTITES, pas de la geometrie :
+# elles portent un corps dynamique et une boite de collision, donc la simulation les
+# deplace. Reutilise le cube du jeu, mis a l'echelle.
+Crate = collections.namedtuple("Crate", "x y z size")
+
+CRATES = [
+    Crate(4.5, 0.31, 15.0, 0.6),
+    Crate(5.2, 0.31, 15.4, 0.6),
+    Crate(4.8, 0.92, 15.2, 0.6),
+    Crate(-5.0, 0.31, 23.0, 0.6),
+    Crate(-4.3, 0.31, 23.4, 0.6),
+    Crate(6.0, 0.26, 4.0, 0.5),
 ]
 
 DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
@@ -606,6 +684,56 @@ def find_steps(faces):
     return steps
 
 
+def door_clearances(openings):
+    """Le volume qu'une porte a besoin de trouver libre, de part et d'autre du mur.
+
+    Un meuble pose la ne bloquerait pas seulement le battant : il bloquerait le PASSAGE,
+    et comme le mobilier herite de la collision du decor, la piece deviendrait
+    inatteignable. Le defaut serait invisible a la generation et ne se decouvrirait qu'en
+    se cognant dedans.
+    """
+    volumes = []
+    for (axis, line), holes in sorted(openings.items()):
+        along = along_axis(axis)
+        for o0, o1, head in holes:
+            box_lo = [0.0, FLOOR_Y, 0.0]
+            box_hi = [0.0, head, 0.0]
+            box_lo[along], box_hi[along] = o0 - 0.15, o1 + 0.15
+            box_lo[axis], box_hi[axis] = line - 1.25, line + 1.25
+            volumes.append((tuple(box_lo), tuple(box_hi)))
+    return volumes
+
+
+def overlaps(a_lo, a_hi, b_lo, b_hi):
+    return all(a_lo[i] < b_hi[i] - 1e-6 and b_lo[i] < a_hi[i] - 1e-6 for i in range(3))
+
+
+def emit_furniture(meshes, openings):
+    """Pose le mobilier, apres avoir verifie qu'il est posable."""
+    places = {place.name: place for place in ROOMS}
+    clearances = door_clearances(openings)
+
+    for item in FURNITURE:
+        place = places[item.room]
+        lo = (item.x0, item.y0, item.z0)
+        hi = (item.x1, item.y1, item.z1)
+
+        # Garde-fou 1 : dans sa piece. Une faute de frappe sur une coordonnee mettrait
+        # sinon un etabli dans un mur, ou dehors, sans que rien ne le signale.
+        if not (place.x0 <= item.x0 < item.x1 <= place.x1
+                and place.z0 <= item.z0 < item.z1 <= place.z1):
+            raise SystemExit(f"{item.room}/{item.name} deborde de sa piece")
+        if item.y1 > place.height:
+            raise SystemExit(f"{item.room}/{item.name} traverse le plafond")
+
+        # Garde-fou 2 : pas dans une embrasure.
+        for box_lo, box_hi in clearances:
+            if overlaps(lo, hi, box_lo, box_hi):
+                raise SystemExit(f"{item.room}/{item.name} bloque une porte")
+
+        box(meshes[item.material], lo, hi)
+
+
 def emit_walls(boundaries, openings, meshes):
     for (axis, line, sign, index, other), runs in ordered(boundaries):
         place = ROOMS[index]
@@ -701,7 +829,110 @@ def entity(index, name, extra):
     return node
 
 
-def write_scene(groups):
+def build_doors(openings):
+    """Une porte battante par embrasure a hauteur de porte.
+
+    Les passages larges n'en recoivent pas : une arche est une ouverture, pas une baie.
+
+    Tout le reste - la charniere, le frottement des gonds, la saisie a la souris - est
+    deja dans le moteur depuis M4. Il n'y a ici qu'a poser les battants au bon endroit et
+    dans le bon sens.
+    """
+    doors = []
+    for (axis, line), holes in sorted(openings.items()):
+        along = along_axis(axis)
+        for o0, o1, head in holes:
+            if head > DOOR_HEIGHT + 1e-6:
+                continue  # une arche reste libre
+
+            middle = (o0 + o1) * 0.5
+            centre = [0.0, LEAF_CLEARANCE + LEAF_HEIGHT / 2, 0.0]
+            centre[along] = middle
+            centre[axis] = line
+
+            # Un mur perpendiculaire a X contient les axes Y et Z : le battant doit donc
+            # faire un quart de tour pour que sa largeur coure le long du mur.
+            quarter = 0.70710678
+            rotation = [0.0, quarter, 0.0, quarter] if axis == 0 else [0.0, 0.0, 0.0, 1.0]
+            doors.append((tuple(round(v, 4) for v in centre), rotation))
+    return doors
+
+
+def door_entities(index, position, rotation):
+    """Le battant et sa poignee, qui en est l'enfant.
+
+    La poignee ne porte aucun code : elle suit le battant parce que la hierarchie de M3 le
+    fait pour elle. Son echelle locale ANNULE celle du battant - sans quoi le modele serait
+    ecrase en plaque avec lui - et sa rotation le couche sur la face.
+    """
+    leaf_id = f"0x{0x200000 + 200 + index:016x}"
+    leaf = collections.OrderedDict([
+        ("id", leaf_id),
+        ("name", f"porte_{index:02d}"),
+        ("transform", collections.OrderedDict([
+            ("position", list(position)),
+            ("rotation", list(rotation)),
+            ("scale", [LEAF_WIDTH, LEAF_HEIGHT, LEAF_THICKNESS]),
+        ])),
+        ("mesh", collections.OrderedDict([("mesh", "caisse"), ("material", "bois")])),
+        ("collider", collections.OrderedDict([
+            ("shape", "box"),
+            ("halfExtents", [LEAF_WIDTH / 2, LEAF_HEIGHT / 2, LEAF_THICKNESS / 2]),
+            ("static", False),
+            ("density", LEAF_DENSITY),
+        ])),
+        ("hinge", collections.OrderedDict([
+            # L'ancrage est dans le repere du battant, donc multiplie par son echelle :
+            # -0,5 tombe exactement sur son bord.
+            ("anchor", [-0.5, 0.0, 0.0]),
+            ("axis", [0.0, 1.0, 0.0]),
+            ("minAngle", -1.6),
+            ("maxAngle", 0.0),
+            ("friction", HINGE_FRICTION),
+        ])),
+    ])
+
+    handle = collections.OrderedDict([
+        ("id", f"0x{0x200000 + 400 + index:016x}"),
+        ("name", f"poignee_{index:02d}"),
+        ("parent", leaf_id),
+        ("transform", collections.OrderedDict([
+            # Positions en repere local : elles seront multipliees par l'echelle du
+            # battant. 30 cm du centre vers le bord libre, a 1 m du sol, affleurant la face.
+            ("position", [round(0.30 / LEAF_WIDTH, 4),
+                          round(-0.03 / LEAF_HEIGHT, 4),
+                          round((LEAF_THICKNESS / 2 - 0.002) / LEAF_THICKNESS, 4)]),
+            ("rotation", [0.0, 0.707107, 0.707107, 0.0]),
+            ("scale", [round(1.0 / LEAF_WIDTH, 4),
+                       round(1.0 / LEAF_THICKNESS, 4),
+                       round(1.0 / LEAF_HEIGHT, 4)]),
+        ])),
+        ("mesh", collections.OrderedDict([("mesh", "loquet"), ("material", "loquet")])),
+    ])
+    return [leaf, handle]
+
+
+def crate_entity(index, crate):
+    half = crate.size / 2
+    return collections.OrderedDict([
+        ("id", f"0x{0x200000 + 600 + index:016x}"),
+        ("name", f"caisse_{index:02d}"),
+        ("transform", collections.OrderedDict([
+            ("position", [crate.x, crate.y, crate.z]),
+            ("rotation", [0.0, 0.0, 0.0, 1.0]),
+            ("scale", [crate.size, crate.size, crate.size]),
+        ])),
+        ("mesh", collections.OrderedDict([("mesh", "caisse"), ("material", "plancher")])),
+        ("collider", collections.OrderedDict([
+            ("shape", "box"),
+            ("halfExtents", [half, half, half]),
+            ("static", False),
+            ("density", 220.0),
+        ])),
+    ])
+
+
+def write_scene(groups, doors):
     entities = []
     for index, (name, material) in enumerate(groups):
         entities.append(entity(index, name, collections.OrderedDict([
@@ -716,6 +947,11 @@ def write_scene(groups):
             ])),
             ("surface", collections.OrderedDict([("footstep", FOOTSTEP[material])])),
         ])))
+
+    for index, (position, rotation) in enumerate(doors):
+        entities.extend(door_entities(index, position, rotation))
+    for index, crate in enumerate(CRATES):
+        entities.append(crate_entity(index, crate))
 
     places = {place.name: place for place in ROOMS}
     for offset, (name, where, color, intensity) in enumerate(LIGHTS):
@@ -757,6 +993,7 @@ def main():
     emit_floors_and_ceilings(cells, meshes)
     emit_walls(boundaries, openings, meshes)
     emit_beams(meshes)
+    emit_furniture(meshes, openings)
 
     groups = []
     total = 0
@@ -770,7 +1007,8 @@ def main():
         groups.append((name, material))
         print(f"{name:<24} {triangles:6d} triangles  pas : {FOOTSTEP[material]}")
 
-    write_scene(groups)
+    leaves = build_doors(openings)
+    write_scene(groups, leaves)
 
     doors = sum(len(holes) for holes in openings.values())
     steps = find_steps(wall_faces(boundaries))
@@ -787,6 +1025,8 @@ def main():
                   f"{before:.2f} != {after:.2f}")
         raise SystemExit("murs non alignes : le batiment serait troue")
     print("  aucun ressaut : tous les murs sont d'aplomb")
+    print(f"  {len(leaves)} portes battantes, {len(FURNITURE)} meubles, "
+          f"{len(CRATES)} caisses")
     missing = sorted({place.name for place in ROOMS} - reached)
     if missing:
         print(f"  INATTEIGNABLES depuis le hall : {', '.join(missing)}")

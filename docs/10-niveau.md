@@ -453,9 +453,87 @@ licence CC0, en 1K.
 
 ---
 
+# 5 bis. Brique 6 — meubler
+
+Un bâtiment vide se lit comme un plan, pas comme un lieu. Le meubler a demandé trois
+choses de natures différentes, et la distinction entre elles est le seul vrai sujet de
+cette brique.
+
+## 5bis.1 Ce qui ne bouge jamais est de la géométrie
+
+Établis, casiers, lits, tables du réfectoire, chaudière, tuyauterie : vingt et une pièces,
+toutes des pavés, **émises dans les maillages du niveau avec le reste du décor**.
+
+Elles héritent donc de la collision de maillage sans une ligne de plus : un établi arrête
+le joueur exactement comme un mur. C'est le bon compromis pour du mobilier lourd, qui n'a
+aucune raison de bouger — un corps physique par meuble coûterait une simulation permanente
+pour un résultat identique.
+
+Elles sont données en coordonnées du **monde**, pas relativement à leur pièce. C'est plus
+verbeux, et c'est voulu : on lit le plan et le mobilier dans le même système, donc on
+vérifie une position à l'œil sur le tableau des pièces.
+
+Et comme une coordonnée se trompe silencieusement, **deux garde-fous arrêtent la
+génération** :
+
+- *le meuble est dans sa pièce*, et sous son plafond. Une faute de frappe mettrait sinon un
+  établi dans un mur, ou dehors ;
+- *le meuble ne bloque pas une embrasure*. Celui-là a servi immédiatement : mon premier
+  établi barrait une porte hall/atelier que j'avais oubliée — les portes étant déduites du
+  plan, elles existent à des endroits qu'on ne pense pas à vérifier. Comme le mobilier
+  hérite de la collision du décor, la pièce serait devenue **inatteignable**, et le défaut
+  ne se serait découvert qu'en se cognant dedans.
+
+## 5bis.2 Ce qui s'ouvre est une entité
+
+Quinze battants, un par baie — le passage large qui ouvre le hall sur le couloir n'en
+reçoit pas : une arche est une ouverture, pas une baie.
+
+**Rien de tout cela n'est du code neuf.** La charnière, le couple de frottement des gonds
+et la saisie à la souris sont dans le moteur depuis M4 ; la hiérarchie qui fait suivre la
+poignée vient de M3. Il n'y avait qu'à poser les battants comme ce mécanisme les attend.
+C'est le signe que les jalons précédents ont été correctement découpés.
+
+Trois détails méritent d'être notés, parce que chacun a une raison chiffrée :
+
+- **Le battant est un cube mis à l'échelle**, pas un modèle. Le moteur n'a pas besoin d'un
+  fichier pour une planche. La *poignée*, elle, est un vrai modèle importé : c'est là que
+  la forme compte.
+- **Sa masse volumique est de 300 kg/m³**, pas les 1000 par défaut de Jolt. C'est la leçon
+  de M4, payée comptant à l'époque : à la valeur par défaut, un battant pèse 120 kg et ne
+  s'ouvre plus à la main.
+- **L'ancrage de la charnière vaut −0,5**, pas −0,48. Il est exprimé dans le repère du
+  battant, donc **multiplié par son échelle** : −0,5 tombe exactement sur son bord quelle
+  que soit la largeur choisie.
+
+La poignée est un enfant du battant, et son échelle locale **annule** celle de son parent —
+sans quoi le modèle serait écrasé en plaque avec lui, le battant étant aplati à 6 cm.
+
+## 5bis.3 Ce qui se pousse aussi
+
+Six caisses, en entités dynamiques à collision de boîte : deux empilées dans l'atelier,
+deux dans la réserve, une dans le hall. Elles servent à vérifier d'un coup d'œil que la
+saisie à la souris et l'empilement fonctionnent dans le vrai niveau, pas seulement dans la
+scène de démonstration.
+
+## 5bis.4 Coût
+
+| | avant meublage | après |
+|---|---|---|
+| Triangles | 7 510 | **7 762** |
+| Matières | 9 | **10** (le métal rouillé entre en service) |
+| Entités dans la scène | 22 | **58** |
+| Corps dynamiques | 0 | **21** |
+| Générateur | 799 lignes | **1039 lignes** |
+
+Deux cent cinquante triangles pour vingt et un meubles : c'est le prix de les faire en
+pavés. Le jour où un établi méritera d'être sculpté, il entrera par le même chargeur glTF
+que la poignée.
+
 # 6. Ce qui marche / ce qui ne marche pas / ce qui vient après
 
-**Ce qui marche.** Le jeu démarre dans le hall d'un bâtiment de douze pièces. On parcourt
+**Ce qui marche.** Le jeu démarre dans le hall d'un bâtiment de douze pièces **meublé**,
+où quinze portes s'ouvrent à la main et six caisses se poussent. On parcourt
 deux ailes et un réfectoire par un couloir de dix-huit mètres, on passe seize embrasures
 dont on longe le tableau, on entend ses pas changer selon qu'on foule le carrelage ou les
 planches. Les murs portent plinthe, cimaise, corniche et chambranle ; le hall a un
@@ -464,15 +542,15 @@ mètres vingt et trois poutres. Douze lampes rares et chaudes laissent le reste 
 
 **Ce qui ne marche pas.**
 
-- Le niveau est **vide de mobilier**. Aucune caisse, aucune porte battante, aucune source
-  sonore : les objets de la scène de démonstration n'y ont pas été transportés. La porte à
-  charnière, la saisie d'objets et l'occlusion audio restent visibles dans `demo.json`,
-  mais pas dans `niveau.json`.
+- **Aucune source sonore** n'a été posée. Les sons du moteur sont synthétisés par
+  `tools/generate_audio.py` et doivent être remplacés par de vrais échantillons : les
+  semer dans le bâtiment avant ça reviendrait à polir ce qui va disparaître.
 - **Aucun graphe de secteurs.** Le bâtiment est une seule zone : l'occlusion audio par les
   murs, qui repose sur le graphe de M3, ne s'y applique pas. C'est d'autant plus dommage
   que les cloisons ont maintenant une épaisseur qui la justifierait.
-- Les seize embrasures n'ont **pas de porte** — seulement un trou et son chambranle. Leur
-  gabarit (1,00 × 2,10 m) est fait pour en recevoir une.
+- Les portes n'ont **ni serrure ni béquille fonctionnelle** : on les pousse, on ne les
+  verrouille pas. Aucune ne peut donc fermer un chemin, ce qui est pourtant le premier
+  levier de progression du genre.
 - **Aucune fenêtre.** Le bâtiment est aveugle, ce qui sert le genre mais reste une limite
   de l'outil : percer un mur à mi-hauteur n'est pas prévu.
 - Le plan est **écrit dans le script**, pas dans un fichier de données. Le changer demande
@@ -480,7 +558,7 @@ mètres vingt et trois poutres. Douze lampes rares et chaudes laissent le reste 
 - Les douze pièces sont toutes **rectangulaires**. Ni alcôve, ni angle rentrant, ni
   escalier : la grille le permettrait, le générateur ne l'expose pas.
 
-**Ce qui vient après.** Meubler : reprendre la porte, les caisses et les sources sonores de
-`demo.json` et les poser avec l'éditeur de M6 — c'est exactement ce pour quoi il a été
-fait. Puis découper le bâtiment en secteurs, ce qui redonnera son sens à l'occlusion audio
-de M5 et servira de base au culling. Le reste appartient à M7.
+**Ce qui vient après.** Découper le bâtiment en **secteurs**, ce qui redonnera son sens à
+l'occlusion audio de M5 et servira de base au culling — c'est d'autant plus frustrant que
+le graphe existe depuis M3 et que les cloisons ont maintenant une épaisseur qui le
+justifierait. Puis de vrais sons. Le reste appartient à M7.

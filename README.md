@@ -6,7 +6,7 @@ Un moteur de jeu **open source** en **C++20**, spécialisé dans les jeux d'**ho
 
 Pas de moteur généraliste ici. Tout est pensé pour un seul genre : des intérieurs clos et sombres, une lampe torche, du brouillard, un son qui trahit ce qui se passe derrière une porte, et une créature qui vous traque.
 
-> **État actuel : jalons M0 à M6.5 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs, colliders — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. On s'y déplace, on attrape les objets et on ouvre les portes à la main — et on l'entend : sons spatialisés, occlusion par les murs et les portes, pas qui dépendent de la matière du sol, musique de tension paramétrique. Les surfaces ont du relief, les modèles glTF arrivent avec leurs matériaux, et l'éclairage d'environnement fait exister les métaux. Un éditeur intégré permet de créer, déplacer et enregistrer les entités sans quitter le jeu, et le décor n'est plus une pièce unique mais un bâtiment de douze pièces généré depuis sa description — murs épais, plinthes, corniches, soubassements et hauteurs sous plafond contrastées. Voir la [feuille de route](#feuille-de-route).
+> **État actuel : jalons M0 à M6.5 terminés.** Le moteur charge ses niveaux depuis des fichiers JSON — entités, hiérarchie, secteurs, colliders — et les affiche en rendu différé avec éclairage PBR, ombres portées et lampe torche à inertie. On s'y déplace, on attrape les objets et on ouvre les portes à la main — et on l'entend : sons spatialisés, occlusion par les murs et les portes, pas qui dépendent de la matière du sol, musique de tension paramétrique. Les surfaces ont du relief, les modèles glTF arrivent avec leurs matériaux, et l'éclairage d'environnement fait exister les métaux. Un éditeur intégré permet de créer, déplacer et enregistrer les entités sans quitter le jeu, et le décor n'est plus une pièce unique mais un bâtiment de douze pièces généré depuis sa description — murs épais, plinthes, corniches, soubassements, hauteurs sous plafond contrastées, mobilier et portes battantes. Voir la [feuille de route](#feuille-de-route).
 
 ## Objectifs
 
@@ -84,7 +84,7 @@ Le détail est dans [`SPEC.md`](SPEC.md).
 | **M5** | Audio : spatialisation, occlusion, matériaux de pas, couche de tension | ✅ Terminé |
 | **M5.5** | Matériaux et vrais assets : relief, matériaux glTF, éclairage d'environnement | ✅ Terminé |
 | **M6** | Éditeur : hiérarchie, inspecteur, gizmos, sélection au clic | ✅ Terminé |
-| **M6.5** | Niveau : générateur de plan, relief d'architecture, neuf matières, collision de décor | ✅ Terminé |
+| **M6.5** | Niveau : générateur de plan, relief d'architecture, dix matières, mobilier et portes | ✅ Terminé |
 | M7 | Lua, triggers, navmesh, perception et IA de l'antagoniste | À venir |
 | M8 | Brouillard volumétrique, post-process, accessibilité | À venir |
 | M9 | Packaging et jeu de démonstration jouable de 15 minutes | À venir |

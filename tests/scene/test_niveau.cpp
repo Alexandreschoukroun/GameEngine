@@ -48,9 +48,10 @@ constexpr core::Vec3 kSpawn{0.0f, 0.05f, 3.0f};
 // une entite ne porte qu'un materiau - mais il se retrouve ici parce que la collision suit
 // exactement la meme geometrie.
 constexpr const char* kLevelMeshes[] = {
-    "niveau_beton",      "niveau_bois",    "niveau_brique",
-    "niveau_carrelage",  "niveau_carrelage_mural", "niveau_papier_peint",
-    "niveau_plancher",   "niveau_platre",  "niveau_platre_peint",
+    "niveau_beton",           "niveau_bois",         "niveau_brique",
+    "niveau_carrelage",       "niveau_carrelage_mural", "niveau_metal_rouille",
+    "niveau_papier_peint",    "niveau_plancher",     "niveau_platre",
+    "niveau_platre_peint",
 };
 constexpr std::size_t kLevelMeshCount = sizeof(kLevelMeshes) / sizeof(kLevelMeshes[0]);
 
@@ -66,6 +67,9 @@ struct Level {
     // un substitut, et le test ne verrait plus la difference entre un nom juste et un nom
     // faux.
     std::array<rhi::Mesh, kLevelMeshCount> display;
+    // Le cube et le loquet : le mobilier mobile et les portes les citent, et ils ne font
+    // pas partie du niveau - le jeu les fabrique ou les importe de son cote.
+    std::array<rhi::Mesh, 2> props;
     scene::ResourceTable resources;
     scene::Scene scene;
 };
@@ -99,9 +103,15 @@ bool loadLevel(Level& level) {
         level.resources.addMesh(kLevelMeshes[i], &level.display[i], bounds);
     }
 
-    // Les matieres que le jeu charge depuis assets/textures/<nom>/.
+    // Le cube du jeu et le modele de loquet, cites par les portes et les caisses.
+    level.resources.addMesh("caisse", &level.props[0], scene::MeshBounds{});
+    level.resources.addMesh("loquet", &level.props[1], scene::MeshBounds{});
+
+    // Les matieres que le jeu charge depuis assets/textures/<nom>/, plus celle que le
+    // fichier glTF du loquet declare lui-meme.
     for (const char* material : {"beton", "bois", "brique", "carrelage", "carrelage_mural",
-                                 "papier_peint", "plancher", "platre", "platre_peint"}) {
+                                 "metal_rouille", "papier_peint", "plancher", "platre",
+                                 "platre_peint", "loquet"}) {
         level.resources.addMaterial(material, scene::Material{});
     }
     level.resources.addSound("pas_pierre", 0);
@@ -167,6 +177,10 @@ TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
     // entite", et il vaut mieux le payer a la compilation qu'a l'ecran.
     CHECK(meshColliders == kLevelMeshCount);
 
+    // Depuis que le niveau est meuble, les entites affichees ne se comptent plus : il y
+    // a le decor, quinze portes, leurs poignees et des caisses, et en ajouter une est le
+    // travail normal d'un auteur. C'est la PROPRIETE qui compte - toute entite affichee
+    // cite un maillage et une matiere que le jeu connait - pas le nombre.
     core::u32 rendered = 0;
     for (auto [entity, renderer] :
          level.scene.registry().view<const scene::MeshRenderer>().each()) {
@@ -175,7 +189,7 @@ TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
         CHECK(renderer.material != scene::kInvalidResource);
         ++rendered;
     }
-    CHECK(rendered == kLevelMeshCount);
+    CHECK(rendered > kLevelMeshCount);
 
     // Le son des pas depend de la surface foulee : sans lui, le joueur marcherait en
     // silence sur un sol pourtant sonore.
@@ -335,6 +349,68 @@ TEST_CASE("Le plafond de l'atelier porte des poutres") {
     CHECK(between.distance == doctest::Approx(4.20f - 1.6f).epsilon(0.02));
     CHECK(onBeam.normal.y < -0.99f);
     CHECK(between.normal.y < -0.99f);
+}
+
+TEST_CASE("Chaque baie recoit une porte battante, poignee comprise") {
+    Level level;
+    REQUIRE(loadLevel(level));
+
+    // Le generateur pose un battant par embrasure a hauteur de porte, et aucun dans le
+    // passage large qui ouvre le hall sur le couloir : une arche est une ouverture, pas
+    // une baie.
+    //
+    // Rien de tout cela n'est du code neuf : la charniere, le frottement des gonds et la
+    // saisie a la souris sont dans le moteur depuis M4. Ce test verifie seulement que les
+    // battants sont poses comme ce mecanisme l'attend.
+    core::u32 leaves = 0;
+    for (auto [entity, hinge] : level.scene.registry().view<const scene::Hinge>().each()) {
+        const auto* collider = level.scene.registry().try_get<scene::Collider>(entity);
+        REQUIRE(collider != nullptr);
+        // Un battant qui ne bouge pas n'est pas une porte. Et sa masse compte : a 1000
+        // kg/m3 - la valeur par defaut de Jolt - il en pese 120 et ne s'ouvre plus a la
+        // main.
+        CHECK_FALSE(collider->isStatic);
+        CHECK(collider->density == doctest::Approx(300.0f));
+        // L'ancrage est dans le repere du battant, donc multiplie par son echelle : -0,5
+        // tombe exactement sur son bord, la ou sont les gonds.
+        CHECK(hinge.localAnchor.x == doctest::Approx(-0.5f));
+        CHECK(hinge.axis.y == doctest::Approx(1.0f));
+        // Elle s'ouvre d'un seul cote : deux butees symetriques donneraient un battant de
+        // saloon.
+        CHECK(hinge.minAngle < -1.0f);
+        CHECK(hinge.maxAngle == doctest::Approx(0.0f));
+        ++leaves;
+    }
+    CHECK(leaves == 15);
+
+    // Chaque poignee est un ENFANT de son battant : elle n'a aucun code propre, elle suit
+    // parce que la hierarchie de M3 le fait pour elle.
+    scene::Scene& scene = level.scene;
+    core::u32 handles = 0;
+    for (auto [entity, parent] : scene.registry().view<const scene::Parent>().each()) {
+        (void)entity;
+        REQUIRE(scene.isValid(parent.value));
+        CHECK(scene.registry().try_get<scene::Hinge>(parent.value) != nullptr);
+        ++handles;
+    }
+    CHECK(handles == leaves);
+
+    scene.updateWorldTransforms();
+    for (auto [entity, parent] : scene.registry().view<const scene::Parent>().each()) {
+        // Un enfant herite de l'echelle de son parent, et le battant est aplati a 6 cm.
+        // L'echelle locale de la poignee ANNULE la sienne, sans quoi le modele serait
+        // ecrase en plaque avec lui.
+        const core::Mat4 world = scene.worldMatrix(entity);
+        CHECK(glm::length(core::Vec3(world[0])) == doctest::Approx(1.0f).epsilon(0.01));
+        CHECK(glm::length(core::Vec3(world[1])) == doctest::Approx(1.0f).epsilon(0.01));
+        CHECK(glm::length(core::Vec3(world[2])) == doctest::Approx(1.0f).epsilon(0.01));
+
+        // Et elle est du cote du bord LIBRE, a l'oppose des gonds : sans bras de levier,
+        // on ne pourrait pas ouvrir.
+        const core::Vec3 leaf(scene.worldMatrix(parent.value)[3]);
+        const core::Vec3 handle(world[3]);
+        CHECK(glm::length(handle - leaf) > 0.25f);
+    }
 }
 
 TEST_CASE("Le joueur tient debout sur le sol du niveau") {

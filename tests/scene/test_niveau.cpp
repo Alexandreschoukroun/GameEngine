@@ -55,6 +55,27 @@ constexpr const char* kLevelMeshes[] = {
 };
 constexpr std::size_t kLevelMeshCount = sizeof(kLevelMeshes) / sizeof(kLevelMeshes[0]);
 
+// Les modeles que le JEU importe, et que la scene cite pour son mobilier, ses portes et
+// ses caisses. Ils ne font pas partie du niveau : ils arrivent chacun avec leur propre
+// matiere, declaree par leur fichier glTF.
+//
+// Ce tableau est le garde-fou : si le generateur pose un meuble dont le jeu n'importe pas
+// le modele, le nom ne se resout pas et ce test le dit. Sans lui, le chargeur remplacerait
+// silencieusement le maillage manquant par un substitut.
+constexpr const char* kPropModels[] = {
+    "caisse",  "loquet",  "armoire", "banc",     "bureau_metal", "caisse_bois",
+    "chaise",  "chevet",  "etagere", "etau",     "lit",          "table",
+    "tabouret", "tonneau", "tuyaux",
+};
+constexpr std::size_t kPropCount = sizeof(kPropModels) / sizeof(kPropModels[0]);
+
+// Une geometrie de collision minimale mais VALIDE, pour les modeles de mobilier. Leur
+// contenu n'a aucune importance ici : ce qu'on verifie a travers eux, ce sont les NOMS.
+// Charger treize modeles pour verifier une orthographe serait payer cher une evidence.
+const core::Vec3 kDummyPositions[3] = {
+    {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+const core::u32 kDummyIndices[3] = {0, 1, 2};
+
 // Porte la geometrie du niveau ET la table qui la cite. La table ne garde que des
 // pointeurs : si les MeshData mouraient avant elle, on lirait de la memoire liberee.
 struct Level {
@@ -67,9 +88,9 @@ struct Level {
     // un substitut, et le test ne verrait plus la difference entre un nom juste et un nom
     // faux.
     std::array<rhi::Mesh, kLevelMeshCount> display;
-    // Le cube et le loquet : le mobilier mobile et les portes les citent, et ils ne font
-    // pas partie du niveau - le jeu les fabrique ou les importe de son cote.
-    std::array<rhi::Mesh, 2> props;
+    // Le cube, le loquet et les modeles de mobilier : le jeu les fabrique ou les
+    // importe de son cote, et la scene les cite par leur nom logique.
+    std::array<rhi::Mesh, kPropCount> props;
     scene::ResourceTable resources;
     scene::Scene scene;
 };
@@ -103,15 +124,27 @@ bool loadLevel(Level& level) {
         level.resources.addMesh(kLevelMeshes[i], &level.display[i], bounds);
     }
 
-    // Le cube du jeu et le modele de loquet, cites par les portes et les caisses.
-    level.resources.addMesh("caisse", &level.props[0], scene::MeshBounds{});
-    level.resources.addMesh("loquet", &level.props[1], scene::MeshBounds{});
+    // Le cube du jeu et les modeles importes. Chacun declare sa geometrie ET sa matiere
+    // sous le meme nom logique : c'est la convention d'importModel, et elle evite d'avoir
+    // deux listes a tenir.
+    //
+    // La collision suit la geometrie pour de bon : un meuble arrete le joueur, et c'est
+    // ce que le test de circulation verifie plus bas.
+    for (core::u32 i = 0; i < static_cast<core::u32>(kPropCount); ++i) {
+        level.resources.addMesh(kPropModels[i], &level.props[i], scene::MeshBounds{});
+        level.resources.addMaterial(kPropModels[i], scene::Material{});
+        scene::CollisionMesh collision;
+        collision.positions = kDummyPositions;
+        collision.vertexCount = 3;
+        collision.indices = kDummyIndices;
+        collision.indexCount = 3;
+        level.resources.addCollisionMesh(kPropModels[i], collision);
+    }
 
-    // Les matieres que le jeu charge depuis assets/textures/<nom>/, plus celle que le
-    // fichier glTF du loquet declare lui-meme.
+    // Les matieres que le jeu charge depuis assets/textures/<nom>/.
     for (const char* material : {"beton", "bois", "brique", "carrelage", "carrelage_mural",
                                  "metal_rouille", "papier_peint", "plancher", "platre",
-                                 "platre_peint", "loquet"}) {
+                                 "platre_peint", "porte"}) {
         level.resources.addMaterial(material, scene::Material{});
     }
     level.resources.addSound("pas_pierre", 0);
@@ -169,13 +202,14 @@ TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
             continue;
         }
         CHECK(collider.collisionMesh != scene::kInvalidResource);
+        // Un maillage de triangles est forcement statique, quoi que dise le fichier.
         CHECK(collider.isStatic);
         ++meshColliders;
     }
-    // Une entite par matiere, ni plus ni moins. Ajouter une matiere au generateur oblige
-    // donc a l'ajouter ici et dans le jeu : c'est le prix de la regle "un materiau par
-    // entite", et il vaut mieux le payer a la compilation qu'a l'ecran.
-    CHECK(meshColliders == kLevelMeshCount);
+    // Le decor en compte un par matiere, et chaque meuble modelise y ajoute le sien : la
+    // collision d'une chaise suit sa geometrie, faute de quoi elle serait decalee de la
+    // moitie du meuble - l'origine d'un modele n'est pas son centre.
+    CHECK(meshColliders > kLevelMeshCount);
 
     // Depuis que le niveau est meuble, les entites affichees ne se comptent plus : il y
     // a le decor, quinze portes, leurs poignees et des caisses, et en ajouter une est le
@@ -393,7 +427,10 @@ TEST_CASE("Chaque baie recoit une porte battante, poignee comprise") {
         CHECK(scene.registry().try_get<scene::Hinge>(parent.value) != nullptr);
         ++handles;
     }
-    CHECK(handles == leaves);
+    // DEUX par battant : une porte n'a jamais de poignee d'un seul cote. Elle
+    // disparaissait des qu'on passait derriere, ce qui trahit le decor aussi surement
+    // qu'un mur troue.
+    CHECK(handles == leaves * 2);
 
     scene.updateWorldTransforms();
     for (auto [entity, parent] : scene.registry().view<const scene::Parent>().each()) {

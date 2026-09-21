@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_bois.bin",
-   "byteLength": 261288
+   "byteLength": 248520
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 82512,
+   "byteLength": 78480,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 82512,
-   "byteLength": 82512,
+   "byteOffset": 78480,
+   "byteLength": 78480,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 165024,
-   "byteLength": 55008,
+   "byteOffset": 156960,
+   "byteLength": 52320,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 220032,
-   "byteLength": 41256,
+   "byteOffset": 209280,
+   "byteLength": 39240,
    "target": 34963
   }
  ],
@@ -84,7 +84,7 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 6876,
+   "count": 6540,
    "type": "VEC3",
    "min": [
     -16,
@@ -100,19 +100,19 @@
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 6876,
+   "count": 6540,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 6876,
+   "count": 6540,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 10314,
+   "count": 9810,
    "type": "SCALAR"
   }
  ]

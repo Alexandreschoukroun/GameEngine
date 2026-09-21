@@ -63,6 +63,23 @@ constexpr ImportedModelFile kImportedModels[] = {
     {"models/niveau/niveau_plancher.gltf", "niveau_plancher"},
     {"models/niveau/niveau_platre.gltf", "niveau_platre"},
     {"models/niveau/niveau_platre_peint.gltf", "niveau_platre_peint"},
+    // Le mobilier, telecharge par tools/fetch_model.py depuis Poly Haven. Chacun arrive
+    // avec SA matiere, declaree par son propre fichier glTF : c'est tout l'interet du
+    // chargeur de M5.5, et c'est ce qui evite d'avoir a decrire ici ce que le fichier
+    // sait deja.
+    {"models/armoire/painted_wooden_cabinet_1k.gltf", "armoire"},
+    {"models/banc/painted_wooden_bench_1k.gltf", "banc"},
+    {"models/bureau_metal/metal_office_desk_1k.gltf", "bureau_metal"},
+    {"models/caisse_bois/wooden_crate_02_1k.gltf", "caisse_bois"},
+    {"models/chaise/SchoolChair_01_1k.gltf", "chaise"},
+    {"models/chevet/ClassicNightstand_01_1k.gltf", "chevet"},
+    {"models/etagere/Shelf_01_1k.gltf", "etagere"},
+    {"models/etau/bench_vice_01_1k.gltf", "etau"},
+    {"models/lit/old_bed_frame_1k.gltf", "lit"},
+    {"models/table/WoodenTable_01_1k.gltf", "table"},
+    {"models/tabouret/metal_stool_01_1k.gltf", "tabouret"},
+    {"models/tonneau/Barrel_01_1k.gltf", "tonneau"},
+    {"models/tuyaux/modular_industrial_pipes_01_1k.gltf", "tuyaux"},
 };
 constexpr core::u32 kImportedModelCount =
     static_cast<core::u32>(sizeof(kImportedModels) / sizeof(kImportedModels[0]));
@@ -177,6 +194,11 @@ constexpr MaterialFiles kRealMaterials[] = {
      "textures/carrelage_mural/normal.png", "textures/carrelage_mural/matiere.png"},
     {"bois", "textures/bois/couleur.jpg", "textures/bois/normal.png",
      "textures/bois/matiere.png"},
+    // Une vraie porte photographiee. Le battant reste un pave, mais ses panneaux, ses
+    // moulures et sa serrure sont dans la carte de normales - et c'est le relief qu'on
+    // regarde, pas la silhouette.
+    {"porte", "textures/porte/couleur.jpg", "textures/porte/normal.png",
+     "textures/porte/matiere.png"},
 };
 constexpr core::u32 kRealMaterialCount =
     static_cast<core::u32>(sizeof(kRealMaterials) / sizeof(kRealMaterials[0]));

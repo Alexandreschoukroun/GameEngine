@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_carrelage.bin",
-   "byteLength": 10336
+   "byteLength": 48336
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 3264,
+   "byteLength": 15264,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 3264,
-   "byteLength": 3264,
+   "byteOffset": 15264,
+   "byteLength": 15264,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 6528,
-   "byteLength": 2176,
+   "byteOffset": 30528,
+   "byteLength": 10176,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 8704,
-   "byteLength": 1632,
+   "byteOffset": 40704,
+   "byteLength": 7632,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 272,
+   "count": 1272,
    "type": "VEC3",
    "min": [
-    -4,
+    -16,
     0.0,
     0
    ],
    "max": [
-    4,
+    13,
     0.0,
-    16
+    27
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 272,
+   "count": 1272,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 272,
+   "count": 1272,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 408,
+   "count": 1908,
    "type": "SCALAR"
   }
  ]

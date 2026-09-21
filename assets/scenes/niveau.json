@@ -55,7 +55,7 @@
     },
     {
       "id": "0x0000000000200001",
-      "name": "niveau_platre",
+      "name": "niveau_bois",
       "transform": {
         "position": [
           0.0,
@@ -75,8 +75,8 @@
         ]
       },
       "mesh": {
-        "mesh": "niveau_platre",
-        "material": "platre"
+        "mesh": "niveau_bois",
+        "material": "bois"
       },
       "collider": {
         "shape": "mesh",
@@ -86,14 +86,53 @@
           0.5
         ],
         "static": true,
-        "collisionMesh": "niveau_platre"
+        "collisionMesh": "niveau_bois"
+      },
+      "surface": {
+        "footstep": "pas_bois"
+      }
+    },
+    {
+      "id": "0x0000000000200002",
+      "name": "niveau_brique",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "niveau_brique",
+        "material": "brique"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "niveau_brique"
       },
       "surface": {
         "footstep": "pas_pierre"
       }
     },
     {
-      "id": "0x0000000000200002",
+      "id": "0x0000000000200003",
       "name": "niveau_carrelage",
       "transform": {
         "position": [
@@ -132,7 +171,85 @@
       }
     },
     {
-      "id": "0x0000000000200003",
+      "id": "0x0000000000200004",
+      "name": "niveau_carrelage_mural",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "niveau_carrelage_mural",
+        "material": "carrelage_mural"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "niveau_carrelage_mural"
+      },
+      "surface": {
+        "footstep": "pas_pierre"
+      }
+    },
+    {
+      "id": "0x0000000000200005",
+      "name": "niveau_papier_peint",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "niveau_papier_peint",
+        "material": "papier_peint"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "niveau_papier_peint"
+      },
+      "surface": {
+        "footstep": "pas_bois"
+      }
+    },
+    {
+      "id": "0x0000000000200006",
       "name": "niveau_plancher",
       "transform": {
         "position": [
@@ -171,13 +288,91 @@
       }
     },
     {
+      "id": "0x0000000000200007",
+      "name": "niveau_platre",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "niveau_platre",
+        "material": "platre"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "niveau_platre"
+      },
+      "surface": {
+        "footstep": "pas_pierre"
+      }
+    },
+    {
+      "id": "0x0000000000200008",
+      "name": "niveau_platre_peint",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "niveau_platre_peint",
+        "material": "platre_peint"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "niveau_platre_peint"
+      },
+      "surface": {
+        "footstep": "pas_pierre"
+      }
+    },
+    {
       "id": "0x0000000000200064",
       "name": "lampe_hall",
       "transform": {
         "position": [
           0.0,
-          2.6,
-          3.0
+          3.05,
+          4.5
         ],
         "rotation": [
           0.0,
@@ -197,20 +392,86 @@
           0.82,
           0.6
         ],
-        "intensity": 14.0,
+        "intensity": 16.0,
         "type": "point",
-        "range": 12.0,
+        "range": 14.0,
         "castsShadow": false
       }
     },
     {
       "id": "0x0000000000200065",
+      "name": "lampe_bureau",
+      "transform": {
+        "position": [
+          -10.0,
+          2.45,
+          3.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.78,
+          0.52
+        ],
+        "intensity": 10.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x0000000000200066",
+      "name": "lampe_vestiaire",
+      "transform": {
+        "position": [
+          10.0,
+          2.45,
+          3.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.92,
+          0.88,
+          0.74
+        ],
+        "intensity": 8.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x0000000000200067",
       "name": "lampe_couloir",
       "transform": {
         "position": [
           0.0,
-          2.6,
-          11.0
+          2.25,
+          18.0
         ],
         "rotation": [
           0.0,
@@ -232,18 +493,18 @@
         ],
         "intensity": 9.0,
         "type": "point",
-        "range": 12.0,
+        "range": 14.0,
         "castsShadow": false
       }
     },
     {
-      "id": "0x0000000000200066",
+      "id": "0x0000000000200068",
       "name": "lampe_atelier",
       "transform": {
         "position": [
-          4.5,
-          2.6,
-          12.0
+          8.0,
+          3.65,
+          14.0
         ],
         "rotation": [
           0.0,
@@ -263,20 +524,185 @@
           0.75,
           0.5
         ],
-        "intensity": 12.0,
+        "intensity": 14.0,
         "type": "point",
-        "range": 12.0,
+        "range": 14.0,
         "castsShadow": false
       }
     },
     {
-      "id": "0x0000000000200067",
+      "id": "0x0000000000200069",
+      "name": "lampe_laverie",
+      "transform": {
+        "position": [
+          6.0,
+          2.35,
+          22.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.78,
+          0.86,
+          1.0
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x000000000020006a",
+      "name": "lampe_chaufferie",
+      "transform": {
+        "position": [
+          13.0,
+          3.45,
+          23.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.58,
+          0.3
+        ],
+        "intensity": 11.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x000000000020006b",
+      "name": "lampe_chambre_1",
+      "transform": {
+        "position": [
+          -6.0,
+          2.45,
+          12.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.8,
+          0.56
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x000000000020006c",
+      "name": "lampe_chambre_2",
+      "transform": {
+        "position": [
+          -6.0,
+          2.45,
+          18.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.8,
+          0.56
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x000000000020006d",
+      "name": "lampe_salle_eau",
+      "transform": {
+        "position": [
+          -13.0,
+          2.35,
+          12.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.72,
+          0.84,
+          1.0
+        ],
+        "intensity": 8.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x000000000020006e",
       "name": "lampe_reserve",
       "transform": {
         "position": [
-          0.0,
-          2.6,
-          18.5
+          -6.0,
+          2.65,
+          24.0
         ],
         "rotation": [
           0.0,
@@ -298,7 +724,40 @@
         ],
         "intensity": 8.0,
         "type": "point",
-        "range": 12.0,
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x000000000020006f",
+      "name": "lampe_refectoire",
+      "transform": {
+        "position": [
+          4.0,
+          3.05,
+          31.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.84,
+          0.62
+        ],
+        "intensity": 13.0,
+        "type": "point",
+        "range": 14.0,
         "castsShadow": false
       }
     }

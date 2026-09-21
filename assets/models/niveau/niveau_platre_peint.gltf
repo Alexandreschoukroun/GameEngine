@@ -14,12 +14,12 @@
  "nodes": [
   {
    "mesh": 0,
-   "name": "niveau_beton"
+   "name": "niveau_platre_peint"
   }
  ],
  "meshes": [
   {
-   "name": "niveau_beton",
+   "name": "niveau_platre_peint",
    "primitives": [
     {
      "attributes": {
@@ -35,7 +35,7 @@
  ],
  "materials": [
   {
-   "name": "beton",
+   "name": "platre_peint",
    "pbrMetallicRoughness": {
     "baseColorFactor": [
      1.0,
@@ -50,33 +50,33 @@
  ],
  "buffers": [
   {
-   "uri": "niveau_beton.bin",
-   "byteLength": 32832
+   "uri": "niveau_platre_peint.bin",
+   "byteLength": 10336
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 10368,
+   "byteLength": 3264,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 10368,
-   "byteLength": 10368,
+   "byteOffset": 3264,
+   "byteLength": 3264,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 20736,
-   "byteLength": 6912,
+   "byteOffset": 6528,
+   "byteLength": 2176,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 27648,
-   "byteLength": 5184,
+   "byteOffset": 8704,
+   "byteLength": 1632,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 864,
+   "count": 272,
    "type": "VEC3",
    "min": [
-    -10,
-    0.0,
-    9
+    -16,
+    0.14,
+    0
    ],
    "max": [
-    16,
-    0.0,
+    13,
+    3.42,
     27
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 864,
+   "count": 272,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 864,
+   "count": 272,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 1296,
+   "count": 408,
    "type": "SCALAR"
   }
  ]

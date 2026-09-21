@@ -49,11 +49,17 @@ constexpr ImportedModelFile kImportedModels[] = {
     {"models/loquet/gate_latch_01_1k.gltf", "loquet"},
     // Le niveau, genere par tools/generate_level.py. Un fichier par matiere : le moteur
     // ne lie qu'un materiau par entite, donc regrouper la geometrie par matiere est ce
-    // qui permet a un sol carrele et a un parquet de coexister.
+    // qui permet a un sol carrele et a un parquet de coexister. Ajouter une matiere au
+    // generateur demande donc une ligne ici - c'est le prix de cette regle.
     {"models/niveau/niveau_beton.gltf", "niveau_beton"},
-    {"models/niveau/niveau_platre.gltf", "niveau_platre"},
+    {"models/niveau/niveau_bois.gltf", "niveau_bois"},
+    {"models/niveau/niveau_brique.gltf", "niveau_brique"},
     {"models/niveau/niveau_carrelage.gltf", "niveau_carrelage"},
+    {"models/niveau/niveau_carrelage_mural.gltf", "niveau_carrelage_mural"},
+    {"models/niveau/niveau_papier_peint.gltf", "niveau_papier_peint"},
     {"models/niveau/niveau_plancher.gltf", "niveau_plancher"},
+    {"models/niveau/niveau_platre.gltf", "niveau_platre"},
+    {"models/niveau/niveau_platre_peint.gltf", "niveau_platre_peint"},
 };
 constexpr core::u32 kImportedModelCount =
     static_cast<core::u32>(sizeof(kImportedModels) / sizeof(kImportedModels[0]));
@@ -84,8 +90,8 @@ constexpr core::f32 kCrouchBlendRate = 12.0f;
 constexpr core::f32 kFlySpeed = 6.0f;      // metres par seconde
 constexpr core::f32 kFlyFastSpeed = 16.0f; // avec Maj : traverser un niveau ne doit pas
                                            // prendre une minute
-// Dans le hall du niveau, face au couloir. Le sol du niveau est a y = 0.
-constexpr core::Vec3 kSpawnPosition{0.0f, 0.05f, 2.0f};
+// Dans le hall du niveau, face au passage qui ouvre sur le couloir. Le sol est a y = 0.
+constexpr core::Vec3 kSpawnPosition{0.0f, 0.05f, 3.0f};
 
 // --- Saisie d'objets --------------------------------------------------------------------
 constexpr core::f32 kGrabRange = 2.6f;     // portee du bras, en metres
@@ -151,12 +157,23 @@ constexpr MaterialFiles kRealMaterials[] = {
      "textures/plancher/matiere.png"},
     {"metal_rouille", "textures/metal_rouille/couleur.jpg",
      "textures/metal_rouille/normal.png", "textures/metal_rouille/matiere.png"},
-    // Les deux matieres que le niveau a rendues necessaires : du platre pour les murs,
-    // du carrelage pour le sol du hall et du couloir.
+    // Les matieres du niveau. Un interieur credible en demande plusieurs sur la meme
+    // hauteur de mur - un soubassement carrele, du papier au-dessus - et une surface
+    // d'un seul tenant sur trois metres ne se rencontre que dans un entrepot.
     {"platre", "textures/platre/couleur.jpg", "textures/platre/normal.png",
      "textures/platre/matiere.png"},
+    {"platre_peint", "textures/platre_peint/couleur.jpg",
+     "textures/platre_peint/normal.png", "textures/platre_peint/matiere.png"},
+    {"papier_peint", "textures/papier_peint/couleur.jpg",
+     "textures/papier_peint/normal.png", "textures/papier_peint/matiere.png"},
+    {"brique", "textures/brique/couleur.jpg", "textures/brique/normal.png",
+     "textures/brique/matiere.png"},
     {"carrelage", "textures/carrelage/couleur.jpg", "textures/carrelage/normal.png",
      "textures/carrelage/matiere.png"},
+    {"carrelage_mural", "textures/carrelage_mural/couleur.jpg",
+     "textures/carrelage_mural/normal.png", "textures/carrelage_mural/matiere.png"},
+    {"bois", "textures/bois/couleur.jpg", "textures/bois/normal.png",
+     "textures/bois/matiere.png"},
 };
 constexpr core::u32 kRealMaterialCount =
     static_cast<core::u32>(sizeof(kRealMaterials) / sizeof(kRealMaterials[0]));

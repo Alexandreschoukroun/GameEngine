@@ -14,12 +14,12 @@
  "nodes": [
   {
    "mesh": 0,
-   "name": "niveau_beton"
+   "name": "niveau_carrelage_mural"
   }
  ],
  "meshes": [
   {
-   "name": "niveau_beton",
+   "name": "niveau_carrelage_mural",
    "primitives": [
     {
      "attributes": {
@@ -35,7 +35,7 @@
  ],
  "materials": [
   {
-   "name": "beton",
+   "name": "carrelage_mural",
    "pbrMetallicRoughness": {
     "baseColorFactor": [
      1.0,
@@ -50,33 +50,33 @@
  ],
  "buffers": [
   {
-   "uri": "niveau_beton.bin",
-   "byteLength": 32832
+   "uri": "niveau_carrelage_mural.bin",
+   "byteLength": 6688
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 10368,
+   "byteLength": 2112,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 10368,
-   "byteLength": 10368,
+   "byteOffset": 2112,
+   "byteLength": 2112,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 20736,
-   "byteLength": 6912,
+   "byteOffset": 4224,
+   "byteLength": 1408,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 27648,
-   "byteLength": 5184,
+   "byteOffset": 5632,
+   "byteLength": 1056,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 864,
+   "count": 176,
    "type": "VEC3",
    "min": [
-    -10,
-    0.0,
-    9
+    -16,
+    0.14,
+    0
    ],
    "max": [
-    16,
-    0.0,
+    13,
+    1.15,
     27
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 864,
+   "count": 176,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 864,
+   "count": 176,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 1296,
+   "count": 264,
    "type": "SCALAR"
   }
  ]

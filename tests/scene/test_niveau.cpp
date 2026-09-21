@@ -20,12 +20,12 @@
 // produit pas de message, elle produit un mur.
 //
 // Ces tests ne regardent donc pas le code du generateur, mais son RESULTAT, en le faisant
-// jouer : on y pose un personnage, on le fait marcher, et on sonde les murs au rayon.
+// jouer : on y pose un personnage, on le fait marcher, et on sonde le batiment au rayon.
 //
 // Les deux controles ne disent pas la meme chose, et c'est une lecon payee comptant. En
-// retournant volontairement l'enroulement des 188 triangles de mur, le personnage a
-// continue d'etre arrete : un CharacterVirtual heurte AUSSI les faces arriere, par
-// defaut. Marcher dans le niveau ne prouve donc PAS que ses faces sont a l'endroit.
+// retournant volontairement l'enroulement des triangles de mur, le personnage a continue
+// d'etre arrete : un CharacterVirtual heurte AUSSI les faces arriere, par defaut. Marcher
+// dans le niveau ne prouve donc PAS que ses faces sont a l'endroit.
 //
 // Ce qui le prouve, c'est la NORMALE rapportee par un rayon. Le rayon touche le mur dans
 // les deux cas ; mais sur une face retournee il revient avec une normale qui s'eloigne de
@@ -41,13 +41,17 @@ constexpr core::f32 kRadius = 0.35f; // les memes que le joueur du jeu : un test
 constexpr core::f32 kHeight = 1.8f;  // gabarit different ne prouverait rien sur celui-la
 
 // Le point d'apparition declare par le jeu, dans le hall. Le sol du niveau est a y = 0.
-constexpr core::Vec3 kSpawn{0.0f, 0.05f, 2.0f};
+constexpr core::Vec3 kSpawn{0.0f, 0.05f, 3.0f};
 
-// Les quatre maillages du niveau, un par matiere. Le decoupage vient d'une contrainte du
-// rendu - une entite ne porte qu'un materiau - mais il se retrouve ici parce que la
-// collision suit exactement la meme geometrie.
-constexpr const char* kLevelMeshes[] = {"niveau_beton", "niveau_platre", "niveau_carrelage",
-                                        "niveau_plancher"};
+// Les maillages du niveau, un par matiere. Le decoupage vient d'une contrainte du rendu -
+// une entite ne porte qu'un materiau - mais il se retrouve ici parce que la collision suit
+// exactement la meme geometrie.
+constexpr const char* kLevelMeshes[] = {
+    "niveau_beton",      "niveau_bois",    "niveau_brique",
+    "niveau_carrelage",  "niveau_carrelage_mural", "niveau_papier_peint",
+    "niveau_plancher",   "niveau_platre",  "niveau_platre_peint",
+};
+constexpr std::size_t kLevelMeshCount = sizeof(kLevelMeshes) / sizeof(kLevelMeshes[0]);
 
 // Porte la geometrie du niveau ET la table qui la cite. La table ne garde que des
 // pointeurs : si les MeshData mouraient avant elle, on lirait de la memoire liberee.
@@ -60,7 +64,7 @@ struct Level {
     // resoudre : sans eux, le chargeur remplace silencieusement le maillage manquant par
     // un substitut, et le test ne verrait plus la difference entre un nom juste et un nom
     // faux.
-    std::array<rhi::Mesh, 4> display;
+    std::array<rhi::Mesh, kLevelMeshCount> display;
     scene::ResourceTable resources;
     scene::Scene scene;
 };
@@ -94,10 +98,11 @@ bool loadLevel(Level& level) {
         level.resources.addMesh(kLevelMeshes[i], &level.display[i], bounds);
     }
 
-    level.resources.addMaterial("beton", scene::Material{});
-    level.resources.addMaterial("platre", scene::Material{});
-    level.resources.addMaterial("carrelage", scene::Material{});
-    level.resources.addMaterial("plancher", scene::Material{});
+    // Les matieres que le jeu charge depuis assets/textures/<nom>/.
+    for (const char* material : {"beton", "bois", "brique", "carrelage", "carrelage_mural",
+                                 "papier_peint", "plancher", "platre", "platre_peint"}) {
+        level.resources.addMaterial(material, scene::Material{});
+    }
     level.resources.addSound("pas_pierre", 0);
     level.resources.addSound("pas_bois", 1);
 
@@ -131,6 +136,12 @@ physics::CharacterHandle inhabit(Level& level, physics::World& world) {
     return world.addCharacter(kSpawn, kRadius, kHeight);
 }
 
+// Un monde physique peuple du niveau seul, sans personnage : pour les sondes.
+void build(Level& level, physics::World& world) {
+    REQUIRE(world.create());
+    scene::createPhysicsBodies(level.scene, world, level.resources);
+}
+
 } // namespace
 
 TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
@@ -150,7 +161,10 @@ TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
         CHECK(collider.isStatic);
         ++meshColliders;
     }
-    CHECK(meshColliders == 4);
+    // Une entite par matiere, ni plus ni moins. Ajouter une matiere au generateur oblige
+    // donc a l'ajouter ici et dans le jeu : c'est le prix de la regle "un materiau par
+    // entite", et il vaut mieux le payer a la compilation qu'a l'ecran.
+    CHECK(meshColliders == kLevelMeshCount);
 
     core::u32 rendered = 0;
     for (auto [entity, renderer] :
@@ -160,7 +174,7 @@ TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
         CHECK(renderer.material != scene::kInvalidResource);
         ++rendered;
     }
-    CHECK(rendered == 4);
+    CHECK(rendered == kLevelMeshCount);
 
     // Le son des pas depend de la surface foulee : sans lui, le joueur marcherait en
     // silence sur un sol pourtant sonore.
@@ -170,17 +184,111 @@ TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
         CHECK(surface.footstep != scene::kInvalidResource);
         ++surfaces;
     }
-    CHECK(surfaces == 4);
+    CHECK(surfaces == kLevelMeshCount);
 
     // Un interieur sans lumiere est un ecran noir. On verifie la propriete, pas le
     // compte exact : ajouter une lampe est un geste d'auteur, pas une regression.
     core::u32 lights = 0;
-    for (auto [entity, light] : level.scene.registry().view<const scene::LightSource>().each()) {
+    for (auto [entity, light] :
+         level.scene.registry().view<const scene::LightSource>().each()) {
         (void)entity;
         CHECK(light.intensity > 0.0f);
         ++lights;
     }
     CHECK(lights > 0);
+}
+
+TEST_CASE("Les murs du hall presentent leur face avant a la piece") {
+    Level level;
+    REQUIRE(loadLevel(level));
+    physics::World world;
+    build(level, world);
+
+    // Depuis le hall, a hauteur d'oeil. Le hall occupe x de -7 a 7 et z de 0 a 9, sous un
+    // plafond a 3,60 m : chaque surface est a portee, et on connait d'avance sa distance.
+    //
+    // Les distances tiennent compte de l'EPAISSEUR des murs : une cloison de 14 cm
+    // presente sa face a 7 cm de la frontiere, un mur de facade de 30 cm a 15 cm. C'est
+    // exactement ce qui manquait a la version precedente du niveau.
+    struct Probe {
+        core::Vec3 direction;
+        core::f32 distance;
+        const char* what;
+    };
+    const core::Vec3 middle{0.0f, 1.6f, 1.5f};
+    const Probe probes[] = {
+        {{-1.0f, 0.0f, 0.0f}, 6.93f, "cloison ouest, vers le bureau"},
+        {{1.0f, 0.0f, 0.0f}, 6.93f, "cloison est, vers le vestiaire"},
+        {{0.0f, 0.0f, -1.0f}, 1.35f, "mur de facade sud"},
+        {{0.0f, 1.0f, 0.0f}, 2.00f, "plafond a 3,60 m"},
+        {{0.0f, -1.0f, 0.0f}, 1.60f, "sol"},
+    };
+
+    for (const Probe& probe : probes) {
+        CAPTURE(probe.what);
+        const physics::RayHit hit = world.raycast(middle, probe.direction, 16.0f);
+        // La surface existe, et a la bonne distance : le generateur a bien ferme la piece.
+        REQUIRE(hit.hit);
+        CHECK(hit.distance == doctest::Approx(probe.distance).epsilon(0.02));
+        // Et elle nous FAIT FACE : sa normale remonte le rayon. C'est l'assertion qui
+        // porte tout le poids ici - une face retournee est touchee comme les autres, mais
+        // rend une normale opposee, et disparait a l'ecran.
+        CHECK(glm::dot(hit.normal, probe.direction) < -0.99f);
+    }
+}
+
+TEST_CASE("Les cloisons du niveau ont une epaisseur") {
+    Level level;
+    REQUIRE(loadLevel(level));
+    physics::World world;
+    build(level, world);
+
+    // La meme cloison, sondee de ses deux cotes : depuis le hall vers l'ouest, et depuis
+    // le bureau vers l'est. L'ecart entre les deux faces EST l'epaisseur du mur.
+    //
+    // C'est le detail qui distingue un batiment d'un decor de theatre, parce qu'il se voit
+    // partout ou le mur est perce : en franchissant une porte, on longe son tableau. Un
+    // mur d'epaisseur nulle prive le regard de cette profondeur.
+    const physics::RayHit fromHall =
+        world.raycast(core::Vec3{0.0f, 1.6f, 1.5f}, core::Vec3{-1.0f, 0.0f, 0.0f}, 16.0f);
+    const physics::RayHit fromOffice =
+        world.raycast(core::Vec3{-10.0f, 1.6f, 1.5f}, core::Vec3{1.0f, 0.0f, 0.0f}, 16.0f);
+
+    REQUIRE(fromHall.hit);
+    REQUIRE(fromOffice.hit);
+    // Le hall est a l'est de la cloison, le bureau a l'ouest : c'est donc la face
+    // vue du hall qui a la plus grande abscisse.
+    const core::f32 thickness = fromHall.point.x - fromOffice.point.x;
+    CHECK(thickness == doctest::Approx(0.14f).epsilon(0.05));
+
+    // Et les deux faces se tournent le dos : chacune regarde SA piece.
+    CHECK(fromHall.normal.x > 0.99f);
+    CHECK(fromOffice.normal.x < -0.99f);
+}
+
+TEST_CASE("Le plafond de l'atelier porte des poutres") {
+    Level level;
+    REQUIRE(loadLevel(level));
+    physics::World world;
+    build(level, world);
+
+    // L'atelier occupe x de 2 a 14, z de 9 a 19, sous un plafond a 4,20 m. Trois poutres
+    // le traversent, a x = 5, 8 et 11, retombant de 34 cm.
+    //
+    // Un plafond nu de cent metres carres n'existe pas, et surtout il ne donne au regard
+    // aucune echelle - c'est l'une des raisons pour lesquelles une piece se lit comme une
+    // boite. Ce test verifie que le relief est bien la, et qu'il n'est pas partout.
+    const physics::RayHit onBeam =
+        world.raycast(core::Vec3{8.0f, 1.6f, 14.0f}, core::Vec3{0.0f, 1.0f, 0.0f}, 8.0f);
+    const physics::RayHit between =
+        world.raycast(core::Vec3{6.5f, 1.6f, 14.0f}, core::Vec3{0.0f, 1.0f, 0.0f}, 8.0f);
+
+    REQUIRE(onBeam.hit);
+    REQUIRE(between.hit);
+    CHECK(onBeam.distance == doctest::Approx(4.20f - 0.34f - 1.6f).epsilon(0.02));
+    CHECK(between.distance == doctest::Approx(4.20f - 1.6f).epsilon(0.02));
+    CHECK(onBeam.normal.y < -0.99f);
+    CHECK(between.normal.y < -0.99f);
 }
 
 TEST_CASE("Le joueur tient debout sur le sol du niveau") {
@@ -200,41 +308,6 @@ TEST_CASE("Le joueur tient debout sur le sol du niveau") {
     CHECK(feet.y < 0.10f);
 }
 
-TEST_CASE("Les murs du niveau presentent leur face avant a la piece") {
-    Level level;
-    REQUIRE(loadLevel(level));
-    physics::World world;
-    REQUIRE(world.create());
-    scene::createPhysicsBodies(level.scene, world, level.resources);
-
-    // Depuis le milieu du hall, a hauteur d'oeil, vers chacun de ses quatre murs. Le hall
-    // occupe x de -4 a 4 et z de 0 a 6 : chaque mur est a portee, et on connait d'avance
-    // la distance et la normale attendues.
-    struct Probe {
-        core::Vec3 direction;
-        core::f32 distance;
-    };
-    const core::Vec3 middle{0.0f, 1.6f, 3.0f};
-    const Probe probes[] = {
-        {{-1.0f, 0.0f, 0.0f}, 4.0f}, // mur ouest
-        {{1.0f, 0.0f, 0.0f}, 4.0f},  // mur est
-        {{0.0f, 0.0f, -1.0f}, 3.0f}, // mur sud
-        {{0.0f, 1.0f, 0.0f}, 1.4f},  // plafond
-        {{0.0f, -1.0f, 0.0f}, 1.6f}, // sol
-    };
-
-    for (const Probe& probe : probes) {
-        const physics::RayHit hit = world.raycast(middle, probe.direction, 12.0f);
-        // La surface existe, et a la bonne distance : le generateur a bien ferme la piece.
-        REQUIRE(hit.hit);
-        CHECK(hit.distance == doctest::Approx(probe.distance).epsilon(0.02));
-        // Et elle nous FAIT FACE : sa normale remonte le rayon. C'est l'assertion qui
-        // porte tout le poids ici - une face retournee est touchee comme les autres, mais
-        // rend une normale opposee, et disparait a l'ecran.
-        CHECK(glm::dot(hit.normal, probe.direction) < -0.99f);
-    }
-}
-
 TEST_CASE("Un mur du niveau arrete le joueur") {
     Level level;
     REQUIRE(loadLevel(level));
@@ -245,15 +318,15 @@ TEST_CASE("Un mur du niveau arrete le joueur") {
 
     walk(world, player, core::Vec3{0.0f, 0.0f, 0.0f}, 0.0f, 60); // se poser d'abord
 
-    // Le hall s'arrete a x = -4. On marche droit dessus pendant quatre secondes, soit
-    // trois fois la distance a parcourir : ce qui arrete le joueur ne peut etre que le
-    // mur.
-    const core::Vec3 feet = walk(world, player, core::Vec3{-1.0f, 0.0f, 0.0f}, 3.0f, 240);
+    // Vers le sud : la facade est a z = 0, et sa face interieure a 15 cm de la. On marche
+    // droit dessus pendant quatre secondes, soit quatre fois la distance a parcourir : ce
+    // qui arrete le joueur ne peut etre que le mur.
+    const core::Vec3 feet = walk(world, player, core::Vec3{0.0f, 0.0f, -1.0f}, 3.0f, 240);
 
-    CHECK(feet.x > -4.0f);
+    CHECK(feet.z > 0.15f);
     // Il doit s'arreter contre le mur, a un rayon pres - pas s'y enfoncer, pas rester
     // bloque a mi-chemin.
-    CHECK(feet.x < -4.0f + kRadius + 0.2f);
+    CHECK(feet.z < 0.15f + kRadius + 0.2f);
     CHECK(world.characterOnGround(player));
 }
 
@@ -267,15 +340,14 @@ TEST_CASE("L'embrasure du niveau laisse passer le joueur") {
 
     walk(world, player, core::Vec3{0.0f, 0.0f, 0.0f}, 0.0f, 60);
 
-    // Le hall communique avec le couloir par une embrasure en z = 6, centree sur x = 0.
-    // Un mur perce est la seule chose qui distingue un niveau d'une collection de boites
-    // fermees : si l'embrasure n'etait pas un vrai trou, le joueur buterait a z ~ 6.
-    const core::Vec3 feet = walk(world, player, core::Vec3{0.0f, 0.0f, 1.0f}, 3.0f, 180);
+    // Le hall s'ouvre sur le couloir par un passage large de 2,60 m, en z = 9, centre sur
+    // x = 0. Un mur perce est la seule chose qui distingue un niveau d'une collection de
+    // boites fermees : si le passage n'etait pas un vrai trou, le joueur buterait a z ~ 9.
+    const core::Vec3 feet = walk(world, player, core::Vec3{0.0f, 0.0f, 1.0f}, 3.0f, 240);
 
-    CHECK(feet.z > 8.0f);
-    // Et il est passe SANS deriver : une embrasure de 2 m de large ne pardonne pas un
-    // decalage d'un metre.
-    CHECK(feet.x > -1.0f);
-    CHECK(feet.x < 1.0f);
+    CHECK(feet.z > 11.0f);
+    // Et il est passe SANS deriver : le couloir ne fait que 4 m de large.
+    CHECK(feet.x > -1.5f);
+    CHECK(feet.x < 1.5f);
     CHECK(world.characterOnGround(player));
 }

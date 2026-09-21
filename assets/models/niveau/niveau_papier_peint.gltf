@@ -14,12 +14,12 @@
  "nodes": [
   {
    "mesh": 0,
-   "name": "niveau_beton"
+   "name": "niveau_papier_peint"
   }
  ],
  "meshes": [
   {
-   "name": "niveau_beton",
+   "name": "niveau_papier_peint",
    "primitives": [
     {
      "attributes": {
@@ -35,7 +35,7 @@
  ],
  "materials": [
   {
-   "name": "beton",
+   "name": "papier_peint",
    "pbrMetallicRoughness": {
     "baseColorFactor": [
      1.0,
@@ -50,33 +50,33 @@
  ],
  "buffers": [
   {
-   "uri": "niveau_beton.bin",
-   "byteLength": 32832
+   "uri": "niveau_papier_peint.bin",
+   "byteLength": 5472
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 10368,
+   "byteLength": 1728,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 10368,
-   "byteLength": 10368,
+   "byteOffset": 1728,
+   "byteLength": 1728,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 20736,
-   "byteLength": 6912,
+   "byteOffset": 3456,
+   "byteLength": 1152,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 27648,
-   "byteLength": 5184,
+   "byteOffset": 4608,
+   "byteLength": 864,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 864,
+   "count": 144,
    "type": "VEC3",
    "min": [
-    -10,
-    0.0,
-    9
+    -13,
+    1.21,
+    0
    ],
    "max": [
-    16,
-    0.0,
-    27
+    10,
+    3.42,
+    35
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 864,
+   "count": 144,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 864,
+   "count": 144,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 1296,
+   "count": 216,
    "type": "SCALAR"
   }
  ]

@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_platre_peint.bin",
-   "byteLength": 11096
+   "byteLength": 10336
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 3504,
+   "byteLength": 3264,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 3504,
-   "byteLength": 3504,
+   "byteOffset": 3264,
+   "byteLength": 3264,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 7008,
-   "byteLength": 2336,
+   "byteOffset": 6528,
+   "byteLength": 2176,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 9344,
-   "byteLength": 1752,
+   "byteOffset": 8704,
+   "byteLength": 1632,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 292,
+   "count": 272,
    "type": "VEC3",
    "min": [
     -16,
-    0.0,
+    0.14,
     0
    ],
    "max": [
     13,
-    3.6,
+    3.42,
     27
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 292,
+   "count": 272,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 292,
+   "count": 272,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 438,
+   "count": 408,
    "type": "SCALAR"
   }
  ]

@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_brique.bin",
-   "byteLength": 3800
+   "byteLength": 3344
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 1200,
+   "byteLength": 1056,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 1200,
-   "byteLength": 1200,
+   "byteOffset": 1056,
+   "byteLength": 1056,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 2400,
-   "byteLength": 800,
+   "byteOffset": 2112,
+   "byteLength": 704,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 3200,
-   "byteLength": 600,
+   "byteOffset": 2816,
+   "byteLength": 528,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 100,
+   "count": 88,
    "type": "VEC3",
    "min": [
     2,
-    0.0,
+    0.14,
     9
    ],
    "max": [
     16,
-    4.2,
+    4.0200000000000005,
     27
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 100,
+   "count": 88,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 100,
+   "count": 88,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 150,
+   "count": 132,
    "type": "SCALAR"
   }
  ]

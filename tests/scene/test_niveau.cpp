@@ -12,6 +12,7 @@
 #include "scene/serialization.h"
 
 #include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -219,7 +220,7 @@ TEST_CASE("Les murs du hall presentent leur face avant a la piece") {
     const Probe probes[] = {
         {{-1.0f, 0.0f, 0.0f}, 6.93f, "cloison ouest, vers le bureau"},
         {{1.0f, 0.0f, 0.0f}, 6.93f, "cloison est, vers le vestiaire"},
-        {{0.0f, 0.0f, -1.0f}, 1.35f, "mur de facade sud"},
+        {{0.0f, 0.0f, -1.0f}, 1.43f, "mur de facade sud"},
         {{0.0f, 1.0f, 0.0f}, 2.00f, "plafond a 3,60 m"},
         {{0.0f, -1.0f, 0.0f}, 1.60f, "sol"},
     };
@@ -266,44 +267,48 @@ TEST_CASE("Les cloisons du niveau ont une epaisseur") {
     CHECK(fromOffice.normal.x < -0.99f);
 }
 
-TEST_CASE("Les ressauts de mur sont fermes") {
+TEST_CASE("Un mur reste d'aplomb sur toute sa longueur") {
     Level level;
     REQUIRE(loadLevel(level));
     physics::World world;
     build(level, world);
 
-    // Un mur de facade est plus epais qu'une cloison : 30 cm contre 14. La ou les deux se
-    // rejoignent SUR LE MEME PLAN DE MUR, leurs faces sont decalees de 8 cm, et rien ne
-    // les reliait. Le resultat etait une fente verticale du sol au plafond par laquelle
-    // on voyait a travers le mur - le defaut signale apres essai.
+    // Un mur change de ROLE en cours de route : le mur ouest du hall separe le hall du
+    // bureau jusqu'a z = 7, puis donne sur le vide au-dela. Tant que les deux roles
+    // avaient des epaisseurs differentes, la face sautait de 8 cm a la jonction - ce qui
+    // a d'abord ouvert une fente, puis, une fois la fente bouchee, laisse un decrochement
+    // en plein milieu d'une surface plate. Les deux defauts ont la meme cause.
     //
-    // Le generateur ferme desormais chacun de ces douze ressauts par un retour. Les deux
-    // rayons ci-dessous sont tires DANS l'ancienne fente : sans le retour, ils la
-    // traversaient et allaient toucher bien plus loin.
-    struct Probe {
-        core::Vec3 origin;
+    // La regle est donc devenue : la face visible est TOUJOURS au meme retrait. Ce test
+    // la mesure directement - deux rayons de part et d'autre de chaque jonction doivent
+    // toucher le meme plan, au millimetre.
+    struct Pair {
+        core::Vec3 first;
+        core::Vec3 second;
         core::Vec3 direction;
-        core::f32 distance;
-        core::Vec3 normal;
         const char* what;
     };
-    const Probe probes[] = {
-        // Mur ouest du hall : cloison vers le bureau jusqu'a z = 7, facade au-dela.
-        // Sans retour, ce rayon filait jusqu'au mur nord, a 2,93 m.
-        {{-6.89f, 1.6f, 6.0f}, {0.0f, 0.0f, 1.0f}, 1.0f, {0.0f, 0.0f, -1.0f},
-         "ressaut du mur ouest du hall, en z = 7"},
-        // Mur sud de la chambre 1 : facade jusqu'a x = -7, cloison vers le hall au-dela.
-        // Sans retour, ce rayon filait jusqu'au mur ouest, a 5,07 m.
-        {{-5.0f, 1.6f, 9.11f}, {-1.0f, 0.0f, 0.0f}, 2.0f, {1.0f, 0.0f, 0.0f},
-         "ressaut du mur sud de la chambre 1, en x = -7"},
+    const Pair pairs[] = {
+        // Mur ouest du hall, de part et d'autre de z = 7.
+        {{0.0f, 1.6f, 4.5f}, {0.0f, 1.6f, 8.0f}, {-1.0f, 0.0f, 0.0f},
+         "mur ouest du hall, jonction en z = 7"},
+        // Mur sud de la chambre 1, de part et d'autre de x = -7.
+        {{-6.0f, 1.6f, 12.0f}, {-8.5f, 1.6f, 12.0f}, {0.0f, 0.0f, -1.0f},
+         "mur sud de la chambre 1, jonction en x = -7"},
     };
 
-    for (const Probe& probe : probes) {
-        CAPTURE(probe.what);
-        const physics::RayHit hit = world.raycast(probe.origin, probe.direction, 12.0f);
-        REQUIRE(hit.hit);
-        CHECK(hit.distance == doctest::Approx(probe.distance).epsilon(0.05));
-        CHECK(glm::dot(hit.normal, probe.normal) > 0.99f);
+    for (const Pair& pair : pairs) {
+        CAPTURE(pair.what);
+        const physics::RayHit a = world.raycast(pair.first, pair.direction, 16.0f);
+        const physics::RayHit b = world.raycast(pair.second, pair.direction, 16.0f);
+        REQUIRE(a.hit);
+        REQUIRE(b.hit);
+        // Meme plan : la difference se mesure le long de la direction du rayon.
+        const core::f32 drift = glm::dot(a.point - b.point, pair.direction);
+        CHECK(std::abs(drift) < 0.005f);
+        // Et les deux morceaux nous font face, comme le reste du mur.
+        CHECK(glm::dot(a.normal, pair.direction) < -0.99f);
+        CHECK(glm::dot(b.normal, pair.direction) < -0.99f);
     }
 }
 
@@ -364,10 +369,10 @@ TEST_CASE("Un mur du niveau arrete le joueur") {
     // qui arrete le joueur ne peut etre que le mur.
     const core::Vec3 feet = walk(world, player, core::Vec3{0.0f, 0.0f, -1.0f}, 3.0f, 240);
 
-    CHECK(feet.z > 0.15f);
+    CHECK(feet.z > 0.07f);
     // Il doit s'arreter contre le mur, a un rayon pres - pas s'y enfoncer, pas rester
     // bloque a mi-chemin.
-    CHECK(feet.z < 0.15f + kRadius + 0.2f);
+    CHECK(feet.z < 0.07f + kRadius + 0.2f);
     CHECK(world.characterOnGround(player));
 }
 

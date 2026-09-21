@@ -148,12 +148,11 @@ Quatre corrections répondent à ça. Elles coûtent peu et se cumulent.
 
 ## 2.2 Les murs ont une épaisseur — et c'est l'embrasure qu'on en voit
 
-Un mur d'épaisseur nulle est un plan. Le générateur en fait un **volume** : 14 cm pour une
-cloison, 30 cm pour un mur de façade. La face visible depuis une pièce est donc en retrait
-de la moitié de l'épaisseur :
+Un mur d'épaisseur nulle est un plan. Le générateur en fait un **volume** de 14 cm : la
+face visible depuis une pièce est en retrait de la moitié de cette épaisseur.
 
 ```python
-plane = line + sign * thickness / 2
+plane = line + sign * WALL_THICKNESS / 2
 ```
 
 Ce qui compte n'est pas l'épaisseur elle-même — invisible dans un mur plein — mais ce
@@ -165,41 +164,60 @@ carton plus sûrement que tout le reste.
 Ces trois surfaces sont émises par `emit_reveals`, et c'est la seule partie de la géométrie
 qui rende l'épaisseur visible. C'est pour elle que les murs en ont une.
 
-## 2.2 bis Le ressaut, et le trou qu'il laissait
+## 2.2 bis Une seule épaisseur, et pourquoi — deux essais ratés
 
-Donner deux épaisseurs aux murs — 14 cm pour une cloison, 30 pour une façade — est une
-côte parfaitement légitime. Elle a pourtant produit un défaut visible, signalé après
-essai : **des trous dans les murs**.
+Ce paragraphe raconte un aller-retour, parce que la conclusion ne se comprend pas sans lui.
+
+**Premier état.** Donner 30 cm à une façade et 14 à une cloison est une cote juste :
+c'est ce qu'on construirait. Le résultat a été signalé après essai : **des trous dans les
+murs.**
 
 Le mécanisme est instructif parce qu'il ne se voit dans aucun contrôle évident. Prenez le
 mur ouest du hall. Jusqu'à z = 7 il sépare le hall du bureau : c'est une cloison, sa face
-est à 7 cm de la frontière. Au-delà, le bureau s'arrête et le même mur devient une
-façade : sa face passe à 15 cm. **Les deux faces sont sur le même plan de mur mais pas au
-même endroit**, et rien ne les reliait — une fente verticale de 8 cm, du sol au plafond,
-par laquelle on voyait à travers le mur.
+est à 7 cm de la frontière. Au-delà, le bureau s'arrête et le même mur donne sur le vide :
+sa face passait à 15 cm. **Les deux faces sont sur le même plan de mur mais pas au même
+endroit**, et rien ne les reliait — une fente verticale de 8 cm, du sol au plafond, par
+laquelle on voyait à travers.
 
 Rien ne le signalait : la pièce est fermée, les faces sont à l'endroit, l'enroulement est
-juste, le chargement est propre. C'est un trou entre deux surfaces correctes.
+juste, le chargement est propre, les tests de marche passent. C'est un trou **entre** deux
+surfaces correctes.
 
-Le repérer une fois le défaut compris est immédiat, et c'est le générateur qui le fait :
-`find_steps` parcourt chaque plan de mur et relève les tronçons **collés dont les faces ne
-sont pas au même endroit**. Il y en avait douze, tous de 8 cm — la moitié de l'écart
-d'épaisseur, exactement.
+**Deuxième état, et deuxième erreur.** J'ai fermé chaque fente par un **retour** : une
+bande perpendiculaire au mur, du sol au plafond. C'est également ce qu'on construirait —
+un mur porteur qui rejoint une cloison présente ce ressaut — et géométriquement c'était
+correct : plus aucun trou.
 
-`emit_returns` les ferme par un **retour** : une bande perpendiculaire au mur, du sol au
-plafond. C'est aussi ce qu'on construirait — un mur porteur qui rejoint une cloison
-présente ce ressaut. Deux détails décident de son orientation :
+Verdict après essai : *« les murs sont mal superposés »*. À juste titre. J'avais rendu le
+défaut **visible** au lieu de le faire disparaître : un décrochement de 8 cm en plein milieu
+d'une surface plate se lit comme une erreur d'assemblage, parce que c'en est une. Dans un
+vrai bâtiment, ce ressaut existe à la jonction de deux ouvrages distincts, pas au milieu
+d'une paroi continue qu'on perçoit comme une seule.
 
-- il n'est visible que du côté où le mur est **en retrait** ; de l'autre, la saillie le
-  masque elle-même ;
-- il monte jusqu'au plafond de la pièce **qui le voit**, et non de l'autre : au-dessus, ce
-  plafond masque tout.
+**Troisième état, la racine.** La question à se poser n'était pas « comment raccorder les
+deux plans » mais « qu'est-ce que la deuxième épaisseur m'apporte ». Réponse : **rien.**
 
-Coût : 24 triangles. Le compte de ressauts est désormais imprimé à chaque génération.
+On n'émet jamais la face extérieure d'une façade — personne ne voit le bâtiment de
+dehors, et aucune ouverture ne la perce. L'épaisseur supplémentaire n'était donc
+représentée par **aucune géométrie** : elle ne faisait que déplacer la face intérieure.
+Elle ne coûtait que son défaut.
 
-Et le test correspondant tire ses deux rayons **dans l'ancienne fente**. La contre-épreuve
-— retirer les retours et relancer — donne 2,93 m et 4,93 m au lieu de 1 m et 2 m : les
-rayons traversaient bien le mur et allaient toucher la paroi d'en face.
+Une seule épaisseur, et les douze ressauts n'existent plus — il n'y a plus rien à
+raccorder. La règle devient : **la face visible est toujours au même retrait**, donc un
+mur reste d'aplomb sur toute sa longueur, même là où il change de rôle.
+
+`find_steps` reste, mais a changé de nature : de correctif il est devenu **garde-fou**. Il
+parcourt chaque plan de mur, relève les tronçons collés dont les faces ne sont pas au même
+endroit, et **interrompt la génération** s'il en trouve un. Il ne répare rien : il interdit
+de réintroduire la cause.
+
+La leçon tient en une phrase. Un défaut qu'on n'arrive pas à masquer proprement vient
+souvent d'une cote qu'on n'aurait pas dû prendre — et la bonne question n'est pas
+« comment le cacher » mais « qu'est-ce que cette cote m'apporte ».
+
+Le test correspondant mesure l'aplomb directement : deux rayons de part et d'autre de
+chaque jonction doivent toucher **le même plan, au millimètre**. Avec l'ancien modèle,
+l'écart valait 8 cm.
 
 ## 2.3 Les murs ont des profils
 
@@ -267,7 +285,7 @@ donne au regard aucune échelle.
 | Embrasures | 4, déclarées à la main | **16, déduites du plan** |
 | Triangles | 916 | **7 510** |
 | Sur le disque | 96 Kio | **620 Kio** |
-| Générateur | 352 lignes | **742 lignes** |
+| Générateur | 352 lignes | **799 lignes** |
 | Dans le moteur | zéro ligne | **zéro ligne** |
 
 La dernière ligne reste la plus importante. Le générateur est un outil, pas une brique : il

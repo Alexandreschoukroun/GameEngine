@@ -5,6 +5,7 @@ add_executable(engine_tests
     core/test_time.cpp
     assets/test_gltf.cpp
     renderer/test_camera.cpp
+    renderer/test_light_selection.cpp
     editor/test_gizmo.cpp
     editor/test_picking.cpp
     scene/test_serialization.cpp

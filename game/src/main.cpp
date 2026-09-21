@@ -11,6 +11,7 @@
 #include "renderer/camera.h"
 #include "renderer/deferred_renderer.h"
 #include "renderer/flashlight.h"
+#include "renderer/light_selection.h"
 #include "renderer/light.h"
 #include "rhi/device.h"
 #include "rhi/mesh.h"
@@ -26,6 +27,7 @@
 
 #include <algorithm>
 #include <array>
+#include <span>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -714,11 +716,11 @@ protected:
         // la premiere lumiere a ombre de la liste.
         m_lights.clear();
         m_lights.push_back(m_flashlight.light());
+        // On collecte TOUTES les lumieres de la scene, sans plafond ici. Le tri qui suit
+        // a besoin de les voir toutes : couper maintenant reviendrait a choisir au hasard,
+        // ce qui etait precisement le defaut.
         for (auto [entity, world, source] :
              m_scene.registry().view<scene::WorldTransform, scene::LightSource>().each()) {
-            if (m_lights.size() >= kMaxSceneLights) {
-                break;
-            }
             renderer::Light light;
             // La position vient de la matrice monde, donc de la hierarchie : une lampe
             // enfant d'une porte suit la porte, sans code supplementaire.
@@ -733,6 +735,15 @@ protected:
             light.castsShadow = source.castsShadow;
             m_lights.push_back(light);
         }
+
+        // Le budget est de huit lumieres, et un batiment de douze pieces en declare douze.
+        // On garde celles qui comptent d'ou l'on est, la lampe torche restant en tete :
+        // c'est elle qui porte l'ombre, et elle est de toute facon la plus influente,
+        // puisqu'elle est sur la camera.
+        const std::span<renderer::Light> scenery(m_lights.data() + 1, m_lights.size() - 1);
+        const core::u32 kept = renderer::selectStrongestLights(
+            scenery, m_camera.position(), static_cast<core::u32>(kMaxSceneLights - 1));
+        m_lights.resize(kept + 1);
 
         m_renderer.render(m_device, m_camera, m_drawItems, m_lights, window().width(),
                           window().height());

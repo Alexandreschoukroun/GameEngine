@@ -21,3 +21,7 @@ imgui.ini
 # OS
 Thumbs.db
 .DS_Store
+
+# Cache de l'interpreteur Python, produit des qu'on importe un outil comme module.
+__pycache__/
+*.pyc

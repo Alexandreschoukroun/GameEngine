@@ -567,6 +567,97 @@ Une lecture de texture supplémentaire par pixel éclairé par la lampe, et deux
 
 ---
 
+# 8 bis. Étape 7 — choisir les huit lumières qui comptent
+
+*Ajouté à M6.5, quand le niveau est passé à douze pièces.*
+
+## 8bis.1 Le problème, et pourquoi il était muet
+
+Le budget du SPEC est de **huit lumières simultanées**, et le shader d'éclairage en boucle
+exactement huit. Tant que la scène en déclarait quatre, la question ne se posait pas.
+
+Le bâtiment de M6.5 en déclare **douze**, une par pièce. Le jeu les collectait en
+parcourant le registre et s'arrêtait à huit :
+
+```cpp
+if (m_lights.size() >= kMaxSceneLights) {
+    break;
+}
+```
+
+C'est-à-dire qu'il gardait les **premières rencontrées** — dans l'ordre du registre EnTT,
+qui n'a aucun rapport avec la géométrie. Quatre pièces restaient dans le noir, et
+lesquelles pouvait changer.
+
+Aucun message, aucun ralentissement, aucun test en échec : le défaut ne se manifestait que
+par un bâtiment « moins réaliste » qu'attendu, sans qu'on puisse dire pourquoi. C'est le
+genre de bogue qu'on attribue aux textures ou aux matériaux.
+
+**Garder les premières n'est pas un choix, c'est une absence de choix.**
+
+## 8bis.2 L'influence, et l'approximation assumée
+
+`selectStrongestLights` classe les lumières par leur **influence au point de vue** :
+
+```cpp
+return light.intensity / (1.0f + distance * distance);
+```
+
+C'est la même décroissance que celle du shader, ce qui évite que le classement et le rendu
+ne se contredisent. Au-delà de la portée, l'influence vaut zéro.
+
+L'approximation doit être nommée, parce qu'elle a un défaut connu : **on mesure la distance
+à l'observateur, pas à ce qu'il regarde.** Une pièce vivement éclairée, aperçue de loin par
+une porte, peut donc s'éteindre alors qu'on la voit. Le vrai remède est un découpage de
+l'écran en tuiles ou en grappes, qui n'a de sens qu'avec beaucoup plus de lumières que
+huit — et qui appartient à un autre jalon.
+
+## 8bis.3 Deux temps, et pourquoi le premier est stable
+
+```cpp
+const auto useless = std::stable_partition(...);   // ce qui n'éclaire rien d'ici
+if (keep >= usable) { return usable; }
+std::partial_sort(...);                            // seulement s'il faut choisir
+```
+
+**Écarter avant de trier.** Une lumière hors de portée ne contribue à aucun pixel ; lui
+laisser un des huit emplacements reviendrait à éteindre une pièce pour rien. C'est un test
+qui a imposé cette étape : ma première version renvoyait tout dès qu'on était sous le
+budget, sans filtrer.
+
+**Le tri est stable, le second ne s'exécute que s'il le faut.** Tant qu'on ne doit rien
+choisir, l'ordre d'origine est conservé — on évite ainsi de brasser la liste à chaque frame
+dans le cas courant. Et `partial_sort` plutôt qu'un tri complet : on ne veut que les huit
+premières, l'ordre des cent quatre-vingt-douze autres n'intéresse personne.
+
+## 8bis.4 La lampe torche reste en tête
+
+Le jeu ne soumet au tri que les lumières **de la scène**, la lampe torche gardant sa place
+en tête. Deux raisons : c'est elle qui porte l'ombre, et le renderer retient la première
+lumière à ombre de la liste ; et elle serait de toute façon classée première, puisqu'elle
+est sur la caméra.
+
+## 8bis.5 Coût
+
+| | |
+|---|---|
+| Code | 40 lignes, dont la moitié de commentaire |
+| Par frame | un `stable_partition` et un `partial_sort` sur 12 éléments |
+| Tests | 6, sans GPU |
+| Changement dans le shader | **aucun** |
+
+## 8bis.6 Ce qui marche / ce qui ne marche pas
+
+**Ce qui marche.** Les douze pièces du bâtiment sont éclairées, où qu'on se trouve. Le
+budget de huit est respecté sans changer une ligne du shader, et il le resterait avec deux
+cents lampes.
+
+**Ce qui ne marche pas.** L'approximation décrite en 8bis.2 : une pièce éclairée vue de
+loin peut s'éteindre. Et les lumières ponctuelles **ne projettent toujours pas d'ombre** —
+il en faudrait six cartes de profondeur chacune — donc elles traversent les murs. C'est de
+loin la limite la plus visible du rendu aujourd'hui, et elle ne se corrigera pas par un
+réglage.
+
 # 9. Bilan de M2
 
 Le jalon est terminé. Le livrable du SPEC, « une pièce éclairée par une lampe torche », est atteint.

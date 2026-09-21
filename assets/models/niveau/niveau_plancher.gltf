@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_plancher.bin",
-   "byteLength": 12768
+   "byteLength": 35568
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 4032,
+   "byteLength": 11232,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 4032,
-   "byteLength": 4032,
+   "byteOffset": 11232,
+   "byteLength": 11232,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 8064,
-   "byteLength": 2688,
+   "byteOffset": 22464,
+   "byteLength": 7488,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 10752,
-   "byteLength": 2016,
+   "byteOffset": 29952,
+   "byteLength": 5616,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 336,
+   "count": 936,
    "type": "VEC3",
    "min": [
-    -8,
+    -13,
     0.0,
-    8
+    0
    ],
    "max": [
-    8,
+    10,
     0.0,
-    15
+    35
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 336,
+   "count": 936,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 336,
+   "count": 936,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 504,
+   "count": 1404,
    "type": "SCALAR"
   }
  ]

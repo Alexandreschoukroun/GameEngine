@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_platre.bin",
-   "byteLength": 14288
+   "byteLength": 180576
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 4512,
+   "byteLength": 57024,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 4512,
-   "byteLength": 4512,
+   "byteOffset": 57024,
+   "byteLength": 57024,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 9024,
-   "byteLength": 3008,
+   "byteOffset": 114048,
+   "byteLength": 38016,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 12032,
-   "byteLength": 2256,
+   "byteOffset": 152064,
+   "byteLength": 28512,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 376,
+   "count": 4752,
    "type": "VEC3",
    "min": [
-    -8,
+    -16,
     0.0,
     0
    ],
    "max": [
-    8,
-    3.0,
-    21
+    16,
+    4.2,
+    35
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 376,
+   "count": 4752,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 376,
+   "count": 4752,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 564,
+   "count": 7128,
    "type": "SCALAR"
   }
  ]

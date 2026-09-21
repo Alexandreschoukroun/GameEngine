@@ -2,6 +2,7 @@ add_library(engine_renderer STATIC
     src/camera.cpp
     src/deferred_renderer.cpp
     src/flashlight.cpp
+    src/light_selection.cpp
 )
 
 target_include_directories(engine_renderer PUBLIC

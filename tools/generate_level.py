@@ -15,10 +15,11 @@ pieces qui se lisaient comme des boites. Le defaut ne venait pas de la taille, m
 l'absence de RELIEF D'ARCHITECTURE. Quatre choses le donnent, et ce script les produit
 toutes :
 
-1. **Les murs ont une epaisseur.** Une cloison de 14 cm, un mur de facade de 30. Ce qu'on
-   en voit est l'EMBRASURE : en franchissant une porte, on longe le tableau du mur. Un mur
-   d'epaisseur nulle prive le regard de cette profondeur, et c'est ce qui trahit le decor
-   de theatre plus surement que tout le reste.
+1. **Les murs ont une epaisseur.** Quatorze centimetres, la meme partout - voir le
+   commentaire de WALL_THICKNESS pour savoir pourquoi cette uniformite n'est pas un
+   raccourci. Ce qu'on en voit est l'EMBRASURE : en franchissant une porte, on longe le
+   tableau du mur. Un mur d'epaisseur nulle prive le regard de cette profondeur, et c'est
+   ce qui trahit le decor de theatre plus surement que tout le reste.
 2. **Les murs ont des profils.** Plinthe en bas, cimaise a mi-hauteur, corniche en haut,
    chambranle autour des portes. Ce sont de petites boites en saillie de deux a six
    centimetres. Elles coutent peu de triangles et rattrapent l'angle mort du regard : une
@@ -63,8 +64,19 @@ SCENE = REPO / "assets" / "scenes" / "niveau.json"
 
 FLOOR_Y = 0.0
 
-WALL_INNER = 0.14   # cloison entre deux pieces
-WALL_OUTER = 0.30   # mur de facade : plus epais, comme une maconnerie porteuse
+# Une SEULE epaisseur, et c'est un choix corrige apres essai.
+#
+# Donner 30 cm a une facade et 14 a une cloison est une cote juste. Mais la ou les deux se
+# rejoignent sur le meme plan de mur, leurs faces se retrouvent decalees de 8 cm. Laisser
+# le decalage ouvert troue le mur ; le fermer par un retour donne un decrochement en plein
+# milieu d'une surface plate, ce qui est pire : le defaut devient visible au lieu de
+# disparaitre.
+#
+# La racine du probleme est qu'on n'emet JAMAIS la face exterieure d'une facade - personne
+# ne voit le batiment de dehors, et aucune ouverture ne la perce. L'epaisseur
+# supplementaire n'etait donc representee par aucune geometrie : elle ne faisait que
+# deplacer la face interieure. Elle ne coutait que son defaut.
+WALL_THICKNESS = 0.14
 
 DOOR_WIDTH = 1.00
 DOOR_HEIGHT = 2.10
@@ -452,12 +464,15 @@ def wall_face(mesh, axis, sign, plane, t0, t1, low, high):
         face(mesh, 2, sign, plane, t0, t1, low, high)
 
 
-def emit_wall(meshes, axis, line, sign, place, other, start, end, openings):
+def emit_wall(meshes, axis, line, sign, place, start, end, openings):
     """Un pan de mur : ses bandes de matiere, ses profils en saillie, et ses trous."""
-    thickness = WALL_INNER if other is not None else WALL_OUTER
     # La face visible est en retrait de la moitie de l'epaisseur : le mur OCCUPE la
     # frontiere, il ne s'y reduit pas. C'est de cette moitie que vient l'embrasure.
-    plane = line + sign * thickness / 2
+    #
+    # Le retrait est le MEME pour tous les murs, et c'est ce qui garantit qu'un mur reste
+    # D'APLOMB sur toute sa longueur, meme la ou il change de role - cloison d'un cote
+    # d'une piece, facade de l'autre.
+    plane = line + sign * WALL_THICKNESS / 2
     height = place.height
     along = along_axis(axis)
 
@@ -552,21 +567,54 @@ def emit_beams(meshes):
                     (place.x1, top, z + BEAM_WIDTH / 2))
 
 
-def emit_walls(boundaries, openings, meshes):
-    thicknesses = {}
-    for (axis, line, sign, index, other), runs in ordered(boundaries):
-        thickness = WALL_INNER if other is not None else WALL_OUTER
-        key = (axis, line)
-        thicknesses[key] = min(thicknesses.get(key, thickness), thickness)
+def wall_faces(boundaries):
+    """Ou se trouve reellement chaque face de mur.
 
+    Renvoie (axe, ligne, sens) -> liste de (debut, fin, plan, piece), triee le long du mur.
+    Cette liste sert deux fois : a emettre les murs, et a reperer les RESSAUTS - les
+    endroits ou deux troncons voisins du meme plan de mur ne presentent pas leur face au
+    meme endroit.
+    """
+    faces = collections.defaultdict(list)
+    for (axis, line, sign, index, other), runs in ordered(boundaries):
+        plane = line + sign * WALL_THICKNESS / 2
+        for start, end in runs:
+            faces[(axis, line, sign)].append((start, end, plane, index))
+    for runs in faces.values():
+        runs.sort()
+    return faces
+
+
+def find_steps(faces):
+    """Les ressauts : deux troncons colles dont les faces ne sont pas au meme endroit.
+
+    C'est le defaut qui a produit des trous visibles dans les murs du premier batiment.
+    Il naissait de deux epaisseurs de mur differentes sur un meme plan, et il etait
+    invisible a la generation : la piece est fermee, les faces sont a l'endroit, rien ne
+    manque. Ce qui manquait, c'etait le raccord entre les deux plans.
+
+    Avec une epaisseur unique, cette liste doit rester VIDE. La fonction n'est donc plus
+    un correctif mais un GARDE-FOU : elle ne repare rien, elle interdit de reintroduire
+    la cause.
+    """
+    steps = []
+    for (axis, line, sign), runs in sorted(faces.items()):
+        for before, after in zip(runs, runs[1:]):
+            if abs(before[1] - after[0]) > 1e-6 or abs(before[2] - after[2]) < 1e-6:
+                continue
+            steps.append((axis, line, before[1], before[2], after[2]))
+    return steps
+
+
+def emit_walls(boundaries, openings, meshes):
     for (axis, line, sign, index, other), runs in ordered(boundaries):
         place = ROOMS[index]
         for start, end in runs:
             local = [o for o in openings.get((axis, line), []) if o[1] > start and o[0] < end]
-            emit_wall(meshes, axis, line, sign, place, other, start, end, local)
+            emit_wall(meshes, axis, line, sign, place, start, end, local)
 
     for (axis, line), holes in sorted(openings.items()):
-        emit_reveals(meshes, axis, line, thicknesses[(axis, line)], holes)
+        emit_reveals(meshes, axis, line, WALL_THICKNESS, holes)
 
 
 # --- ecriture glTF ---------------------------------------------------------------------------
@@ -725,11 +773,20 @@ def main():
     write_scene(groups)
 
     doors = sum(len(holes) for holes in openings.values())
+    steps = find_steps(wall_faces(boundaries))
     reached = check_connectivity(links)
     print(f"\n{len(ROOMS)} pieces, {len(cells)} m2 au sol, {doors} embrasures, "
           f"{total} triangles")
     for name_a, name_b, length in skipped:
         print(f"  frontiere trop courte pour une porte : {name_a}/{name_b} ({length} m)")
+    if steps:
+        # On refuse d'ecrire un batiment troue. Ce defaut ne se voit ni au chargement ni a
+        # la marche : il faut donc l'arreter ici, au seul endroit ou il soit detectable.
+        for axis, line, junction, before, after in steps:
+            print(f"  RESSAUT sur le plan {'XYZ'[axis]}={line} en {junction} : "
+                  f"{before:.2f} != {after:.2f}")
+        raise SystemExit("murs non alignes : le batiment serait troue")
+    print("  aucun ressaut : tous les murs sont d'aplomb")
     missing = sorted({place.name for place in ROOMS} - reached)
     if missing:
         print(f"  INATTEIGNABLES depuis le hall : {', '.join(missing)}")

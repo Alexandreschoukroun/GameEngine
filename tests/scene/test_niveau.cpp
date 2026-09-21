@@ -266,6 +266,47 @@ TEST_CASE("Les cloisons du niveau ont une epaisseur") {
     CHECK(fromOffice.normal.x < -0.99f);
 }
 
+TEST_CASE("Les ressauts de mur sont fermes") {
+    Level level;
+    REQUIRE(loadLevel(level));
+    physics::World world;
+    build(level, world);
+
+    // Un mur de facade est plus epais qu'une cloison : 30 cm contre 14. La ou les deux se
+    // rejoignent SUR LE MEME PLAN DE MUR, leurs faces sont decalees de 8 cm, et rien ne
+    // les reliait. Le resultat etait une fente verticale du sol au plafond par laquelle
+    // on voyait a travers le mur - le defaut signale apres essai.
+    //
+    // Le generateur ferme desormais chacun de ces douze ressauts par un retour. Les deux
+    // rayons ci-dessous sont tires DANS l'ancienne fente : sans le retour, ils la
+    // traversaient et allaient toucher bien plus loin.
+    struct Probe {
+        core::Vec3 origin;
+        core::Vec3 direction;
+        core::f32 distance;
+        core::Vec3 normal;
+        const char* what;
+    };
+    const Probe probes[] = {
+        // Mur ouest du hall : cloison vers le bureau jusqu'a z = 7, facade au-dela.
+        // Sans retour, ce rayon filait jusqu'au mur nord, a 2,93 m.
+        {{-6.89f, 1.6f, 6.0f}, {0.0f, 0.0f, 1.0f}, 1.0f, {0.0f, 0.0f, -1.0f},
+         "ressaut du mur ouest du hall, en z = 7"},
+        // Mur sud de la chambre 1 : facade jusqu'a x = -7, cloison vers le hall au-dela.
+        // Sans retour, ce rayon filait jusqu'au mur ouest, a 5,07 m.
+        {{-5.0f, 1.6f, 9.11f}, {-1.0f, 0.0f, 0.0f}, 2.0f, {1.0f, 0.0f, 0.0f},
+         "ressaut du mur sud de la chambre 1, en x = -7"},
+    };
+
+    for (const Probe& probe : probes) {
+        CAPTURE(probe.what);
+        const physics::RayHit hit = world.raycast(probe.origin, probe.direction, 12.0f);
+        REQUIRE(hit.hit);
+        CHECK(hit.distance == doctest::Approx(probe.distance).epsilon(0.05));
+        CHECK(glm::dot(hit.normal, probe.normal) > 0.99f);
+    }
+}
+
 TEST_CASE("Le plafond de l'atelier porte des poutres") {
     Level level;
     REQUIRE(loadLevel(level));

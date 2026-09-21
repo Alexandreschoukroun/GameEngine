@@ -165,6 +165,42 @@ carton plus sûrement que tout le reste.
 Ces trois surfaces sont émises par `emit_reveals`, et c'est la seule partie de la géométrie
 qui rende l'épaisseur visible. C'est pour elle que les murs en ont une.
 
+## 2.2 bis Le ressaut, et le trou qu'il laissait
+
+Donner deux épaisseurs aux murs — 14 cm pour une cloison, 30 pour une façade — est une
+côte parfaitement légitime. Elle a pourtant produit un défaut visible, signalé après
+essai : **des trous dans les murs**.
+
+Le mécanisme est instructif parce qu'il ne se voit dans aucun contrôle évident. Prenez le
+mur ouest du hall. Jusqu'à z = 7 il sépare le hall du bureau : c'est une cloison, sa face
+est à 7 cm de la frontière. Au-delà, le bureau s'arrête et le même mur devient une
+façade : sa face passe à 15 cm. **Les deux faces sont sur le même plan de mur mais pas au
+même endroit**, et rien ne les reliait — une fente verticale de 8 cm, du sol au plafond,
+par laquelle on voyait à travers le mur.
+
+Rien ne le signalait : la pièce est fermée, les faces sont à l'endroit, l'enroulement est
+juste, le chargement est propre. C'est un trou entre deux surfaces correctes.
+
+Le repérer une fois le défaut compris est immédiat, et c'est le générateur qui le fait :
+`find_steps` parcourt chaque plan de mur et relève les tronçons **collés dont les faces ne
+sont pas au même endroit**. Il y en avait douze, tous de 8 cm — la moitié de l'écart
+d'épaisseur, exactement.
+
+`emit_returns` les ferme par un **retour** : une bande perpendiculaire au mur, du sol au
+plafond. C'est aussi ce qu'on construirait — un mur porteur qui rejoint une cloison
+présente ce ressaut. Deux détails décident de son orientation :
+
+- il n'est visible que du côté où le mur est **en retrait** ; de l'autre, la saillie le
+  masque elle-même ;
+- il monte jusqu'au plafond de la pièce **qui le voit**, et non de l'autre : au-dessus, ce
+  plafond masque tout.
+
+Coût : 24 triangles. Le compte de ressauts est désormais imprimé à chaque génération.
+
+Et le test correspondant tire ses deux rayons **dans l'ancienne fente**. La contre-épreuve
+— retirer les retours et relancer — donne 2,93 m et 4,93 m au lieu de 1 m et 2 m : les
+rayons traversaient bien le mur et allaient toucher la paroi d'en face.
+
 ## 2.3 Les murs ont des profils
 
 Plinthe en bas (14 cm, saillie 2,5 cm), cimaise à 1,15 m, corniche sous le plafond

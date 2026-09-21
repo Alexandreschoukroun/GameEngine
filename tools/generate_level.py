@@ -552,6 +552,66 @@ def emit_beams(meshes):
                     (place.x1, top, z + BEAM_WIDTH / 2))
 
 
+def wall_faces(boundaries):
+    """Ou se trouve reellement chaque face de mur.
+
+    Renvoie (axe, ligne, sens) -> liste de (debut, fin, plan, piece), triee le long du mur.
+    Cette liste sert deux fois : a emettre les murs, et a reperer les RESSAUTS - les
+    endroits ou deux troncons voisins du meme plan de mur ne presentent pas leur face au
+    meme endroit.
+    """
+    faces = collections.defaultdict(list)
+    for (axis, line, sign, index, other), runs in ordered(boundaries):
+        thickness = WALL_INNER if other is not None else WALL_OUTER
+        plane = line + sign * thickness / 2
+        for start, end in runs:
+            faces[(axis, line, sign)].append((start, end, plane, index))
+    for runs in faces.values():
+        runs.sort()
+    return faces
+
+
+def find_steps(faces):
+    """Les ressauts : deux troncons colles dont les faces ne sont pas au meme endroit.
+
+    C'est le defaut qui a produit des trous visibles dans les murs du premier batiment.
+    Il nait d'une cote parfaitement legitime - un mur de facade est plus epais qu'une
+    cloison - et il est invisible a la generation : la piece est fermee, les faces sont a
+    l'endroit, rien ne manque. Ce qui manque, c'est le RETOUR entre les deux plans, une
+    bande de huit centimetres par laquelle on voit a travers le mur.
+
+    Renvoie (axe, ligne, jonction, plan_bas, plan_haut, sens_du_retour, piece_qui_voit).
+    """
+    steps = []
+    for (axis, line, sign), runs in sorted(faces.items()):
+        for before, after in zip(runs, runs[1:]):
+            if abs(before[1] - after[0]) > 1e-6 or abs(before[2] - after[2]) < 1e-6:
+                continue
+            # Le retour est visible du cote ou le mur est EN RETRAIT : l'autre cote est
+            # masque par la saillie elle-meme.
+            forward = (after[2] - before[2]) * sign > 0
+            step_sign = -1 if forward else 1
+            watcher = before[3] if forward else after[3]
+            steps.append((axis, line, before[1], min(before[2], after[2]),
+                          max(before[2], after[2]), step_sign, watcher))
+    return steps
+
+
+def emit_returns(faces, meshes):
+    """Ferme chaque ressaut par une bande perpendiculaire au mur."""
+    for axis, line, junction, low_plane, high_plane, step_sign, watcher in find_steps(faces):
+        place = ROOMS[watcher]
+        along = along_axis(axis)
+        # La bande monte jusqu'au plafond de la piece qui la voit ; au-dessus, ce plafond
+        # masque tout.
+        if along == 0:
+            face(meshes[place.wall], 0, step_sign, junction,
+                 FLOOR_Y, place.height, low_plane, high_plane)
+        else:
+            face(meshes[place.wall], 2, step_sign, junction,
+                 low_plane, high_plane, FLOOR_Y, place.height)
+
+
 def emit_walls(boundaries, openings, meshes):
     thicknesses = {}
     for (axis, line, sign, index, other), runs in ordered(boundaries):
@@ -564,6 +624,8 @@ def emit_walls(boundaries, openings, meshes):
         for start, end in runs:
             local = [o for o in openings.get((axis, line), []) if o[1] > start and o[0] < end]
             emit_wall(meshes, axis, line, sign, place, other, start, end, local)
+
+    emit_returns(wall_faces(boundaries), meshes)
 
     for (axis, line), holes in sorted(openings.items()):
         emit_reveals(meshes, axis, line, thicknesses[(axis, line)], holes)
@@ -725,11 +787,13 @@ def main():
     write_scene(groups)
 
     doors = sum(len(holes) for holes in openings.values())
+    steps = find_steps(wall_faces(boundaries))
     reached = check_connectivity(links)
     print(f"\n{len(ROOMS)} pieces, {len(cells)} m2 au sol, {doors} embrasures, "
           f"{total} triangles")
     for name_a, name_b, length in skipped:
         print(f"  frontiere trop courte pour une porte : {name_a}/{name_b} ({length} m)")
+    print(f"  {len(steps)} ressauts de mur, tous fermes par un retour")
     missing = sorted({place.name for place in ROOMS} - reached)
     if missing:
         print(f"  INATTEIGNABLES depuis le hall : {', '.join(missing)}")

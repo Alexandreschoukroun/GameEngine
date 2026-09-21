@@ -285,7 +285,7 @@ donne au regard aucune échelle.
 | Embrasures | 4, déclarées à la main | **16, déduites du plan** |
 | Triangles | 916 | **7 510** |
 | Sur le disque | 96 Kio | **620 Kio** |
-| Générateur | 352 lignes | **799 lignes** |
+| Générateur | 352 lignes | **1244 lignes** |
 | Dans le moteur | zéro ligne | **zéro ligne** |
 
 La dernière ligne reste la plus importante. Le générateur est un outil, pas une brique : il
@@ -453,82 +453,137 @@ licence CC0, en 1K.
 
 ---
 
-# 5 bis. Brique 6 — meubler
+# 5 bis. Brique 6 — meubler avec de vrais modèles
 
 Un bâtiment vide se lit comme un plan, pas comme un lieu. Le meubler a demandé trois
-choses de natures différentes, et la distinction entre elles est le seul vrai sujet de
-cette brique.
+choses de natures différentes, et la distinction entre elles est le vrai sujet.
 
-## 5bis.1 Ce qui ne bouge jamais est de la géométrie
+## 5bis.1 Première version : des pavés, et pourquoi ça ne suffit pas
 
-Établis, casiers, lits, tables du réfectoire, chaudière, tuyauterie : vingt et une pièces,
-toutes des pavés, **émises dans les maillages du niveau avec le reste du décor**.
+J'ai commencé par des pavés — vingt et un meubles émis dans la géométrie du niveau, qui
+héritaient ainsi de sa collision sans une ligne de plus. C'était fonctionnel et
+immédiatement insuffisant : **un pavé donne une silhouette de carton, et aucune matière ne
+rattrape ça.** La silhouette est ce que l'œil lit en premier, avant la texture.
 
-Elles héritent donc de la collision de maillage sans une ligne de plus : un établi arrête
-le joueur exactement comme un mur. C'est le bon compromis pour du mobilier lourd, qui n'a
-aucune raison de bouger — un corps physique par meuble coûterait une simulation permanente
-pour un résultat identique.
+Les meubles sont donc devenus de vrais modèles libres, téléchargés de Poly Haven par
+`tools/fetch_model.py` : treize modèles, trente-trois meubles posés.
 
-Elles sont données en coordonnées du **monde**, pas relativement à leur pièce. C'est plus
-verbeux, et c'est voulu : on lit le plan et le mobilier dans le même système, donc on
-vérifie une position à l'œil sur le tableau des pièces.
+Quatre pavés restent, là où le catalogue libre ne couvre rien — les bacs de la laverie, les
+lavabos, la chaudière, le comptoir du hall. Les remplacer le jour où un modèle apparaît ne
+demande qu'une ligne.
 
-Et comme une coordonnée se trompe silencieusement, **deux garde-fous arrêtent la
-génération** :
+## 5bis.2 Le générateur mesure les modèles qu'il pose
 
-- *le meuble est dans sa pièce*, et sous son plafond. Une faute de frappe mettrait sinon un
-  établi dans un mur, ou dehors ;
-- *le meuble ne bloque pas une embrasure*. Celui-là a servi immédiatement : mon premier
-  établi barrait une porte hall/atelier que j'avais oubliée — les portes étant déduites du
-  plan, elles existent à des endroits qu'on ne pense pas à vérifier. Comme le mobilier
-  hérite de la collision du décor, la pièce serait devenue **inatteignable**, et le défaut
-  ne se serait découvert qu'en se cognant dedans.
+C'est la décision qui porte le plus.
 
-## 5bis.2 Ce qui s'ouvre est une entité
+**L'origine d'un modèle est arbitraire.** Elle peut être au centre, à la base, ou nulle
+part : la tuyauterie industrielle a la sienne un mètre sous elle. Placer un meuble par son
+origine obligerait à écrire à la main une vingtaine de décalages, qu'un simple
+remplacement de modèle rendrait tous faux.
 
-Quinze battants, un par baie — le passage large qui ouvre le hall sur le couloir n'en
-reçoit pas : une arche est une ouverture, pas une baie.
+Le générateur lit donc chaque `.gltf` et le **mesure** avant de le poser. On lui donne une
+empreinte au sol — un centre et un éventuel quart de tour — et il calcule le reste :
 
-**Rien de tout cela n'est du code neuf.** La charnière, le couple de frottement des gonds
-et la saisie à la souris sont dans le moteur depuis M4 ; la hiérarchie qui fait suivre la
-poignée vient de M3. Il n'y avait qu'à poser les battants comme ce mécanisme les attend.
-C'est le signe que les jalons précédents ont été correctement découpés.
+```python
+placed("chambre_1", "lit", -8.5, 13.9, "lit"),
+```
 
-Trois détails méritent d'être notés, parce que chacun a une raison chiffrée :
+Un meuble repose ainsi toujours exactement sur le sol, quel que soit le modèle.
 
-- **Le battant est un cube mis à l'échelle**, pas un modèle. Le moteur n'a pas besoin d'un
-  fichier pour une planche. La *poignée*, elle, est un vrai modèle importé : c'est là que
-  la forme compte.
-- **Sa masse volumique est de 300 kg/m³**, pas les 1000 par défaut de Jolt. C'est la leçon
-  de M4, payée comptant à l'époque : à la valeur par défaut, un battant pèse 120 kg et ne
-  s'ouvre plus à la main.
-- **L'ancrage de la charnière vaut −0,5**, pas −0,48. Il est exprimé dans le repère du
-  battant, donc **multiplié par son échelle** : −0,5 tombe exactement sur son bord quelle
-  que soit la largeur choisie.
+La mesure doit appliquer les **transformations de nœuds**, pas seulement lire les bornes
+des accesseurs : celles-ci sont données dans le repère du maillage, et un modèle dont les
+morceaux sont placés par des nœuds — un couvercle posé sur une caisse, deux battants dans
+un dormant — serait mesuré à l'origine si on les ignorait. C'est d'ailleurs ce qui m'a fait
+vérifier que le chargeur du moteur faisait la même chose : il appelle bien
+`cgltf_node_transform_world`.
 
-La poignée est un enfant du battant, et son échelle locale **annule** celle de son parent —
-sans quoi le modèle serait écrasé en plaque avec lui, le battant étant aplati à 6 cm.
+## 5bis.3 La collision suit la géométrie, et ce n'est pas un luxe
 
-## 5bis.3 Ce qui se pousse aussi
+Un meuble modélisé porte un collider de **maillage**, pas de boîte. La raison est la même
+que ci-dessus : une boîte de collision est centrée sur l'entité, alors que l'origine du
+modèle n'est pas son centre. Une boîte serait donc décalée de la moitié du meuble.
 
-Six caisses, en entités dynamiques à collision de boîte : deux empilées dans l'atelier,
-deux dans la réserve, une dans le hall. Elles servent à vérifier d'un coup d'œil que la
-saisie à la souris et l'empilement fonctionnent dans le vrai niveau, pas seulement dans la
-scène de démonstration.
+Le collider de maillage, lui, est transformé comme la géométrie qu'il suit : il tombe
+juste sans correction.
 
-## 5bis.4 Coût
+## 5bis.4 Deux garde-fous, et celui qui a servi
+
+Une coordonnée se trompe silencieusement, donc **la génération s'arrête** si un meuble
+déborde de sa pièce, traverse son plafond, ou bloque une embrasure.
+
+Le dernier a servi dès le premier essai :
+
+```
+atelier/etabli_sud bloque une porte
+```
+
+Mon établi barrait une porte hall/atelier **que j'avais oubliée**. Les portes étant
+*déduites* du plan, elles existent à des endroits qu'on ne pense pas à vérifier — et comme
+le mobilier a sa collision, la pièce serait devenue **inatteignable**. Le défaut ne se
+serait découvert qu'en se cognant dedans.
+
+## 5bis.5 Les portes : une matière photographiée, et deux poignées
+
+Quinze battants, un par baie — l'arche qui ouvre le hall sur le couloir n'en reçoit pas :
+une arche est une ouverture, pas une baie.
+
+**Rien de leur mécanique n'est du code neuf.** La charnière, le couple de frottement des
+gonds et la saisie à la souris sont dans le moteur depuis M4 ; la hiérarchie qui fait
+suivre la poignée vient de M3. C'est le signe que ces jalons ont été correctement
+découpés.
+
+**Le catalogue libre n'a pas de porte d'intérieur.** Poly Haven n'a qu'une porte de
+château — mesurée : 2,01 × 4,06 m, double battant avec son dormant, inutilisable dans une
+baie de 1,00 × 2,10. Ce qu'ambientCG appelle `Door001` n'est pas un modèle non plus mais
+une **matière** : une photo de porte avec sa carte de normales, sa rugosité et sa
+métallicité.
+
+C'est pourtant la bonne réponse. Le battant reste un pavé, mais ses panneaux, ses moulures
+et sa serrure sont dans le relief — et c'est le relief qu'on regarde, pas la silhouette
+d'une planche qui est de toute façon plate. Le cube du jeu a des UV de 0 à 1 par face, donc
+la porte s'y applique exactement une fois.
+
+`fetch_material.py` a gagné au passage la prise en charge des **cartes** de métallicité, et
+pas seulement des constantes : une porte en bois avec une serrure en laiton mélange les
+deux sur la même image.
+
+**Deux poignées, une par face.** Une porte n'en a jamais d'un seul côté ; la nôtre
+disparaissait dès qu'on passait derrière le battant, ce qui trahit le décor aussi sûrement
+qu'un mur troué. La seconde est la première tournée d'un demi-tour autour de Y — et cette
+rotation permute les axes de la même façon que la première, si bien que l'échelle qui
+annule celle du battant est **identique** pour les deux.
+
+Trois cotes du battant ont une raison chiffrée :
+
+- **300 kg/m³**, pas les 1000 par défaut de Jolt. Leçon de M4 : à la valeur par défaut, un
+  battant pèse 120 kg et ne s'ouvre plus à la main.
+- **L'ancrage de la charnière vaut −0,5**, pas −0,48 : il est exprimé dans le repère du
+  battant, donc multiplié par son échelle, et tombe ainsi sur son bord quelle que soit la
+  largeur choisie.
+- **Le battant n'est pas un modèle.** Le moteur n'a pas besoin d'un fichier pour une
+  planche ; la *poignée*, elle, en est un, parce que c'est là que la forme compte.
+
+## 5bis.6 Ce qui se pousse aussi
+
+Six caisses en entités dynamiques à collision de boîte — deux empilées dans l'atelier, deux
+dans la réserve, une dans le hall. Elles vérifient d'un coup d'œil que la saisie à la souris
+et l'empilement fonctionnent dans le **vrai** niveau.
+
+## 5bis.7 Coût
 
 | | avant meublage | après |
 |---|---|---|
-| Triangles | 7 510 | **7 762** |
-| Matières | 9 | **10** (le métal rouillé entre en service) |
-| Entités dans la scène | 22 | **58** |
+| Triangles du décor | 7 510 | **7 558** |
+| Modèles importés | 2 | **15** |
+| Entités dans la scène | 22 | **106** |
 | Corps dynamiques | 0 | **21** |
-| Générateur | 799 lignes | **1039 lignes** |
+| `assets/models/` | 0,6 Mo | **28 Mo** |
+| `assets/textures/` | 29 Mo | **30 Mo** |
 
-Deux cent cinquante triangles pour vingt et un meubles : c'est le prix de les faire en
-pavés. Le jour où un établi méritera d'être sculpté, il entrera par le même chargeur glTF
-que la poignée.
+**Le poids est le vrai prix**, et il faut le dire : le dépôt porte maintenant une
+cinquantaine de mégaoctets d'assets. Tous les modèles sont pris en 1K — une chaise qu'on
+voit à deux mètres n'a pas besoin de 4096 pixels, et c'est ce qui divise le poids par
+quinze. Descendre en 512 px le diviserait encore par quatre si le besoin s'en fait sentir.
 
 # 6. Ce qui marche / ce qui ne marche pas / ce qui vient après
 
@@ -551,6 +606,10 @@ mètres vingt et trois poutres. Douze lampes rares et chaudes laissent le reste 
 - Les portes n'ont **ni serrure ni béquille fonctionnelle** : on les pousse, on ne les
   verrouille pas. Aucune ne peut donc fermer un chemin, ce qui est pourtant le premier
   levier de progression du genre.
+- **Le battant reste un pavé.** Sa matière est celle d'une vraie porte, mais vu par la
+  tranche il n'a ni panneau ni moulure. Le catalogue libre n'offre aucune porte
+  d'intérieur ; la produire demanderait soit de la modéliser, soit de la générer comme le
+  reste du bâtiment.
 - **Aucune fenêtre.** Le bâtiment est aveugle, ce qui sert le genre mais reste une limite
   de l'outil : percer un mur à mi-hauteur n'est pas prévu.
 - Le plan est **écrit dans le script**, pas dans un fichier de données. Le changer demande

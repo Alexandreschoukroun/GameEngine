@@ -56,6 +56,7 @@ COLOR = "_Color."
 NORMAL = "_NormalGL."          # SURTOUT PAS _NormalDX : son canal vert est inverse
 ROUGHNESS = "_Roughness."
 OCCLUSION = "_AmbientOcclusion."
+METALNESS = "_Metalness."
 
 
 def find_packer():
@@ -89,7 +90,8 @@ def extract(archive, directory):
     found = {}
     for name in archive.namelist():
         for role, suffix in (("couleur", COLOR), ("normal", NORMAL),
-                             ("rugosite", ROUGHNESS), ("occlusion", OCCLUSION)):
+                             ("rugosite", ROUGHNESS), ("occlusion", OCCLUSION),
+                             ("metallicite", METALNESS)):
             if suffix in name:
                 target = directory / pathlib.Path(name).name
                 target.write_bytes(archive.read(name))
@@ -140,8 +142,11 @@ def main():
         shutil.copyfile(files["couleur"], destination / "couleur.jpg")
         to_png(files["normal"], destination / "normal.png")
 
-        command = [str(packer), str(destination / "matiere.png"),
-                   "--metalness", "1" if args.metal else "0"]
+        # Une CARTE de metallicite vaut mieux qu'une constante des qu'un objet melange
+        # les deux - une porte en bois avec sa serrure en laiton, par exemple. On la
+        # prefere donc quand l'archive en fournit une.
+        metalness = str(files["metallicite"]) if "metallicite" in files             else ("1" if args.metal else "0")
+        command = [str(packer), str(destination / "matiere.png"), "--metalness", metalness]
         # Sans carte de rugosite, une constante mediane vaut mieux qu'un echec : une
         # surface un peu trop lisse reste utilisable, une matiere absente non.
         command += ["--roughness", str(files["rugosite"]) if "rugosite" in files else "0.6"]

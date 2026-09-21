@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_metal_rouille.bin",
-   "byteLength": 5472
+   "byteLength": 912
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 1728,
+   "byteLength": 288,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 1728,
-   "byteLength": 1728,
+   "byteOffset": 288,
+   "byteLength": 288,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 3456,
-   "byteLength": 1152,
+   "byteOffset": 576,
+   "byteLength": 192,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 4608,
-   "byteLength": 864,
+   "byteOffset": 768,
+   "byteLength": 144,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 144,
+   "count": 24,
    "type": "VEC3",
    "min": [
-    -15.5,
+    13.0,
     0.0,
-    4.8
+    21.0
    ],
    "max": [
-    15.7,
-    3.6,
-    24.4
+    15.0,
+    2.2,
+    23.0
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 144,
+   "count": 24,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 144,
+   "count": 24,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 216,
+   "count": 36,
    "type": "SCALAR"
   }
  ]

@@ -51,6 +51,7 @@ Usage :  python tools/generate_level.py
 
 import collections
 import json
+import math
 import pathlib
 import struct
 
@@ -191,60 +192,172 @@ LIGHTS = [
     ("lampe_refectoire",  "refectoire", [1.00, 0.84, 0.62], 13.0),
 ]
 
-# --- le mobilier -----------------------------------------------------------------------------
+# --- les modeles importes ---------------------------------------------------------------------
 #
-# Chaque meuble est un pave, donne en coordonnees du MONDE. C'est plus verbeux qu'un
-# reperage relatif a la piece, et c'est voulu : on lit le plan et le mobilier dans le meme
-# systeme, donc on peut verifier une position a l'oeil sur le tableau des pieces.
+# Le mobilier n'est plus fait de paves : ce sont de vrais modeles libres, telecharges par
+# tools/fetch_model.py depuis Poly Haven. Un pave donne une silhouette de carton, et aucune
+# matiere ne rattrape ca.
 #
-# Ils sont emis dans les maillages du niveau, avec le reste du decor. Ils heritent donc de
-# sa collision de maillage sans une ligne de plus - un etabli arrete le joueur comme un
-# mur. C'est le bon compromis pour du mobilier lourd, qui n'a aucune raison de bouger ;
-# ce qui doit se pousser est une entite a part, plus bas.
-Furniture = collections.namedtuple("Furniture", "room material x0 x1 y0 y1 z0 z1 name")
+# Le generateur les MESURE avant de les poser. C'est ce qui lui permet de placer un meuble
+# par son empreinte au sol plutot que par son origine - une origine de modele est arbitraire,
+# elle peut etre au centre, a la base, ou nulle part. Mesurer evite d'ecrire a la main une
+# vingtaine de decalages qu'un remplacement de modele rendrait tous faux.
+MODEL_FILES = {
+    "armoire": "armoire/painted_wooden_cabinet_1k.gltf",
+    "banc": "banc/painted_wooden_bench_1k.gltf",
+    "bureau_metal": "bureau_metal/metal_office_desk_1k.gltf",
+    "caisse_bois": "caisse_bois/wooden_crate_02_1k.gltf",
+    "chaise": "chaise/SchoolChair_01_1k.gltf",
+    "chevet": "chevet/ClassicNightstand_01_1k.gltf",
+    "etagere": "etagere/Shelf_01_1k.gltf",
+    "etau": "etau/bench_vice_01_1k.gltf",
+    "lit": "lit/old_bed_frame_1k.gltf",
+    "table": "table/WoodenTable_01_1k.gltf",
+    "tabouret": "tabouret/metal_stool_01_1k.gltf",
+    "tonneau": "tonneau/Barrel_01_1k.gltf",
+    "tuyaux": "tuyaux/modular_industrial_pipes_01_1k.gltf",
+}
 
 
-def piece(room, material, x0, x1, y1, z0, z1, name, y0=0.0):
-    return Furniture(room, material, x0, x1, y0, y1, z0, z1, name)
+def quaternion_matrix(q):
+    x, y, z, w = q
+    return [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]
+
+
+def node_extent(gltf, index, parent, out):
+    """Etend `out` avec les sommets de ce noeud et de ses enfants, transformes.
+
+    Les bornes d'un accesseur sont donnees dans le repere du MAILLAGE. Un modele dont les
+    morceaux sont places par des noeuds - un couvercle pose sur une caisse, deux battants
+    dans un dormant - serait donc mesure a l'origine si on les ignorait.
+    """
+    node = gltf["nodes"][index]
+    if "matrix" in node:
+        c = node["matrix"]
+        rotation = [[c[0], c[4], c[8]], [c[1], c[5], c[9]], [c[2], c[6], c[10]]]
+        translation = [c[12], c[13], c[14]]
+    else:
+        rotation = quaternion_matrix(node.get("rotation", [0, 0, 0, 1]))
+        scale = node.get("scale", [1, 1, 1])
+        rotation = [[rotation[i][j] * scale[j] for j in range(3)] for i in range(3)]
+        translation = node.get("translation", [0, 0, 0])
+
+    matrix = [[sum(parent[0][i][k] * rotation[k][j] for k in range(3)) for j in range(3)]
+              for i in range(3)]
+    offset = [parent[1][i] + sum(parent[0][i][k] * translation[k] for k in range(3))
+              for i in range(3)]
+
+    if "mesh" in node:
+        for primitive in gltf["meshes"][node["mesh"]]["primitives"]:
+            accessor = gltf["accessors"][primitive["attributes"]["POSITION"]]
+            for cx in (accessor["min"][0], accessor["max"][0]):
+                for cy in (accessor["min"][1], accessor["max"][1]):
+                    for cz in (accessor["min"][2], accessor["max"][2]):
+                        for i in range(3):
+                            value = (offset[i] + matrix[i][0] * cx + matrix[i][1] * cy
+                                     + matrix[i][2] * cz)
+                            out[0][i] = min(out[0][i], value)
+                            out[1][i] = max(out[1][i], value)
+
+    for child in node.get("children", []):
+        node_extent(gltf, child, (matrix, offset), out)
+
+
+MEASURED = {}
+
+
+def measure(model):
+    """L'encombrement reel d'un modele, en metres."""
+    if model not in MEASURED:
+        path = REPO / "assets" / "models" / MODEL_FILES[model]
+        gltf = json.loads(path.read_text(encoding="utf-8"))
+        out = ([1e9] * 3, [-1e9] * 3)
+        identity = ([[1, 0, 0], [0, 1, 0], [0, 0, 1]], [0, 0, 0])
+        for root in gltf["scenes"][gltf.get("scene", 0)]["nodes"]:
+            node_extent(gltf, root, identity, out)
+        MEASURED[model] = (tuple(out[0]), tuple(out[1]))
+    return MEASURED[model]
+
+
+# --- le mobilier -------------------------------------------------------------------------------
+#
+# Chaque meuble est pose par son EMPREINTE AU SOL : on donne le centre voulu et un quart de
+# tour eventuel, le generateur calcule le reste a partir de la mesure du modele. Un meuble
+# repose donc toujours exactement sur le sol, et changer de modele ne demande pas de
+# recalculer une position.
+Furniture = collections.namedtuple("Furniture", "room model x z yaw lift name")
+
+
+def placed(room, model, x, z, name, yaw=0, lift=0.0):
+    return Furniture(room, model, x, z, yaw, lift, name)
 
 
 FURNITURE = [
-    piece("hall", "bois", 3.0, 6.0, 1.05, 1.0, 2.0, "comptoir"),
+    placed("hall", "chaise", 2.0, 1.5, "chaise", yaw=180),
+    placed("hall", "etagere", -6.7, 6.5, "etagere", yaw=90),
 
-    piece("bureau", "bois", -12.0, -10.4, 0.78, 4.4, 5.2, "table"),
-    piece("bureau", "bois", -12.8, -12.4, 2.00, 1.0, 4.0, "etagere"),
+    placed("bureau", "bureau_metal", -10.5, 5.2, "bureau"),
+    placed("bureau", "chaise", -10.5, 4.0, "chaise"),
+    placed("bureau", "etagere", -12.6, 2.0, "etagere", yaw=90),
 
-    piece("vestiaire", "metal_rouille", 8.0, 12.0, 2.00, 4.8, 5.4, "casiers"),
+    placed("vestiaire", "armoire", 10.0, 5.2, "armoire_ouest"),
+    placed("vestiaire", "armoire", 11.5, 5.2, "armoire_est"),
 
-    piece("atelier", "bois", 6.0, 12.0, 0.85, 10.0, 11.0, "etabli_sud"),
-    piece("atelier", "bois", 3.0, 9.0, 0.85, 17.0, 18.0, "etabli_nord"),
-    piece("atelier", "metal_rouille", 12.5, 13.5, 2.20, 11.0, 16.0, "rack", y0=0.8),
+    placed("atelier", "table", 7.0, 10.0, "etabli_sud"),
+    placed("atelier", "etau", 6.5, 10.0, "etau", lift=0.55),
+    placed("atelier", "tabouret", 7.0, 11.2, "tabouret_sud"),
+    placed("atelier", "table", 7.0, 17.5, "etabli_nord"),
+    placed("atelier", "tabouret", 7.0, 16.3, "tabouret_nord"),
+    placed("atelier", "tonneau", 12.5, 16.5, "tonneau_1"),
+    placed("atelier", "tonneau", 13.0, 17.4, "tonneau_2"),
 
-    piece("laverie", "metal_rouille", 3.0, 8.0, 0.90, 23.5, 24.4, "bacs"),
+    placed("laverie", "armoire", 8.5, 20.5, "armoire"),
 
-    piece("chaufferie", "metal_rouille", 13.0, 15.0, 2.20, 21.0, 23.0, "chaudiere"),
-    piece("chaufferie", "metal_rouille", 10.3, 15.7, 3.60, 24.0, 24.3, "tuyaux", y0=3.3),
+    placed("chaufferie", "tuyaux", 15.3, 25.0, "tuyaux", yaw=90),
+    placed("chaufferie", "tonneau", 11.0, 25.5, "tonneau"),
 
-    piece("chambre_1", "bois", -9.5, -7.5, 0.55, 12.8, 14.8, "lit"),
-    piece("chambre_1", "bois", -9.5, -9.0, 0.60, 14.2, 14.7, "chevet"),
+    placed("chambre_1", "lit", -8.5, 13.9, "lit"),
+    placed("chambre_1", "chevet", -9.4, 13.0, "chevet"),
 
-    piece("chambre_2", "bois", -9.5, -7.5, 0.55, 16.5, 18.5, "lit"),
-    piece("chambre_2", "bois", -9.5, -9.0, 0.60, 18.8, 19.3, "chevet"),
+    placed("chambre_2", "lit", -8.5, 18.0, "lit"),
+    placed("chambre_2", "chevet", -9.4, 17.0, "chevet"),
 
-    piece("salle_eau", "metal_rouille", -15.5, -11.0, 0.90, 13.5, 14.4, "lavabos"),
+    placed("reserve", "etagere", -9.5, 22.5, "etagere_sud", yaw=90),
+    placed("reserve", "etagere", -9.5, 24.5, "etagere_nord", yaw=90),
+    placed("reserve", "tonneau", -4.0, 26.0, "tonneau_1"),
+    placed("reserve", "tonneau", -4.8, 26.2, "tonneau_2"),
 
-    piece("reserve", "bois", -9.5, -9.0, 2.20, 22.0, 26.0, "rayonnage_ouest"),
-    piece("reserve", "bois", -9.5, -3.0, 2.20, 26.2, 26.7, "rayonnage_nord"),
-
-    piece("refectoire", "bois", 0.0, 6.0, 0.78, 29.0, 29.9, "table_sud"),
-    piece("refectoire", "bois", 0.0, 6.0, 0.45, 28.4, 28.8, "banc_sud"),
-    piece("refectoire", "bois", 0.0, 6.0, 0.78, 32.0, 32.9, "table_nord"),
-    piece("refectoire", "bois", 0.0, 6.0, 0.45, 33.1, 33.5, "banc_nord"),
+    placed("refectoire", "table", 3.0, 30.0, "table_sud"),
+    placed("refectoire", "banc", 3.0, 29.2, "banc_sud"),
+    placed("refectoire", "banc", 3.0, 30.8, "banc_sud_2", yaw=180),
+    placed("refectoire", "table", 3.0, 32.5, "table_nord"),
+    placed("refectoire", "banc", 3.0, 31.7, "banc_nord"),
+    placed("refectoire", "banc", 3.0, 33.3, "banc_nord_2", yaw=180),
+    placed("refectoire", "chaise", 7.0, 30.0, "chaise_1"),
+    placed("refectoire", "chaise", 7.0, 32.0, "chaise_2"),
 ]
 
-# Ce qui doit pouvoir etre pousse et souleve. Ce sont des ENTITES, pas de la geometrie :
-# elles portent un corps dynamique et une boite de collision, donc la simulation les
-# deplace. Reutilise le cube du jeu, mis a l'echelle.
+# Ce que le catalogue libre ne couvre pas. Les paves restent la ou aucun modele n'existe -
+# un bac de laverie, une chaudiere - et ils sont emis dans la geometrie du niveau, avec sa
+# collision de maillage. Les remplacer le jour ou un modele apparait ne demande qu'une ligne.
+Fixture = collections.namedtuple("Fixture", "room material x0 x1 y0 y1 z0 z1 name")
+
+
+def fixture(room, material, x0, x1, y1, z0, z1, name, y0=0.0):
+    return Fixture(room, material, x0, x1, y0, y1, z0, z1, name)
+
+
+FIXTURES = [
+    fixture("hall", "bois", 3.0, 6.0, 1.05, 1.0, 2.0, "comptoir"),
+    fixture("laverie", "carrelage_mural", 3.0, 8.0, 0.90, 23.5, 24.4, "bacs"),
+    fixture("salle_eau", "carrelage_mural", -15.5, -11.0, 0.90, 13.5, 14.4, "lavabos"),
+    fixture("chaufferie", "metal_rouille", 13.0, 15.0, 2.20, 21.0, 23.0, "chaudiere"),
+]
+
+# Ce qui doit pouvoir etre pousse et souleve. Ce sont des ENTITES a corps dynamique : la
+# simulation les deplace, contrairement au mobilier lourd qui n'a aucune raison de bouger.
 Crate = collections.namedtuple("Crate", "x y z size")
 
 CRATES = [
@@ -708,30 +821,72 @@ def overlaps(a_lo, a_hi, b_lo, b_hi):
     return all(a_lo[i] < b_hi[i] - 1e-6 and b_lo[i] < a_hi[i] - 1e-6 for i in range(3))
 
 
-def emit_furniture(meshes, openings):
-    """Pose le mobilier, apres avoir verifie qu'il est posable."""
-    places = {place.name: place for place in ROOMS}
-    clearances = door_clearances(openings)
+def furniture_box(item):
+    """L'empreinte d'un meuble dans le monde, une fois pose et tourne.
 
-    for item in FURNITURE:
-        place = places[item.room]
+    Renvoie aussi la position a donner a l'entite : l'origine du modele n'est pas son
+    centre, et c'est la mesure qui permet de faire coincider les deux.
+    """
+    lo, hi = measure(item.model)
+    centre = ((lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2)
+    half = ((hi[0] - lo[0]) / 2, (hi[2] - lo[2]) / 2)
+
+    # Un quart de tour echange les deux axes horizontaux. On ne gere que les multiples de
+    # 90 degres : un meuble de travers dans une piece rectangulaire ne sert a rien, et les
+    # garde-fous resteraient exacts a peu de frais seulement dans ce cas.
+    quarter = (item.yaw // 90) % 4
+    if quarter % 2 == 1:
+        half = (half[1], half[0])
+    cos = (1, 0, -1, 0)[quarter]
+    sin = (0, 1, 0, -1)[quarter]
+    turned = (centre[0] * cos + centre[1] * sin, -centre[0] * sin + centre[1] * cos)
+
+    position = (round(item.x - turned[0], 4),
+                round(item.lift - lo[1], 4),
+                round(item.z - turned[1], 4))
+    box_lo = (item.x - half[0], item.lift, item.z - half[1])
+    box_hi = (item.x + half[0], item.lift + (hi[1] - lo[1]), item.z + half[1])
+    return position, box_lo, box_hi
+
+
+def check_placement(room, name, lo, hi, clearances):
+    """Les deux garde-fous qu'un meuble doit passer."""
+    places = {place.name: place for place in ROOMS}
+    place = places[room]
+    # Dans sa piece. Une faute de frappe sur une coordonnee mettrait sinon un etabli dans
+    # un mur, ou dehors, sans que rien ne le signale.
+    if not (place.x0 <= lo[0] and hi[0] <= place.x1
+            and place.z0 <= lo[2] and hi[2] <= place.z1):
+        raise SystemExit(f"{room}/{name} deborde de sa piece")
+    if hi[1] > place.height:
+        raise SystemExit(f"{room}/{name} traverse le plafond")
+    # Pas dans une embrasure. Un meuble pose la ne bloquerait pas seulement le battant : il
+    # bloquerait le PASSAGE, et la piece deviendrait inatteignable.
+    for box_lo, box_hi in clearances:
+        if overlaps(lo, hi, box_lo, box_hi):
+            raise SystemExit(f"{room}/{name} bloque une porte")
+
+
+def emit_fixtures(meshes, clearances):
+    """Les paves : emis dans la geometrie du niveau, avec sa collision de maillage."""
+    for item in FIXTURES:
         lo = (item.x0, item.y0, item.z0)
         hi = (item.x1, item.y1, item.z1)
-
-        # Garde-fou 1 : dans sa piece. Une faute de frappe sur une coordonnee mettrait
-        # sinon un etabli dans un mur, ou dehors, sans que rien ne le signale.
-        if not (place.x0 <= item.x0 < item.x1 <= place.x1
-                and place.z0 <= item.z0 < item.z1 <= place.z1):
-            raise SystemExit(f"{item.room}/{item.name} deborde de sa piece")
-        if item.y1 > place.height:
-            raise SystemExit(f"{item.room}/{item.name} traverse le plafond")
-
-        # Garde-fou 2 : pas dans une embrasure.
-        for box_lo, box_hi in clearances:
-            if overlaps(lo, hi, box_lo, box_hi):
-                raise SystemExit(f"{item.room}/{item.name} bloque une porte")
-
+        check_placement(item.room, item.name, lo, hi, clearances)
         box(meshes[item.material], lo, hi)
+
+
+def build_furniture(clearances):
+    """Les meubles modelises : des entites, verifiees puis posees."""
+    entities = []
+    for item in FURNITURE:
+        position, lo, hi = furniture_box(item)
+        check_placement(item.room, item.name, lo, hi, clearances)
+        quarter = (item.yaw // 90) % 4
+        half = (math.pi / 4) * quarter
+        entities.append((item, position, [0.0, round(math.sin(half), 6), 0.0,
+                                          round(math.cos(half), 6)]))
+    return entities
 
 
 def emit_walls(boundaries, openings, meshes):
@@ -874,7 +1029,10 @@ def door_entities(index, position, rotation):
             ("rotation", list(rotation)),
             ("scale", [LEAF_WIDTH, LEAF_HEIGHT, LEAF_THICKNESS]),
         ])),
-        ("mesh", collections.OrderedDict([("mesh", "caisse"), ("material", "bois")])),
+        # La matiere vient d'une vraie porte photographiee : ses panneaux, ses moulures et sa
+        # serrure sont dans la carte de normales. La silhouette reste celle d'un pave, mais
+        # le relief, lui, est juste - et c'est lui qu'on regarde.
+        ("mesh", collections.OrderedDict([("mesh", "caisse"), ("material", "porte")])),
         ("collider", collections.OrderedDict([
             ("shape", "box"),
             ("halfExtents", [LEAF_WIDTH / 2, LEAF_HEIGHT / 2, LEAF_THICKNESS / 2]),
@@ -892,24 +1050,67 @@ def door_entities(index, position, rotation):
         ])),
     ])
 
-    handle = collections.OrderedDict([
-        ("id", f"0x{0x200000 + 400 + index:016x}"),
-        ("name", f"poignee_{index:02d}"),
-        ("parent", leaf_id),
+    # UNE POIGNEE PAR FACE. Une porte n'en a jamais d'un seul cote : on la voyait
+    # disparaitre des qu'on passait de l'autre cote du battant, ce qui trahit le decor
+    # aussi surement qu'un mur troue.
+    #
+    # La seconde est la premiere tournee d'un demi-tour autour de Y. Cette rotation permute
+    # les axes de la meme facon que la premiere - X reste sur X, Y va sur Z, Z va sur Y -
+    # si bien que l'echelle qui annule celle du battant est IDENTIQUE pour les deux.
+    faces = [
+        (round((LEAF_THICKNESS / 2 - 0.002) / LEAF_THICKNESS, 4),
+         [0.0, 0.707107, 0.707107, 0.0]),
+        (round(-(LEAF_THICKNESS / 2 - 0.002) / LEAF_THICKNESS, 4),
+         [0.707107, 0.0, 0.0, -0.707107]),
+    ]
+    handles = []
+    for side, (depth, rotation) in enumerate(faces):
+        handles.append(collections.OrderedDict([
+            ("id", f"0x{0x200000 + 400 + index * 2 + side:016x}"),
+            ("name", f"poignee_{index:02d}_{side}"),
+            ("parent", leaf_id),
+            ("transform", collections.OrderedDict([
+                # Positions en repere local : elles seront multipliees par l'echelle du
+                # battant. 30 cm du centre vers le bord libre, a 1 m du sol, affleurant
+                # la face.
+                ("position", [round(0.30 / LEAF_WIDTH, 4),
+                              round(-0.03 / LEAF_HEIGHT, 4),
+                              depth]),
+                ("rotation", rotation),
+                ("scale", [round(1.0 / LEAF_WIDTH, 4),
+                           round(1.0 / LEAF_THICKNESS, 4),
+                           round(1.0 / LEAF_HEIGHT, 4)]),
+            ])),
+            ("mesh", collections.OrderedDict([("mesh", "loquet"),
+                                              ("material", "loquet")])),
+        ]))
+    return [leaf] + handles
+
+
+def furniture_entity(index, item, position, rotation):
+    """Un meuble : un modele importe, et sa collision qui suit exactement sa geometrie.
+
+    La collision est un MAILLAGE et non une boite, pour une raison precise : l'origine d'un
+    modele n'est pas son centre, alors qu'une boite de collision est centree sur l'entite.
+    Une boite serait donc decalee de la moitie du meuble. Le collider de maillage, lui, est
+    transforme comme la geometrie qu'il suit - il tombe juste sans correction.
+    """
+    return collections.OrderedDict([
+        ("id", f"0x{0x200000 + 800 + index:016x}"),
+        ("name", f"{item.room}_{item.name}"),
         ("transform", collections.OrderedDict([
-            # Positions en repere local : elles seront multipliees par l'echelle du
-            # battant. 30 cm du centre vers le bord libre, a 1 m du sol, affleurant la face.
-            ("position", [round(0.30 / LEAF_WIDTH, 4),
-                          round(-0.03 / LEAF_HEIGHT, 4),
-                          round((LEAF_THICKNESS / 2 - 0.002) / LEAF_THICKNESS, 4)]),
-            ("rotation", [0.0, 0.707107, 0.707107, 0.0]),
-            ("scale", [round(1.0 / LEAF_WIDTH, 4),
-                       round(1.0 / LEAF_THICKNESS, 4),
-                       round(1.0 / LEAF_HEIGHT, 4)]),
+            ("position", list(position)),
+            ("rotation", list(rotation)),
+            ("scale", [1.0, 1.0, 1.0]),
         ])),
-        ("mesh", collections.OrderedDict([("mesh", "loquet"), ("material", "loquet")])),
+        ("mesh", collections.OrderedDict([("mesh", item.model), ("material", item.model)])),
+        ("collider", collections.OrderedDict([
+            ("shape", "mesh"),
+            ("halfExtents", [0.5, 0.5, 0.5]),
+            ("static", True),
+            ("collisionMesh", item.model),
+        ])),
     ])
-    return [leaf, handle]
 
 
 def crate_entity(index, crate):
@@ -932,7 +1133,7 @@ def crate_entity(index, crate):
     ])
 
 
-def write_scene(groups, doors):
+def write_scene(groups, doors, furniture):
     entities = []
     for index, (name, material) in enumerate(groups):
         entities.append(entity(index, name, collections.OrderedDict([
@@ -950,6 +1151,8 @@ def write_scene(groups, doors):
 
     for index, (position, rotation) in enumerate(doors):
         entities.extend(door_entities(index, position, rotation))
+    for index, (item, position, rotation) in enumerate(furniture):
+        entities.append(furniture_entity(index, item, position, rotation))
     for index, crate in enumerate(CRATES):
         entities.append(crate_entity(index, crate))
 
@@ -993,7 +1196,9 @@ def main():
     emit_floors_and_ceilings(cells, meshes)
     emit_walls(boundaries, openings, meshes)
     emit_beams(meshes)
-    emit_furniture(meshes, openings)
+    clearances = door_clearances(openings)
+    emit_fixtures(meshes, clearances)
+    furniture = build_furniture(clearances)
 
     groups = []
     total = 0
@@ -1008,7 +1213,7 @@ def main():
         print(f"{name:<24} {triangles:6d} triangles  pas : {FOOTSTEP[material]}")
 
     leaves = build_doors(openings)
-    write_scene(groups, leaves)
+    write_scene(groups, leaves, furniture)
 
     doors = sum(len(holes) for holes in openings.values())
     steps = find_steps(wall_faces(boundaries))
@@ -1025,8 +1230,8 @@ def main():
                   f"{before:.2f} != {after:.2f}")
         raise SystemExit("murs non alignes : le batiment serait troue")
     print("  aucun ressaut : tous les murs sont d'aplomb")
-    print(f"  {len(leaves)} portes battantes, {len(FURNITURE)} meubles, "
-          f"{len(CRATES)} caisses")
+    print(f"  {len(leaves)} portes battantes, {len(furniture)} meubles modelises, "
+          f"{len(FIXTURES)} agencements, {len(CRATES)} caisses")
     missing = sorted({place.name for place in ROOMS} - reached)
     if missing:
         print(f"  INATTEIGNABLES depuis le hall : {', '.join(missing)}")

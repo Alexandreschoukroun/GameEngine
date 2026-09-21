@@ -51,32 +51,32 @@
  "buffers": [
   {
    "uri": "niveau_carrelage_mural.bin",
-   "byteLength": 6688
+   "byteLength": 8512
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 2112,
+   "byteLength": 2688,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 2112,
-   "byteLength": 2112,
+   "byteOffset": 2688,
+   "byteLength": 2688,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 4224,
-   "byteLength": 1408,
+   "byteOffset": 5376,
+   "byteLength": 1792,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 5632,
-   "byteLength": 1056,
+   "byteOffset": 7168,
+   "byteLength": 1344,
    "target": 34963
   }
  ],
@@ -84,11 +84,11 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 176,
+   "count": 224,
    "type": "VEC3",
    "min": [
     -16,
-    0.14,
+    0.0,
     0
    ],
    "max": [
@@ -100,19 +100,19 @@
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 176,
+   "count": 224,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 176,
+   "count": 224,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 264,
+   "count": 336,
    "type": "SCALAR"
   }
  ]

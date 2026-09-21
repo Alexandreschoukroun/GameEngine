@@ -823,7 +823,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -874,7 +874,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -925,7 +925,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -976,7 +976,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1027,7 +1027,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1078,7 +1078,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1129,7 +1129,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1180,7 +1180,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1231,7 +1231,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1282,7 +1282,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1333,7 +1333,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1384,7 +1384,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1435,7 +1435,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1486,7 +1486,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1537,7 +1537,7 @@
       },
       "mesh": {
         "mesh": "caisse",
-        "material": "bois"
+        "material": "porte"
       },
       "collider": {
         "shape": "box",
@@ -1567,7 +1567,7 @@
     },
     {
       "id": "0x0000000000200190",
-      "name": "poignee_00",
+      "name": "poignee_00_0",
       "parent": "0x00000000002000c8",
       "transform": {
         "position": [
@@ -1594,7 +1594,34 @@
     },
     {
       "id": "0x0000000000200191",
-      "name": "poignee_01",
+      "name": "poignee_00_1",
+      "parent": "0x00000000002000c8",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200192",
+      "name": "poignee_01_0",
       "parent": "0x00000000002000c9",
       "transform": {
         "position": [
@@ -1620,8 +1647,35 @@
       }
     },
     {
-      "id": "0x0000000000200192",
-      "name": "poignee_02",
+      "id": "0x0000000000200193",
+      "name": "poignee_01_1",
+      "parent": "0x00000000002000c9",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200194",
+      "name": "poignee_02_0",
       "parent": "0x00000000002000ca",
       "transform": {
         "position": [
@@ -1647,8 +1701,35 @@
       }
     },
     {
-      "id": "0x0000000000200193",
-      "name": "poignee_03",
+      "id": "0x0000000000200195",
+      "name": "poignee_02_1",
+      "parent": "0x00000000002000ca",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200196",
+      "name": "poignee_03_0",
       "parent": "0x00000000002000cb",
       "transform": {
         "position": [
@@ -1674,8 +1755,35 @@
       }
     },
     {
-      "id": "0x0000000000200194",
-      "name": "poignee_04",
+      "id": "0x0000000000200197",
+      "name": "poignee_03_1",
+      "parent": "0x00000000002000cb",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200198",
+      "name": "poignee_04_0",
       "parent": "0x00000000002000cc",
       "transform": {
         "position": [
@@ -1701,8 +1809,35 @@
       }
     },
     {
-      "id": "0x0000000000200195",
-      "name": "poignee_05",
+      "id": "0x0000000000200199",
+      "name": "poignee_04_1",
+      "parent": "0x00000000002000cc",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019a",
+      "name": "poignee_05_0",
       "parent": "0x00000000002000cd",
       "transform": {
         "position": [
@@ -1728,8 +1863,35 @@
       }
     },
     {
-      "id": "0x0000000000200196",
-      "name": "poignee_06",
+      "id": "0x000000000020019b",
+      "name": "poignee_05_1",
+      "parent": "0x00000000002000cd",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019c",
+      "name": "poignee_06_0",
       "parent": "0x00000000002000ce",
       "transform": {
         "position": [
@@ -1755,8 +1917,35 @@
       }
     },
     {
-      "id": "0x0000000000200197",
-      "name": "poignee_07",
+      "id": "0x000000000020019d",
+      "name": "poignee_06_1",
+      "parent": "0x00000000002000ce",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019e",
+      "name": "poignee_07_0",
       "parent": "0x00000000002000cf",
       "transform": {
         "position": [
@@ -1782,8 +1971,35 @@
       }
     },
     {
-      "id": "0x0000000000200198",
-      "name": "poignee_08",
+      "id": "0x000000000020019f",
+      "name": "poignee_07_1",
+      "parent": "0x00000000002000cf",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001a0",
+      "name": "poignee_08_0",
       "parent": "0x00000000002000d0",
       "transform": {
         "position": [
@@ -1809,8 +2025,35 @@
       }
     },
     {
-      "id": "0x0000000000200199",
-      "name": "poignee_09",
+      "id": "0x00000000002001a1",
+      "name": "poignee_08_1",
+      "parent": "0x00000000002000d0",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001a2",
+      "name": "poignee_09_0",
       "parent": "0x00000000002000d1",
       "transform": {
         "position": [
@@ -1836,8 +2079,35 @@
       }
     },
     {
-      "id": "0x000000000020019a",
-      "name": "poignee_10",
+      "id": "0x00000000002001a3",
+      "name": "poignee_09_1",
+      "parent": "0x00000000002000d1",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001a4",
+      "name": "poignee_10_0",
       "parent": "0x00000000002000d2",
       "transform": {
         "position": [
@@ -1863,8 +2133,35 @@
       }
     },
     {
-      "id": "0x000000000020019b",
-      "name": "poignee_11",
+      "id": "0x00000000002001a5",
+      "name": "poignee_10_1",
+      "parent": "0x00000000002000d2",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001a6",
+      "name": "poignee_11_0",
       "parent": "0x00000000002000d3",
       "transform": {
         "position": [
@@ -1890,8 +2187,35 @@
       }
     },
     {
-      "id": "0x000000000020019c",
-      "name": "poignee_12",
+      "id": "0x00000000002001a7",
+      "name": "poignee_11_1",
+      "parent": "0x00000000002000d3",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001a8",
+      "name": "poignee_12_0",
       "parent": "0x00000000002000d4",
       "transform": {
         "position": [
@@ -1917,8 +2241,35 @@
       }
     },
     {
-      "id": "0x000000000020019d",
-      "name": "poignee_13",
+      "id": "0x00000000002001a9",
+      "name": "poignee_12_1",
+      "parent": "0x00000000002000d4",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001aa",
+      "name": "poignee_13_0",
       "parent": "0x00000000002000d5",
       "transform": {
         "position": [
@@ -1944,8 +2295,35 @@
       }
     },
     {
-      "id": "0x000000000020019e",
-      "name": "poignee_14",
+      "id": "0x00000000002001ab",
+      "name": "poignee_13_1",
+      "parent": "0x00000000002000d5",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001ac",
+      "name": "poignee_14_0",
       "parent": "0x00000000002000d6",
       "transform": {
         "position": [
@@ -1958,6 +2336,33 @@
           0.707107,
           0.707107,
           0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x00000000002001ad",
+      "name": "poignee_14_1",
+      "parent": "0x00000000002000d6",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          -0.4667
+        ],
+        "rotation": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
         ],
         "scale": [
           1.0417,
@@ -2184,6 +2589,1194 @@
         ],
         "static": false,
         "density": 220.0
+      }
+    },
+    {
+      "id": "0x0000000000200320",
+      "name": "hall_chaise",
+      "transform": {
+        "position": [
+          2.0,
+          0.0017,
+          1.5
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "chaise",
+        "material": "chaise"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "chaise"
+      }
+    },
+    {
+      "id": "0x0000000000200321",
+      "name": "hall_etagere",
+      "transform": {
+        "position": [
+          -6.8285,
+          0.0,
+          6.5
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "etagere",
+        "material": "etagere"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "etagere"
+      }
+    },
+    {
+      "id": "0x0000000000200322",
+      "name": "bureau_bureau",
+      "transform": {
+        "position": [
+          -10.5,
+          0.0,
+          5.1955
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "bureau_metal",
+        "material": "bureau_metal"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "bureau_metal"
+      }
+    },
+    {
+      "id": "0x0000000000200323",
+      "name": "bureau_chaise",
+      "transform": {
+        "position": [
+          -10.5,
+          0.0017,
+          4.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "chaise",
+        "material": "chaise"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "chaise"
+      }
+    },
+    {
+      "id": "0x0000000000200324",
+      "name": "bureau_etagere",
+      "transform": {
+        "position": [
+          -12.7285,
+          0.0,
+          2.0
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "etagere",
+        "material": "etagere"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "etagere"
+      }
+    },
+    {
+      "id": "0x0000000000200325",
+      "name": "vestiaire_armoire_ouest",
+      "transform": {
+        "position": [
+          9.9974,
+          0.0004,
+          5.1741
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "armoire",
+        "material": "armoire"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "armoire"
+      }
+    },
+    {
+      "id": "0x0000000000200326",
+      "name": "vestiaire_armoire_est",
+      "transform": {
+        "position": [
+          11.4974,
+          0.0004,
+          5.1741
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "armoire",
+        "material": "armoire"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "armoire"
+      }
+    },
+    {
+      "id": "0x0000000000200327",
+      "name": "atelier_etabli_sud",
+      "transform": {
+        "position": [
+          7.0,
+          0.0,
+          10.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "table",
+        "material": "table"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "table"
+      }
+    },
+    {
+      "id": "0x0000000000200328",
+      "name": "atelier_etau",
+      "transform": {
+        "position": [
+          6.5001,
+          0.6356,
+          9.9834
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "etau",
+        "material": "etau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "etau"
+      }
+    },
+    {
+      "id": "0x0000000000200329",
+      "name": "atelier_tabouret_sud",
+      "transform": {
+        "position": [
+          7.0,
+          -0.0,
+          11.2
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tabouret",
+        "material": "tabouret"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tabouret"
+      }
+    },
+    {
+      "id": "0x000000000020032a",
+      "name": "atelier_etabli_nord",
+      "transform": {
+        "position": [
+          7.0,
+          0.0,
+          17.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "table",
+        "material": "table"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "table"
+      }
+    },
+    {
+      "id": "0x000000000020032b",
+      "name": "atelier_tabouret_nord",
+      "transform": {
+        "position": [
+          7.0,
+          -0.0,
+          16.3
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tabouret",
+        "material": "tabouret"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tabouret"
+      }
+    },
+    {
+      "id": "0x000000000020032c",
+      "name": "atelier_tonneau_1",
+      "transform": {
+        "position": [
+          12.5,
+          0.0066,
+          16.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tonneau",
+        "material": "tonneau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tonneau"
+      }
+    },
+    {
+      "id": "0x000000000020032d",
+      "name": "atelier_tonneau_2",
+      "transform": {
+        "position": [
+          13.0,
+          0.0066,
+          17.4
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tonneau",
+        "material": "tonneau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tonneau"
+      }
+    },
+    {
+      "id": "0x000000000020032e",
+      "name": "laverie_armoire",
+      "transform": {
+        "position": [
+          8.4974,
+          0.0004,
+          20.4741
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "armoire",
+        "material": "armoire"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "armoire"
+      }
+    },
+    {
+      "id": "0x000000000020032f",
+      "name": "chaufferie_tuyaux",
+      "transform": {
+        "position": [
+          15.2744,
+          1.0023,
+          24.9978
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tuyaux",
+        "material": "tuyaux"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tuyaux"
+      }
+    },
+    {
+      "id": "0x0000000000200330",
+      "name": "chaufferie_tonneau",
+      "transform": {
+        "position": [
+          11.0,
+          0.0066,
+          25.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tonneau",
+        "material": "tonneau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tonneau"
+      }
+    },
+    {
+      "id": "0x0000000000200331",
+      "name": "chambre_1_lit",
+      "transform": {
+        "position": [
+          -8.5047,
+          -0.0,
+          13.8976
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "lit",
+        "material": "lit"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "lit"
+      }
+    },
+    {
+      "id": "0x0000000000200332",
+      "name": "chambre_1_chevet",
+      "transform": {
+        "position": [
+          -9.4,
+          0.0,
+          13.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "chevet",
+        "material": "chevet"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "chevet"
+      }
+    },
+    {
+      "id": "0x0000000000200333",
+      "name": "chambre_2_lit",
+      "transform": {
+        "position": [
+          -8.5047,
+          -0.0,
+          17.9976
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "lit",
+        "material": "lit"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "lit"
+      }
+    },
+    {
+      "id": "0x0000000000200334",
+      "name": "chambre_2_chevet",
+      "transform": {
+        "position": [
+          -9.4,
+          0.0,
+          17.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "chevet",
+        "material": "chevet"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "chevet"
+      }
+    },
+    {
+      "id": "0x0000000000200335",
+      "name": "reserve_etagere_sud",
+      "transform": {
+        "position": [
+          -9.6285,
+          0.0,
+          22.5
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "etagere",
+        "material": "etagere"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "etagere"
+      }
+    },
+    {
+      "id": "0x0000000000200336",
+      "name": "reserve_etagere_nord",
+      "transform": {
+        "position": [
+          -9.6285,
+          0.0,
+          24.5
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "etagere",
+        "material": "etagere"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "etagere"
+      }
+    },
+    {
+      "id": "0x0000000000200337",
+      "name": "reserve_tonneau_1",
+      "transform": {
+        "position": [
+          -4.0,
+          0.0066,
+          26.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tonneau",
+        "material": "tonneau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tonneau"
+      }
+    },
+    {
+      "id": "0x0000000000200338",
+      "name": "reserve_tonneau_2",
+      "transform": {
+        "position": [
+          -4.8,
+          0.0066,
+          26.2
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "tonneau",
+        "material": "tonneau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "tonneau"
+      }
+    },
+    {
+      "id": "0x0000000000200339",
+      "name": "refectoire_table_sud",
+      "transform": {
+        "position": [
+          3.0,
+          0.0,
+          30.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "table",
+        "material": "table"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "table"
+      }
+    },
+    {
+      "id": "0x000000000020033a",
+      "name": "refectoire_banc_sud",
+      "transform": {
+        "position": [
+          2.9936,
+          0.0005,
+          29.2054
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "banc",
+        "material": "banc"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "banc"
+      }
+    },
+    {
+      "id": "0x000000000020033b",
+      "name": "refectoire_banc_sud_2",
+      "transform": {
+        "position": [
+          3.0064,
+          0.0005,
+          30.7946
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "banc",
+        "material": "banc"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "banc"
+      }
+    },
+    {
+      "id": "0x000000000020033c",
+      "name": "refectoire_table_nord",
+      "transform": {
+        "position": [
+          3.0,
+          0.0,
+          32.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "table",
+        "material": "table"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "table"
+      }
+    },
+    {
+      "id": "0x000000000020033d",
+      "name": "refectoire_banc_nord",
+      "transform": {
+        "position": [
+          2.9936,
+          0.0005,
+          31.7054
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "banc",
+        "material": "banc"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "banc"
+      }
+    },
+    {
+      "id": "0x000000000020033e",
+      "name": "refectoire_banc_nord_2",
+      "transform": {
+        "position": [
+          3.0064,
+          0.0005,
+          33.2946
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "banc",
+        "material": "banc"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "banc"
+      }
+    },
+    {
+      "id": "0x000000000020033f",
+      "name": "refectoire_chaise_1",
+      "transform": {
+        "position": [
+          7.0,
+          0.0017,
+          30.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "chaise",
+        "material": "chaise"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "chaise"
+      }
+    },
+    {
+      "id": "0x0000000000200340",
+      "name": "refectoire_chaise_2",
+      "transform": {
+        "position": [
+          7.0,
+          0.0017,
+          32.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "chaise",
+        "material": "chaise"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "chaise"
       }
     }
   ]

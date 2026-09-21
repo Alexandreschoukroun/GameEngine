@@ -211,6 +211,45 @@
     },
     {
       "id": "0x0000000000200005",
+      "name": "niveau_metal_rouille",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "niveau_metal_rouille",
+        "material": "metal_rouille"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "niveau_metal_rouille"
+      },
+      "surface": {
+        "footstep": "pas_pierre"
+      }
+    },
+    {
+      "id": "0x0000000000200006",
       "name": "niveau_papier_peint",
       "transform": {
         "position": [
@@ -249,7 +288,7 @@
       }
     },
     {
-      "id": "0x0000000000200006",
+      "id": "0x0000000000200007",
       "name": "niveau_plancher",
       "transform": {
         "position": [
@@ -288,7 +327,7 @@
       }
     },
     {
-      "id": "0x0000000000200007",
+      "id": "0x0000000000200008",
       "name": "niveau_platre",
       "transform": {
         "position": [
@@ -327,7 +366,7 @@
       }
     },
     {
-      "id": "0x0000000000200008",
+      "id": "0x0000000000200009",
       "name": "niveau_platre_peint",
       "transform": {
         "position": [
@@ -759,6 +798,1392 @@
         "type": "point",
         "range": 14.0,
         "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002000c8",
+      "name": "porte_00",
+      "transform": {
+        "position": [
+          -10,
+          1.04,
+          12.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000c9",
+      "name": "porte_01",
+      "transform": {
+        "position": [
+          -7,
+          1.04,
+          3.5
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000ca",
+      "name": "porte_02",
+      "transform": {
+        "position": [
+          -2,
+          1.04,
+          12.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000cb",
+      "name": "porte_03",
+      "transform": {
+        "position": [
+          -2,
+          1.04,
+          18.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000cc",
+      "name": "porte_04",
+      "transform": {
+        "position": [
+          -2,
+          1.04,
+          24.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000cd",
+      "name": "porte_05",
+      "transform": {
+        "position": [
+          2,
+          1.04,
+          14.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000ce",
+      "name": "porte_06",
+      "transform": {
+        "position": [
+          2,
+          1.04,
+          22.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000cf",
+      "name": "porte_07",
+      "transform": {
+        "position": [
+          7,
+          1.04,
+          3.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000d0",
+      "name": "porte_08",
+      "transform": {
+        "position": [
+          10,
+          1.04,
+          22.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710678,
+          0.0,
+          0.70710678
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000d1",
+      "name": "porte_09",
+      "transform": {
+        "position": [
+          4.5,
+          1.04,
+          9
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000d2",
+      "name": "porte_10",
+      "transform": {
+        "position": [
+          -4.5,
+          1.04,
+          9
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000d3",
+      "name": "porte_11",
+      "transform": {
+        "position": [
+          -6.0,
+          1.04,
+          15
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000d4",
+      "name": "porte_12",
+      "transform": {
+        "position": [
+          12.0,
+          1.04,
+          19
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000d5",
+      "name": "porte_13",
+      "transform": {
+        "position": [
+          -6.0,
+          1.04,
+          21
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x00000000002000d6",
+      "name": "porte_14",
+      "transform": {
+        "position": [
+          0.0,
+          1.04,
+          27
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.96,
+          2.04,
+          0.06
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "bois"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.48,
+          1.02,
+          0.03
+        ],
+        "static": false,
+        "density": 300.0
+      },
+      "hinge": {
+        "anchor": [
+          -0.5,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "minAngle": -1.6,
+        "maxAngle": 0.0,
+        "friction": 15.0
+      }
+    },
+    {
+      "id": "0x0000000000200190",
+      "name": "poignee_00",
+      "parent": "0x00000000002000c8",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200191",
+      "name": "poignee_01",
+      "parent": "0x00000000002000c9",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200192",
+      "name": "poignee_02",
+      "parent": "0x00000000002000ca",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200193",
+      "name": "poignee_03",
+      "parent": "0x00000000002000cb",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200194",
+      "name": "poignee_04",
+      "parent": "0x00000000002000cc",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200195",
+      "name": "poignee_05",
+      "parent": "0x00000000002000cd",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200196",
+      "name": "poignee_06",
+      "parent": "0x00000000002000ce",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200197",
+      "name": "poignee_07",
+      "parent": "0x00000000002000cf",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200198",
+      "name": "poignee_08",
+      "parent": "0x00000000002000d0",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200199",
+      "name": "poignee_09",
+      "parent": "0x00000000002000d1",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019a",
+      "name": "poignee_10",
+      "parent": "0x00000000002000d2",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019b",
+      "name": "poignee_11",
+      "parent": "0x00000000002000d3",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019c",
+      "name": "poignee_12",
+      "parent": "0x00000000002000d4",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019d",
+      "name": "poignee_13",
+      "parent": "0x00000000002000d5",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x000000000020019e",
+      "name": "poignee_14",
+      "parent": "0x00000000002000d6",
+      "transform": {
+        "position": [
+          0.3125,
+          -0.0147,
+          0.4667
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.707107,
+          0.0
+        ],
+        "scale": [
+          1.0417,
+          16.6667,
+          0.4902
+        ]
+      },
+      "mesh": {
+        "mesh": "loquet",
+        "material": "loquet"
+      }
+    },
+    {
+      "id": "0x0000000000200258",
+      "name": "caisse_00",
+      "transform": {
+        "position": [
+          4.5,
+          0.31,
+          15.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "plancher"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.3,
+          0.3,
+          0.3
+        ],
+        "static": false,
+        "density": 220.0
+      }
+    },
+    {
+      "id": "0x0000000000200259",
+      "name": "caisse_01",
+      "transform": {
+        "position": [
+          5.2,
+          0.31,
+          15.4
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "plancher"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.3,
+          0.3,
+          0.3
+        ],
+        "static": false,
+        "density": 220.0
+      }
+    },
+    {
+      "id": "0x000000000020025a",
+      "name": "caisse_02",
+      "transform": {
+        "position": [
+          4.8,
+          0.92,
+          15.2
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "plancher"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.3,
+          0.3,
+          0.3
+        ],
+        "static": false,
+        "density": 220.0
+      }
+    },
+    {
+      "id": "0x000000000020025b",
+      "name": "caisse_03",
+      "transform": {
+        "position": [
+          -5.0,
+          0.31,
+          23.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "plancher"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.3,
+          0.3,
+          0.3
+        ],
+        "static": false,
+        "density": 220.0
+      }
+    },
+    {
+      "id": "0x000000000020025c",
+      "name": "caisse_04",
+      "transform": {
+        "position": [
+          -4.3,
+          0.31,
+          23.4
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "plancher"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.3,
+          0.3,
+          0.3
+        ],
+        "static": false,
+        "density": 220.0
+      }
+    },
+    {
+      "id": "0x000000000020025d",
+      "name": "caisse_05",
+      "transform": {
+        "position": [
+          6.0,
+          0.26,
+          4.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "mesh": {
+        "mesh": "caisse",
+        "material": "plancher"
+      },
+      "collider": {
+        "shape": "box",
+        "halfExtents": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "static": false,
+        "density": 220.0
       }
     }
   ]

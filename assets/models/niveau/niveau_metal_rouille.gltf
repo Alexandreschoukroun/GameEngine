@@ -14,12 +14,12 @@
  "nodes": [
   {
    "mesh": 0,
-   "name": "niveau_bois"
+   "name": "niveau_metal_rouille"
   }
  ],
  "meshes": [
   {
-   "name": "niveau_bois",
+   "name": "niveau_metal_rouille",
    "primitives": [
     {
      "attributes": {
@@ -35,7 +35,7 @@
  ],
  "materials": [
   {
-   "name": "bois",
+   "name": "metal_rouille",
    "pbrMetallicRoughness": {
     "baseColorFactor": [
      1.0,
@@ -50,33 +50,33 @@
  ],
  "buffers": [
   {
-   "uri": "niveau_bois.bin",
-   "byteLength": 261288
+   "uri": "niveau_metal_rouille.bin",
+   "byteLength": 5472
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
    "byteOffset": 0,
-   "byteLength": 82512,
+   "byteLength": 1728,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 82512,
-   "byteLength": 82512,
+   "byteOffset": 1728,
+   "byteLength": 1728,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 165024,
-   "byteLength": 55008,
+   "byteOffset": 3456,
+   "byteLength": 1152,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteOffset": 220032,
-   "byteLength": 41256,
+   "byteOffset": 4608,
+   "byteLength": 864,
    "target": 34963
   }
  ],
@@ -84,35 +84,35 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 6876,
+   "count": 144,
    "type": "VEC3",
    "min": [
-    -16,
+    -15.5,
     0.0,
-    0
+    4.8
    ],
    "max": [
-    16,
-    4.2,
-    35
+    15.7,
+    3.6,
+    24.4
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 6876,
+   "count": 144,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 6876,
+   "count": 144,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5125,
-   "count": 10314,
+   "count": 216,
    "type": "SCALAR"
   }
  ]

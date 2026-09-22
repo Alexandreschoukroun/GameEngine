@@ -191,21 +191,34 @@ SEALED = {frozenset(("atelier", "laverie"))}
 # porte de 1 m y ferait un sas, pas une entree.
 ARCHES = {frozenset(("hall", "couloir"))}
 
-# Lumieres : une par piece, rares et chaudes. Dans ce genre, l'obscurite est le sujet, pas
-# un defaut a corriger. La hauteur suit celle du plafond de la piece.
-LIGHTS = [
-    ("lampe_hall",        "hall",       [1.00, 0.82, 0.60], 16.0),
-    ("lampe_bureau",      "bureau",     [1.00, 0.78, 0.52], 10.0),
-    ("lampe_vestiaire",   "vestiaire",  [0.92, 0.88, 0.74], 8.0),
-    ("lampe_couloir",     "couloir",    [0.90, 0.85, 0.70], 9.0),
-    ("lampe_atelier",     "atelier",    [1.00, 0.75, 0.50], 14.0),
-    ("lampe_laverie",     "laverie",    [0.78, 0.86, 1.00], 9.0),
-    ("lampe_chaufferie",  "chaufferie", [1.00, 0.58, 0.30], 11.0),
-    ("lampe_chambre_1",   "chambre_1",  [1.00, 0.80, 0.56], 9.0),
-    ("lampe_chambre_2",   "chambre_2",  [1.00, 0.80, 0.56], 9.0),
-    ("lampe_salle_eau",   "salle_eau",  [0.72, 0.84, 1.00], 8.0),
-    ("lampe_reserve",     "reserve",    [0.70, 0.80, 1.00], 8.0),
-    ("lampe_refectoire",  "refectoire", [1.00, 0.84, 0.62], 13.0),
+# Les luminaires. Chacun porte A LA FOIS le modele qu'on voit et la lumiere qu'il donne,
+# et c'est tout l'interet : la lumiere sort de la lampe par construction, au lieu de venir
+# d'un point invisible qu'on aurait place a peu pres au bon endroit.
+#
+# Dans ce genre, l'obscurite est le sujet, pas un defaut a corriger : les lampes sont
+# rares et chaudes.
+Luminaire = collections.namedtuple("Luminaire", "room x z color intensity")
+
+
+def lamp(room, x, z, color, intensity):
+    return Luminaire(room, x, z, color, intensity)
+
+
+LUMINAIRES = [
+    lamp("hall", 0.0, 4.5, [1.00, 0.82, 0.60], 16.0),
+    lamp("bureau", -10.0, 3.5, [1.00, 0.78, 0.52], 10.0),
+    lamp("vestiaire", 10.0, 3.0, [0.92, 0.88, 0.74], 8.0),
+    lamp("couloir", 0.0, 13.0, [0.90, 0.85, 0.70], 9.0),
+    lamp("couloir", 0.0, 23.0, [0.90, 0.85, 0.70], 9.0),
+    lamp("atelier", 5.0, 14.0, [1.00, 0.75, 0.50], 14.0),
+    lamp("atelier", 11.0, 14.0, [1.00, 0.75, 0.50], 12.0),
+    lamp("laverie", 6.0, 22.0, [0.78, 0.86, 1.00], 9.0),
+    lamp("chaufferie", 13.0, 25.5, [1.00, 0.58, 0.30], 11.0),
+    lamp("chambre_1", -6.0, 12.0, [1.00, 0.80, 0.56], 9.0),
+    lamp("chambre_2", -6.0, 18.0, [1.00, 0.80, 0.56], 9.0),
+    lamp("salle_eau", -13.0, 12.0, [0.72, 0.84, 1.00], 8.0),
+    lamp("reserve", -6.0, 24.0, [0.70, 0.80, 1.00], 8.0),
+    lamp("refectoire", 4.0, 31.0, [1.00, 0.84, 0.62], 13.0),
 ]
 
 # --- les modeles importes ---------------------------------------------------------------------
@@ -232,7 +245,23 @@ MODEL_FILES = {
     "tabouret": "tabouret/metal_stool_01_1k.gltf",
     "tonneau": "tonneau/Barrel_01_1k.gltf",
     "tuyaux": "tuyaux/modular_industrial_pipes_01_1k.gltf",
+    # Le luminaire, et le desordre. Un batiment habite puis abandonne n'est pas range :
+    # c'est ce qui le distingue d'un plan meuble.
+    "luminaire": "luminaire/hanging_industrial_lamp_1k.gltf",
+    "livres": "livres/book_encyclopedia_set_01_1k.gltf",
+    "boite_outils": "boite_outils/metal_toolbox_1k.gltf",
+    "cle": "cle/pipe_wrench_1k.gltf",
+    "seau": "seau/wooden_bucket_01_1k.gltf",
+    "bidon": "bidon/metal_jerrycan_green_1k.gltf",
+    "carton": "carton/cardboard_box_01_1k.gltf",
+    "reveil": "reveil/alarm_clock_01_1k.gltf",
+    "boite_conserve": "boite_conserve/can_rusted_1k.gltf",
 }
+
+# Hauteur libre exigee sous un luminaire suspendu. Un joueur mesure 1,80 m ; en dessous de
+# 2,15 on se cogne, et se cogner dans une lampe est le genre de detail qui rappelle qu'on
+# est dans un decor.
+LAMP_HEADROOM = 2.15
 
 
 def quaternion_matrix(q):
@@ -353,6 +382,59 @@ FURNITURE = [
     placed("refectoire", "banc", 3.0, 33.3, "banc_nord_2", yaw=180),
     placed("refectoire", "chaise", 7.0, 30.0, "chaise_1"),
     placed("refectoire", "chaise", 7.0, 32.0, "chaise_2"),
+]
+
+# Le desordre : ce qui traine. Aucun de ces objets n'a de role, et c'est le propos - un
+# batiment range est un batiment neuf.
+#
+# Ceux qui reposent sur un meuble citent sa hauteur exacte dans `lift`, et ces hauteurs
+# sont celles qu'on a MESUREES : 0,79 pour le bureau metallique, 0,55 pour la table, 0,70
+# pour le chevet. Deviner aurait donne des objets flottants.
+Clutter = collections.namedtuple("Clutter", "room model x z yaw lift solid name")
+
+
+def litter(room, model, x, z, name, yaw=0, lift=0.0, solid=False):
+    return Clutter(room, model, x, z, yaw, lift, solid, name)
+
+
+CLUTTER = [
+    litter("hall", "boite_conserve", 5.4, 1.5, "conserve", lift=1.05),
+
+    litter("bureau", "livres", -10.9, 5.2, "livres", lift=0.79, yaw=90),
+    litter("bureau", "boite_conserve", -10.2, 5.4, "conserve", lift=0.79),
+    litter("bureau", "carton", -12.4, 6.2, "carton", solid=True),
+
+    litter("vestiaire", "carton", 9.0, 2.0, "carton", solid=True),
+    litter("vestiaire", "seau", 12.2, 1.2, "seau", solid=True),
+
+    litter("couloir", "boite_conserve", 1.2, 20.0, "conserve", solid=True),
+    litter("couloir", "carton", -1.2, 25.5, "carton", solid=True),
+
+    litter("atelier", "boite_outils", 7.6, 10.0, "boite_a_outils", lift=0.55),
+    litter("atelier", "cle", 6.3, 10.1, "cle", lift=0.55, yaw=90),
+    litter("atelier", "boite_conserve", 6.8, 17.5, "conserve", lift=0.55),
+    litter("atelier", "bidon", 11.0, 11.0, "bidon", solid=True),
+    litter("atelier", "seau", 11.7, 12.0, "seau", solid=True),
+
+    litter("laverie", "seau", 4.0, 21.0, "seau_1", solid=True),
+    litter("laverie", "seau", 4.7, 21.5, "seau_2", solid=True),
+
+    litter("chaufferie", "bidon", 11.5, 24.0, "bidon_1", solid=True),
+    litter("chaufferie", "bidon", 12.1, 24.4, "bidon_2", solid=True),
+    litter("chaufferie", "boite_conserve", 11.0, 21.0, "conserve", solid=True),
+
+    litter("chambre_1", "reveil", -9.4, 13.0, "reveil", lift=0.70),
+    litter("chambre_2", "reveil", -9.4, 17.0, "reveil", lift=0.70),
+    litter("chambre_2", "carton", -4.0, 19.5, "carton", solid=True),
+
+    litter("salle_eau", "seau", -12.0, 10.5, "seau", solid=True),
+
+    litter("reserve", "carton", -5.5, 24.5, "carton_1", solid=True),
+    litter("reserve", "carton", -6.3, 25.1, "carton_2", solid=True, yaw=90),
+    litter("reserve", "bidon", -3.5, 22.5, "bidon", solid=True),
+
+    litter("refectoire", "boite_conserve", 2.5, 30.0, "conserve", lift=0.55),
+    litter("refectoire", "livres", 4.5, 32.5, "livres", lift=0.55),
 ]
 
 # Ce que le catalogue libre ne couvre pas. Les paves restent la ou aucun modele n'existe -
@@ -892,10 +974,48 @@ def emit_fixtures(meshes, clearances):
         box(meshes[item.material], lo, hi)
 
 
+def build_luminaires():
+    """Les luminaires, et la lumiere qu'ils portent.
+
+    Deux decisions valent d'etre nommees.
+
+    Le modele a son origine AU SOMMET - sa base est a -1,34 - parce qu'il est fait pour
+    pendre. Le poser a la hauteur du plafond suffit donc, la ou un meuble se pose par sa
+    base.
+
+    Et il est MIS A L'ECHELLE par la piece. Il mesure 1,34 m ; un couloir de 2,80 m ne
+    peut pas l'accueillir en entier sans qu'on s'y cogne le front. Plutot que de le
+    reserver aux pieces hautes, on raccourcit la suspension jusqu'a degager la hauteur
+    libre voulue - ce qu'un vrai batiment fait exactement de la meme facon.
+    """
+    places = {place.name: place for place in ROOMS}
+    lo, hi = measure("luminaire")
+    natural = hi[1] - lo[1]
+
+    entries = []
+    for item in LUMINAIRES:
+        place = places[item.room]
+        available = place.height - LAMP_HEADROOM
+        scale = min(1.0, available / natural) if natural > 1e-6 else 1.0
+        # Le modele pend sous son origine : la poser au plafond suffit.
+        position = (item.x, round(place.height - hi[1] * scale, 4), item.z)
+        # L'ampoule est vers le bas de l'abat-jour, pas a l'attache : c'est de la que la
+        # lumiere part, et la faire partir du plafond eclairerait le plafond.
+        light_y = round(place.height - natural * scale * 0.82, 4)
+        entries.append((item, position, round(scale, 4), light_y))
+    return entries
+
+
 def build_furniture(clearances):
-    """Les meubles modelises : des entites, verifiees puis posees."""
+    """Les meubles et le desordre : des entites, verifiees puis posees.
+
+    Les deux suivent le meme chemin parce qu'ils posent le meme probleme - un modele dont
+    l'origine est arbitraire, a faire tomber juste dans une piece. Ce qui les distingue
+    tient en un booleen : ce qui est pose SUR un meuble n'a pas de collision, ce qui
+    traine par terre en a une.
+    """
     entities = []
-    for item in FURNITURE:
+    for item in list(FURNITURE) + list(CLUTTER):
         position, lo, hi = furniture_box(item)
         check_placement(item.room, item.name, lo, hi, clearances)
         quarter = (item.yaw // 90) % 4
@@ -1177,13 +1297,57 @@ def furniture_entity(index, item, position, rotation):
             ("scale", [1.0, 1.0, 1.0]),
         ])),
         ("mesh", collections.OrderedDict([("mesh", item.model), ("material", item.model)])),
-        ("collider", collections.OrderedDict([
-            ("shape", "mesh"),
-            ("halfExtents", [0.5, 0.5, 0.5]),
-            ("static", True),
-            ("collisionMesh", item.model),
+    ])
+
+
+def add_collider(entity, model):
+    entity["collider"] = collections.OrderedDict([
+        ("shape", "mesh"),
+        ("halfExtents", [0.5, 0.5, 0.5]),
+        ("static", True),
+        ("collisionMesh", model),
+    ])
+    return entity
+
+
+def luminaire_entity(index, item, position, scale, light_y):
+    """Le luminaire et sa lumiere, en une seule entite.
+
+    Les mettre ensemble n'est pas un raccourci : c'est ce qui garantit que la lumiere ne
+    peut pas se desolidariser de la lampe qu'on voit. La position de la lumiere est celle
+    de l'ampoule, calculee depuis la taille reelle du modele.
+
+    Pas de collision : une suspension est hors de portee, et lui en donner ferait payer
+    une geometrie de dix mille triangles pour un obstacle que personne ne peut heurter.
+    """
+    node = collections.OrderedDict([
+        ("id", f"0x{0x200000 + 100 + index:016x}"),
+        ("name", f"lampe_{item.room}_{index:02d}"),
+        ("transform", collections.OrderedDict([
+            ("position", [position[0], position[1], position[2]]),
+            ("rotation", [0.0, 0.0, 0.0, 1.0]),
+            ("scale", [scale, scale, scale]),
+        ])),
+        ("mesh", collections.OrderedDict([("mesh", "luminaire"),
+                                          ("material", "luminaire")])),
+    ])
+    bulb = collections.OrderedDict([
+        ("id", f"0x{0x200000 + 1000 + index:016x}"),
+        ("name", f"ampoule_{item.room}_{index:02d}"),
+        ("transform", collections.OrderedDict([
+            ("position", [position[0], light_y, position[2]]),
+            ("rotation", [0.0, 0.0, 0.0, 1.0]),
+            ("scale", [1.0, 1.0, 1.0]),
+        ])),
+        ("light", collections.OrderedDict([
+            ("color", list(item.color)),
+            ("intensity", item.intensity),
+            ("type", "point"),
+            ("range", 14.0),
+            ("castsShadow", False),
         ])),
     ])
+    return [node, bulb]
 
 
 def crate_entity(index, crate):
@@ -1206,7 +1370,7 @@ def crate_entity(index, crate):
     ])
 
 
-def write_scene(groups, doors, furniture):
+def write_scene(groups, doors, furniture, luminaires):
     entities = []
     for index, (name, material) in enumerate(groups):
         entities.append(entity(index, name, collections.OrderedDict([
@@ -1225,28 +1389,18 @@ def write_scene(groups, doors, furniture):
     for index, (position, rotation) in enumerate(doors):
         entities.extend(door_entities(index, position, rotation))
     for index, (item, position, rotation) in enumerate(furniture):
-        entities.append(furniture_entity(index, item, position, rotation))
+        node = furniture_entity(index, item, position, rotation)
+        # Ce qui repose SUR un meuble n'a pas besoin de collision : le meuble en a une, et
+        # personne ne traverse un reveil pose sur un chevet. Ce qui traine PAR TERRE en a
+        # une, sans quoi on marcherait au travers.
+        if not isinstance(item, Clutter) or item.solid:
+            add_collider(node, item.model)
+        entities.append(node)
     for index, crate in enumerate(CRATES):
         entities.append(crate_entity(index, crate))
 
-    places = {place.name: place for place in ROOMS}
-    for offset, (name, where, color, intensity) in enumerate(LIGHTS):
-        place = places[where]
-        node = entity(100 + offset, name, collections.OrderedDict([
-            ("light", collections.OrderedDict([
-                ("color", list(color)),
-                ("intensity", intensity),
-                ("type", "point"),
-                ("range", 14.0),
-                ("castsShadow", False),
-            ])),
-        ]))
-        node["transform"]["position"] = [
-            round((place.x0 + place.x1) / 2, 3),
-            round(place.height - 0.55, 3),
-            round((place.z0 + place.z1) / 2, 3),
-        ]
-        entities.append(node)
+    for index, (item, position, scale, light_y) in enumerate(luminaires):
+        entities.extend(luminaire_entity(index, item, position, scale, light_y))
 
     scene = collections.OrderedDict([
         ("version", 1),
@@ -1298,9 +1452,10 @@ def main():
         groups.append((name, material))
         print(f"{name:<24} {triangles:6d} triangles  pas : {FOOTSTEP[material]}")
 
+    luminaires = build_luminaires()
     leaves = build_doors(openings)
     door_triangles = write_gltf("porte_battant", emit_door_leaf(), "porte")
-    write_scene(groups, leaves, furniture)
+    write_scene(groups, leaves, furniture, luminaires)
 
     doors = sum(len(holes) for holes in openings.values())
     steps = find_steps(wall_faces(boundaries))
@@ -1318,8 +1473,9 @@ def main():
         raise SystemExit("murs non alignes : le batiment serait troue")
     print("  aucun ressaut : tous les murs sont d'aplomb")
     print(f"  {len(leaves)} portes battantes ({door_triangles} triangles chacune), "
-          f"{len(furniture)} meubles modelises, {len(FIXTURES)} agencements, "
-          f"{len(CRATES)} caisses")
+          f"{len(FURNITURE)} meubles, {len(CLUTTER)} objets qui trainent, "
+          f"{len(FIXTURES)} agencements, {len(CRATES)} caisses")
+    print(f"  {len(luminaires)} luminaires, chacun portant sa lumiere")
     missing = sorted({place.name for place in ROOMS} - reached)
     if missing:
         print(f"  INATTEIGNABLES depuis le hall : {', '.join(missing)}")

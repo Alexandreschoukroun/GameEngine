@@ -407,11 +407,11 @@
     },
     {
       "id": "0x0000000000200064",
-      "name": "lampe_hall",
+      "name": "lampe_hall_00",
       "transform": {
         "position": [
           0.0,
-          3.05,
+          3.5847,
           4.5
         ],
         "rotation": [
@@ -426,25 +426,18 @@
           1.0
         ]
       },
-      "light": {
-        "color": [
-          1.0,
-          0.82,
-          0.6
-        ],
-        "intensity": 16.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
       "id": "0x0000000000200065",
-      "name": "lampe_bureau",
+      "name": "lampe_bureau_01",
       "transform": {
         "position": [
           -10.0,
-          2.45,
+          2.9904,
           3.5
         ],
         "rotation": [
@@ -454,30 +447,23 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.6271,
+          0.6271,
+          0.6271
         ]
       },
-      "light": {
-        "color": [
-          1.0,
-          0.78,
-          0.52
-        ],
-        "intensity": 10.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
       "id": "0x0000000000200066",
-      "name": "lampe_vestiaire",
+      "name": "lampe_vestiaire_02",
       "transform": {
         "position": [
           10.0,
-          2.45,
+          2.9904,
           3.0
         ],
         "rotation": [
@@ -487,31 +473,24 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.6271,
+          0.6271,
+          0.6271
         ]
       },
-      "light": {
-        "color": [
-          0.92,
-          0.88,
-          0.74
-        ],
-        "intensity": 8.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
       "id": "0x0000000000200067",
-      "name": "lampe_couloir",
+      "name": "lampe_couloir_03",
       "transform": {
         "position": [
           0.0,
-          2.25,
-          18.0
+          2.7926,
+          13.0
         ],
         "rotation": [
           0.0,
@@ -520,30 +499,49 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.4796,
+          0.4796,
+          0.4796
         ]
       },
-      "light": {
-        "color": [
-          0.9,
-          0.85,
-          0.7
-        ],
-        "intensity": 9.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
       "id": "0x0000000000200068",
-      "name": "lampe_atelier",
+      "name": "lampe_couloir_04",
       "transform": {
         "position": [
-          8.0,
-          3.65,
+          0.0,
+          2.7926,
+          23.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.4796,
+          0.4796,
+          0.4796
+        ]
+      },
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
+      }
+    },
+    {
+      "id": "0x0000000000200069",
+      "name": "lampe_atelier_05",
+      "transform": {
+        "position": [
+          5.0,
+          4.1847,
           14.0
         ],
         "rotation": [
@@ -558,25 +556,44 @@
           1.0
         ]
       },
-      "light": {
-        "color": [
-          1.0,
-          0.75,
-          0.5
-        ],
-        "intensity": 14.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
-      "id": "0x0000000000200069",
-      "name": "lampe_laverie",
+      "id": "0x000000000020006a",
+      "name": "lampe_atelier_06",
+      "transform": {
+        "position": [
+          11.0,
+          4.1847,
+          14.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
+      }
+    },
+    {
+      "id": "0x000000000020006b",
+      "name": "lampe_laverie_07",
       "transform": {
         "position": [
           6.0,
-          2.35,
+          2.8915,
           22.0
         ],
         "rotation": [
@@ -586,31 +603,24 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.5534,
+          0.5534,
+          0.5534
         ]
       },
-      "light": {
-        "color": [
-          0.78,
-          0.86,
-          1.0
-        ],
-        "intensity": 9.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
-      "id": "0x000000000020006a",
-      "name": "lampe_chaufferie",
+      "id": "0x000000000020006c",
+      "name": "lampe_chaufferie_08",
       "transform": {
         "position": [
           13.0,
-          3.45,
-          23.0
+          3.9847,
+          25.5
         ],
         "rotation": [
           0.0,
@@ -624,25 +634,18 @@
           1.0
         ]
       },
-      "light": {
-        "color": [
-          1.0,
-          0.58,
-          0.3
-        ],
-        "intensity": 11.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
-      "id": "0x000000000020006b",
-      "name": "lampe_chambre_1",
+      "id": "0x000000000020006d",
+      "name": "lampe_chambre_1_09",
       "transform": {
         "position": [
           -6.0,
-          2.45,
+          2.9904,
           12.0
         ],
         "rotation": [
@@ -652,30 +655,23 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.6271,
+          0.6271,
+          0.6271
         ]
       },
-      "light": {
-        "color": [
-          1.0,
-          0.8,
-          0.56
-        ],
-        "intensity": 9.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
-      "id": "0x000000000020006c",
-      "name": "lampe_chambre_2",
+      "id": "0x000000000020006e",
+      "name": "lampe_chambre_2_10",
       "transform": {
         "position": [
           -6.0,
-          2.45,
+          2.9904,
           18.0
         ],
         "rotation": [
@@ -685,30 +681,23 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.6271,
+          0.6271,
+          0.6271
         ]
       },
-      "light": {
-        "color": [
-          1.0,
-          0.8,
-          0.56
-        ],
-        "intensity": 9.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
-      "id": "0x000000000020006d",
-      "name": "lampe_salle_eau",
+      "id": "0x000000000020006f",
+      "name": "lampe_salle_eau_11",
       "transform": {
         "position": [
           -13.0,
-          2.35,
+          2.8915,
           12.0
         ],
         "rotation": [
@@ -718,30 +707,23 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.5534,
+          0.5534,
+          0.5534
         ]
       },
-      "light": {
-        "color": [
-          0.72,
-          0.84,
-          1.0
-        ],
-        "intensity": 8.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
-      "id": "0x000000000020006e",
-      "name": "lampe_reserve",
+      "id": "0x0000000000200070",
+      "name": "lampe_reserve_12",
       "transform": {
         "position": [
           -6.0,
-          2.65,
+          3.1881,
           24.0
         ],
         "rotation": [
@@ -751,30 +733,23 @@
           1.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          0.7747,
+          0.7747,
+          0.7747
         ]
       },
-      "light": {
-        "color": [
-          0.7,
-          0.8,
-          1.0
-        ],
-        "intensity": 8.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
-      "id": "0x000000000020006f",
-      "name": "lampe_refectoire",
+      "id": "0x0000000000200071",
+      "name": "lampe_refectoire_13",
       "transform": {
         "position": [
           4.0,
-          3.05,
+          3.5847,
           31.0
         ],
         "rotation": [
@@ -789,16 +764,9 @@
           1.0
         ]
       },
-      "light": {
-        "color": [
-          1.0,
-          0.84,
-          0.62
-        ],
-        "intensity": 13.0,
-        "type": "point",
-        "range": 14.0,
-        "castsShadow": false
+      "mesh": {
+        "mesh": "luminaire",
+        "material": "luminaire"
       }
     },
     {
@@ -3778,6 +3746,1340 @@
         ],
         "static": true,
         "collisionMesh": "chaise"
+      }
+    },
+    {
+      "id": "0x0000000000200341",
+      "name": "hall_conserve",
+      "transform": {
+        "position": [
+          5.3998,
+          1.0512,
+          1.4991
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "boite_conserve",
+        "material": "boite_conserve"
+      }
+    },
+    {
+      "id": "0x0000000000200342",
+      "name": "bureau_livres",
+      "transform": {
+        "position": [
+          -10.9195,
+          0.79,
+          5.4563
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "livres",
+        "material": "livres"
+      }
+    },
+    {
+      "id": "0x0000000000200343",
+      "name": "bureau_conserve",
+      "transform": {
+        "position": [
+          -10.2002,
+          0.7912,
+          5.3991
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "boite_conserve",
+        "material": "boite_conserve"
+      }
+    },
+    {
+      "id": "0x0000000000200344",
+      "name": "bureau_carton",
+      "transform": {
+        "position": [
+          -12.401,
+          0.0068,
+          6.1671
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "carton",
+        "material": "carton"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "carton"
+      }
+    },
+    {
+      "id": "0x0000000000200345",
+      "name": "vestiaire_carton",
+      "transform": {
+        "position": [
+          8.999,
+          0.0068,
+          1.9671
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "carton",
+        "material": "carton"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "carton"
+      }
+    },
+    {
+      "id": "0x0000000000200346",
+      "name": "vestiaire_seau",
+      "transform": {
+        "position": [
+          12.201,
+          -0.0001,
+          1.1989
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "seau",
+        "material": "seau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "seau"
+      }
+    },
+    {
+      "id": "0x0000000000200347",
+      "name": "couloir_conserve",
+      "transform": {
+        "position": [
+          1.1998,
+          0.0012,
+          19.9991
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "boite_conserve",
+        "material": "boite_conserve"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "boite_conserve"
+      }
+    },
+    {
+      "id": "0x0000000000200348",
+      "name": "couloir_carton",
+      "transform": {
+        "position": [
+          -1.201,
+          0.0068,
+          25.4671
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "carton",
+        "material": "carton"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "carton"
+      }
+    },
+    {
+      "id": "0x0000000000200349",
+      "name": "atelier_boite_a_outils",
+      "transform": {
+        "position": [
+          7.6,
+          0.55,
+          10.0324
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "boite_outils",
+        "material": "boite_outils"
+      }
+    },
+    {
+      "id": "0x000000000020034a",
+      "name": "atelier_cle",
+      "transform": {
+        "position": [
+          6.3,
+          0.7511,
+          10.0804
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "cle",
+        "material": "cle"
+      }
+    },
+    {
+      "id": "0x000000000020034b",
+      "name": "atelier_conserve",
+      "transform": {
+        "position": [
+          6.7998,
+          0.5512,
+          17.4991
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "boite_conserve",
+        "material": "boite_conserve"
+      }
+    },
+    {
+      "id": "0x000000000020034c",
+      "name": "atelier_bidon",
+      "transform": {
+        "position": [
+          11.0146,
+          0.0,
+          11.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "bidon",
+        "material": "bidon"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "bidon"
+      }
+    },
+    {
+      "id": "0x000000000020034d",
+      "name": "atelier_seau",
+      "transform": {
+        "position": [
+          11.701,
+          -0.0001,
+          11.9989
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "seau",
+        "material": "seau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "seau"
+      }
+    },
+    {
+      "id": "0x000000000020034e",
+      "name": "laverie_seau_1",
+      "transform": {
+        "position": [
+          4.001,
+          -0.0001,
+          20.9989
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "seau",
+        "material": "seau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "seau"
+      }
+    },
+    {
+      "id": "0x000000000020034f",
+      "name": "laverie_seau_2",
+      "transform": {
+        "position": [
+          4.701,
+          -0.0001,
+          21.4989
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "seau",
+        "material": "seau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "seau"
+      }
+    },
+    {
+      "id": "0x0000000000200350",
+      "name": "chaufferie_bidon_1",
+      "transform": {
+        "position": [
+          11.5146,
+          0.0,
+          24.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "bidon",
+        "material": "bidon"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "bidon"
+      }
+    },
+    {
+      "id": "0x0000000000200351",
+      "name": "chaufferie_bidon_2",
+      "transform": {
+        "position": [
+          12.1146,
+          0.0,
+          24.4
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "bidon",
+        "material": "bidon"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "bidon"
+      }
+    },
+    {
+      "id": "0x0000000000200352",
+      "name": "chaufferie_conserve",
+      "transform": {
+        "position": [
+          10.9998,
+          0.0012,
+          20.9991
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "boite_conserve",
+        "material": "boite_conserve"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "boite_conserve"
+      }
+    },
+    {
+      "id": "0x0000000000200353",
+      "name": "chambre_1_reveil",
+      "transform": {
+        "position": [
+          -9.4,
+          0.7012,
+          12.9909
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "reveil",
+        "material": "reveil"
+      }
+    },
+    {
+      "id": "0x0000000000200354",
+      "name": "chambre_2_reveil",
+      "transform": {
+        "position": [
+          -9.4,
+          0.7012,
+          16.9909
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "reveil",
+        "material": "reveil"
+      }
+    },
+    {
+      "id": "0x0000000000200355",
+      "name": "chambre_2_carton",
+      "transform": {
+        "position": [
+          -4.001,
+          0.0068,
+          19.4671
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "carton",
+        "material": "carton"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "carton"
+      }
+    },
+    {
+      "id": "0x0000000000200356",
+      "name": "salle_eau_seau",
+      "transform": {
+        "position": [
+          -11.999,
+          -0.0001,
+          10.4989
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "seau",
+        "material": "seau"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "seau"
+      }
+    },
+    {
+      "id": "0x0000000000200357",
+      "name": "reserve_carton_1",
+      "transform": {
+        "position": [
+          -5.501,
+          0.0068,
+          24.4671
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "carton",
+        "material": "carton"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "carton"
+      }
+    },
+    {
+      "id": "0x0000000000200358",
+      "name": "reserve_carton_2",
+      "transform": {
+        "position": [
+          -6.3329,
+          0.0068,
+          25.101
+        ],
+        "rotation": [
+          0.0,
+          0.707107,
+          0.0,
+          0.707107
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "carton",
+        "material": "carton"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "carton"
+      }
+    },
+    {
+      "id": "0x0000000000200359",
+      "name": "reserve_bidon",
+      "transform": {
+        "position": [
+          -3.4854,
+          0.0,
+          22.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "bidon",
+        "material": "bidon"
+      },
+      "collider": {
+        "shape": "mesh",
+        "halfExtents": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "static": true,
+        "collisionMesh": "bidon"
+      }
+    },
+    {
+      "id": "0x000000000020035a",
+      "name": "refectoire_conserve",
+      "transform": {
+        "position": [
+          2.4998,
+          0.5512,
+          29.9991
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "boite_conserve",
+        "material": "boite_conserve"
+      }
+    },
+    {
+      "id": "0x000000000020035b",
+      "name": "refectoire_livres",
+      "transform": {
+        "position": [
+          4.2437,
+          0.55,
+          32.4805
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "mesh": {
+        "mesh": "livres",
+        "material": "livres"
+      }
+    },
+    {
+      "id": "0x00000000002003e8",
+      "name": "ampoule_hall_00",
+      "transform": {
+        "position": [
+          0.0,
+          2.4886,
+          4.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.82,
+          0.6
+        ],
+        "intensity": 16.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003e9",
+      "name": "ampoule_bureau_01",
+      "transform": {
+        "position": [
+          -10.0,
+          2.303,
+          3.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.78,
+          0.52
+        ],
+        "intensity": 10.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003ea",
+      "name": "ampoule_vestiaire_02",
+      "transform": {
+        "position": [
+          10.0,
+          2.303,
+          3.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.92,
+          0.88,
+          0.74
+        ],
+        "intensity": 8.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003eb",
+      "name": "ampoule_couloir_03",
+      "transform": {
+        "position": [
+          0.0,
+          2.267,
+          13.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.9,
+          0.85,
+          0.7
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003ec",
+      "name": "ampoule_couloir_04",
+      "transform": {
+        "position": [
+          0.0,
+          2.267,
+          23.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.9,
+          0.85,
+          0.7
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003ed",
+      "name": "ampoule_atelier_05",
+      "transform": {
+        "position": [
+          5.0,
+          3.0886,
+          14.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.75,
+          0.5
+        ],
+        "intensity": 14.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003ee",
+      "name": "ampoule_atelier_06",
+      "transform": {
+        "position": [
+          11.0,
+          3.0886,
+          14.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.75,
+          0.5
+        ],
+        "intensity": 12.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003ef",
+      "name": "ampoule_laverie_07",
+      "transform": {
+        "position": [
+          6.0,
+          2.285,
+          22.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.78,
+          0.86,
+          1.0
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003f0",
+      "name": "ampoule_chaufferie_08",
+      "transform": {
+        "position": [
+          13.0,
+          2.8886,
+          25.5
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.58,
+          0.3
+        ],
+        "intensity": 11.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003f1",
+      "name": "ampoule_chambre_1_09",
+      "transform": {
+        "position": [
+          -6.0,
+          2.303,
+          12.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.8,
+          0.56
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003f2",
+      "name": "ampoule_chambre_2_10",
+      "transform": {
+        "position": [
+          -6.0,
+          2.303,
+          18.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.8,
+          0.56
+        ],
+        "intensity": 9.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003f3",
+      "name": "ampoule_salle_eau_11",
+      "transform": {
+        "position": [
+          -13.0,
+          2.285,
+          12.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.72,
+          0.84,
+          1.0
+        ],
+        "intensity": 8.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003f4",
+      "name": "ampoule_reserve_12",
+      "transform": {
+        "position": [
+          -6.0,
+          2.339,
+          24.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          0.7,
+          0.8,
+          1.0
+        ],
+        "intensity": 8.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
+      }
+    },
+    {
+      "id": "0x00000000002003f5",
+      "name": "ampoule_refectoire_13",
+      "transform": {
+        "position": [
+          4.0,
+          2.4886,
+          31.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "light": {
+        "color": [
+          1.0,
+          0.84,
+          0.62
+        ],
+        "intensity": 13.0,
+        "type": "point",
+        "range": 14.0,
+        "castsShadow": false
       }
     }
   ]

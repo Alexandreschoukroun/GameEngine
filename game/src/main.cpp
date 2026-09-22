@@ -83,6 +83,18 @@ constexpr ImportedModelFile kImportedModels[] = {
     {"models/tabouret/metal_stool_01_1k.gltf", "tabouret"},
     {"models/tonneau/Barrel_01_1k.gltf", "tonneau"},
     {"models/tuyaux/modular_industrial_pipes_01_1k.gltf", "tuyaux"},
+    // Le luminaire et le desordre. Le premier porte la lumiere qu'on voit sortir de lui ;
+    // les autres n'ont aucun role, et c'est le propos - un batiment range est un batiment
+    // neuf.
+    {"models/luminaire/hanging_industrial_lamp_1k.gltf", "luminaire"},
+    {"models/livres/book_encyclopedia_set_01_1k.gltf", "livres"},
+    {"models/boite_outils/metal_toolbox_1k.gltf", "boite_outils"},
+    {"models/cle/pipe_wrench_1k.gltf", "cle"},
+    {"models/seau/wooden_bucket_01_1k.gltf", "seau"},
+    {"models/bidon/metal_jerrycan_green_1k.gltf", "bidon"},
+    {"models/carton/cardboard_box_01_1k.gltf", "carton"},
+    {"models/reveil/alarm_clock_01_1k.gltf", "reveil"},
+    {"models/boite_conserve/can_rusted_1k.gltf", "boite_conserve"},
 };
 constexpr core::u32 kImportedModelCount =
     static_cast<core::u32>(sizeof(kImportedModels) / sizeof(kImportedModels[0]));

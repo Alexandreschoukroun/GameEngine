@@ -35,6 +35,14 @@ layout(location = 44) uniform int uHasCookie;
 // d'environnement viendra si le besoin s'en fait sentir.
 layout(location = 45) uniform vec4 uEnvironmentSky;    // rgb = couleur, a = intensite
 layout(location = 46) uniform vec4 uEnvironmentGround; // rgb = couleur
+// Exposition, en facteur multiplicatif deja calcule depuis les diaphragmes.
+//
+// Elle s'applique AVANT la courbe de rendu, et c'est tout son interet : la courbe ACES
+// releve volontairement les valeurs basses pour preserver le detail dans les ombres, si
+// bien qu'un mur eclaire par rien finit a 15 % de gris - de la penombre lisible, pas du
+// noir. Diviser apres la courbe ne ferait que delaver l'image ; diviser avant deplace ce
+// que la courbe considere comme sombre.
+layout(location = 47) uniform float uExposure;
 
 in vec2 vTexCoord;
 out vec4 outColor;
@@ -288,6 +296,7 @@ void main() {
 
     color += ambientDiffuse + ambientSpecular;
 
+    color *= uExposure;
     color = tonemapACES(color);
     // Derniere etape : reencoder vers la courbe sRGB attendue par l'ecran. Les calculs
     // precedents se font tous en lineaire.

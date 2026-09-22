@@ -80,6 +80,12 @@ public:
     // Lumiere que l'environnement renvoie : ce que les murs, le sol et le plafond se
     // reflechissent entre eux. Sans elle, tout metal est noir - un metal n'a pas de
     // composante diffuse, il ne fait que reflechir.
+    // L'exposition, en diaphragmes. Zero laisse l'image telle que la physique la donne ;
+    // negatif l'assombrit. C'est le reglage qui decide si l'obscurite reste noire, et il
+    // est volontairement SEPARE de l'intensite de l'environnement : l'une dose la lumiere
+    // que les surfaces se renvoient, l'autre dose l'image entiere, lampes comprises.
+    void setExposureStops(core::f32 stops) { m_exposure = exposureFromStops(stops); }
+
     void setEnvironment(const core::Vec3& skyColor, const core::Vec3& groundColor,
                         core::f32 intensity) {
         m_environmentSky = skyColor;
@@ -118,6 +124,7 @@ private:
     core::Vec3 m_environmentSky{0.05f, 0.055f, 0.07f};
     core::Vec3 m_environmentGround{0.02f, 0.018f, 0.015f};
     core::f32 m_environmentIntensity = 1.0f;
+    core::f32 m_exposure = 1.0f;
 };
 
 } // namespace renderer

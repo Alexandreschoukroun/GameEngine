@@ -1180,7 +1180,20 @@ def write_scene(groups, doors, furniture):
         ("environment", collections.OrderedDict([
             ("skyColor", [0.05, 0.055, 0.07]),
             ("groundColor", [0.018, 0.016, 0.014]),
-            ("intensity", 1.0),
+            # Deux reglages, deux roles, et c'est leur ECART qui fait le contraste.
+            #
+            # L'intensite dose la lumiere que les surfaces se renvoient - donc ce qu'on
+            # voit dans les recoins qu'aucune lampe n'atteint. A 1,0, un mur non eclaire
+            # s'affichait a 15 % de gris : de la penombre lisible, pas du noir. A 0,15 il
+            # tombe a 3 %.
+            ("intensity", 0.15),
+            # L'exposition dose l'image ENTIERE, lampes comprises. Un diaphragme de moins
+            # ramene un halo de 79 % a 61 % : la lampe reste une lampe, mais elle cesse de
+            # tout ecraser.
+            #
+            # Ensemble, le contraste entre un mur eclaire et un mur qui ne l'est pas passe
+            # de 5 a 20. C'est le rapport qui compte dans ce genre, pas la valeur absolue.
+            ("exposureStops", -1.0),
         ])),
         ("entities", sorted(entities, key=lambda e: e["id"])),
     ])

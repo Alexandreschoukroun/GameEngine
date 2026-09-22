@@ -79,9 +79,15 @@ struct MeshRenderer {
 struct Environment {
     core::Vec3 skyColor{0.05f, 0.055f, 0.07f};
     core::Vec3 groundColor{0.02f, 0.018f, 0.015f};
-    // Un reglage unique pour doser l'ensemble sans toucher aux teintes. Dans un jeu
-    // d'horreur, c'est lui qui decide si l'obscurite reste noire.
+    // Un reglage unique pour doser la lumiere que les surfaces se renvoient, sans
+    // toucher aux teintes.
     core::f32 intensity = 1.0f;
+    // Correction d'exposition, en diaphragmes. Elle agit sur l'image ENTIERE, lampes
+    // comprises, la ou `intensity` ne dose que l'ambiante. Les deux sont necessaires :
+    // baisser la seule ambiante eteint les recoins mais laisse les halos aussi violents,
+    // baisser la seule exposition eteint tout uniformement. C'est leur ecart qui fait le
+    // contraste, et le contraste est le sujet du genre.
+    core::f32 exposureStops = 0.0f;
 };
 
 // Emission lumineuse. Ni position ni direction ici : elles viennent du Transform.

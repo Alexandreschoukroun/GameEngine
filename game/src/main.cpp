@@ -435,12 +435,6 @@ protected:
         }
         m_statue = m_scene.findByName("statue");
 
-        // L'environnement est une donnee de la scene, comme les lumieres : le jeu ne fait
-        // que la transmettre au renderer.
-        const scene::Environment& environment = m_scene.environment();
-        m_renderer.setEnvironment(environment.skyColor, environment.groundColor,
-                                  environment.intensity);
-
         if (!m_physics.create()) {
             return false;
         }
@@ -767,6 +761,15 @@ protected:
         const core::u32 kept = renderer::selectStrongestLights(
             scenery, m_camera.position(), static_cast<core::u32>(kMaxSceneLights - 1));
         m_lights.resize(kept + 1);
+
+        // L'environnement est une donnee de la scene, comme les lumieres : le jeu ne fait
+        // que la transmettre. On le repousse a CHAQUE frame et non une fois au chargement,
+        // pour que le reglage se voie pendant qu'on le tourne dans l'editeur - un reglage
+        // d'ambiance se juge a l'oeil, pas sur un nombre.
+        const scene::Environment& environment = m_scene.environment();
+        m_renderer.setEnvironment(environment.skyColor, environment.groundColor,
+                                  environment.intensity);
+        m_renderer.setExposureStops(environment.exposureStops);
 
         m_renderer.render(m_device, m_camera, m_drawItems, m_lights, window().width(),
                           window().height());

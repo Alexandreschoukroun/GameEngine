@@ -39,6 +39,7 @@ constexpr core::u32 kUniformShadowLightIndex = 43;
 constexpr core::u32 kUniformHasCookie = 44;
 constexpr core::u32 kUniformEnvironmentSky = 45;
 constexpr core::u32 kUniformEnvironmentGround = 46;
+constexpr core::u32 kUniformExposure = 47;
 
 // 1024 x 1024 en 24 bits : 3 Mo. Doubler la resolution quadruple la memoire.
 constexpr core::u32 kShadowResolution = 1024;
@@ -238,6 +239,7 @@ void DeferredRenderer::render(rhi::Device& device, const Camera& camera,
                                   core::Vec4(m_environmentSky, m_environmentIntensity));
         m_lightingProgram.setVec4(kUniformEnvironmentGround,
                                   core::Vec4(m_environmentGround, 0.0f));
+        m_lightingProgram.setFloat(kUniformExposure, m_exposure);
         if (hasCookie) {
             device.bindTexture(*m_spotCookie, kCookieTextureUnit);
         }

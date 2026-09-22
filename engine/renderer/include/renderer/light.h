@@ -20,6 +20,30 @@ enum class LightType : core::u32 {
     Spot = 1,
 };
 
+// Convertit une correction d'exposition, en DIAPHRAGMES, en facteur multiplicatif.
+//
+// Les diaphragmes sont l'unite de la photographie, et ils valent ici pour la meme raison
+// qu'ailleurs : la perception de la luminosite est logarithmique. Passer de -1 a -2
+// assombrit autant que passer de -2 a -3, ce qu'un facteur brut ne donne pas - entre 0,5
+// et 0,25 il n'y a que 0,25, entre 1 et 0,5 il y en a 0,5, et pourtant l'oeil voit le
+// meme pas.
+//
+// Un diaphragme de moins divise la lumiere par deux, exactement comme fermer d'un cran.
+constexpr core::f32 exposureFromStops(core::f32 stops) {
+    // std::exp2 n'est pas constexpr avant C++26 : on passe par la definition.
+    core::f32 factor = 1.0f;
+    core::f32 remaining = stops < 0.0f ? -stops : stops;
+    while (remaining >= 1.0f) {
+        factor *= 2.0f;
+        remaining -= 1.0f;
+    }
+    // La partie fractionnaire, par un developpement suffisant sur [0, 1[ : deux pour mille
+    // d'erreur au pire, soit trois centiemes de diaphragme. Personne ne voit ca.
+    const core::f32 x = remaining * 0.6931472f; // ln 2
+    factor *= 1.0f + x * (1.0f + x * (0.5f + x * (0.1666667f + x * 0.0416667f)));
+    return stops < 0.0f ? 1.0f / factor : factor;
+}
+
 struct Light {
     core::Vec3 position{0.0f, 0.0f, 0.0f};
     core::Vec3 color{1.0f, 1.0f, 1.0f};

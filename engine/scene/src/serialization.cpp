@@ -130,6 +130,7 @@ std::string saveSceneToString(const Scene& scene, const ResourceTable& resources
         e["skyColor"] = toJson(environment.skyColor);
         e["groundColor"] = toJson(environment.groundColor);
         e["intensity"] = rounded(environment.intensity);
+        e["exposureStops"] = rounded(environment.exposureStops);
         root["environment"] = e;
     }
     Json entities = Json::array();
@@ -316,6 +317,7 @@ bool loadSceneFromString(Scene& scene, const ResourceTable& resources,
         environment.groundColor =
             vec3FromJson(e.value("groundColor", Json()), environment.groundColor);
         environment.intensity = e.value("intensity", environment.intensity);
+        environment.exposureStops = e.value("exposureStops", environment.exposureStops);
     }
 
     // Tout ou rien : on construit a cote, et on ne remplace la scene de l'appelant qu'une

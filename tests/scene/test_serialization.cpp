@@ -237,6 +237,7 @@ TEST_CASE("The scene environment survives a save and a load") {
     scene.environment().skyColor = core::Vec3{0.12f, 0.1f, 0.2f};
     scene.environment().groundColor = core::Vec3{0.03f, 0.02f, 0.01f};
     scene.environment().intensity = 0.6f;
+    scene.environment().exposureStops = -1.75f;
 
     const std::string written = scene::saveSceneToString(scene, resources);
 
@@ -245,6 +246,10 @@ TEST_CASE("The scene environment survives a save and a load") {
     CHECK(reloaded.environment().skyColor.b == doctest::Approx(0.2f));
     CHECK(reloaded.environment().groundColor.r == doctest::Approx(0.03f));
     CHECK(reloaded.environment().intensity == doctest::Approx(0.6f));
+    // L'exposition est un reglage d'AMBIANCE : elle se regle a l'oeil, dans l'editeur, et
+    // doit donc survivre a l'enregistrement comme le reste. Un reglage qu'on doit refaire
+    // a chaque lancement ne sert a rien.
+    CHECK(reloaded.environment().exposureStops == doctest::Approx(-1.75f));
 
     CHECK(scene::saveSceneToString(reloaded, resources) == written);
 }
@@ -260,6 +265,7 @@ TEST_CASE("A scene without an environment block keeps the dark defaults") {
 
     const scene::Environment defaults;
     CHECK(scene.environment().intensity == doctest::Approx(defaults.intensity));
+    CHECK(scene.environment().exposureStops == doctest::Approx(defaults.exposureStops));
     CHECK(scene.environment().skyColor.r == doctest::Approx(defaults.skyColor.r));
     // Et le ciel reste plus clair que le sol : c'est ce qui donne un sens a l'hemisphere.
     CHECK(scene.environment().skyColor.r > scene.environment().groundColor.r);

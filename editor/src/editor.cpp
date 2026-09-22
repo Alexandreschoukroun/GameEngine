@@ -210,6 +210,37 @@ void drawHierarchyNode(scene::Scene& scene, scene::Entity entity, scene::Entity&
     }
 }
 
+// Les reglages d'ambiance de la SCENE. Ils n'appartiennent a aucune entite : il n'y en a
+// qu'un jeu, et ils n'ont pas de position.
+//
+// Ils meritent une fenetre parce qu'un reglage d'ambiance ne se choisit pas sur un nombre.
+// L'exposition est le seul reglage du moteur dont je ne peux pas predire le bon reglage
+// par le calcul : il depend de l'ecran, de la piece ou l'on joue, et du gout. Le mettre
+// sous la main, en jeu, vaut mieux que de le deviner.
+void drawEnvironmentPanel(scene::Scene& scene) {
+    ImGui::SetNextWindowSize(ImVec2(320.0f, 210.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(312.0f, 452.0f), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Ambiance")) {
+        scene::Environment& environment = scene.environment();
+
+        ImGui::TextUnformatted("Lumiere renvoyee par les surfaces");
+        ImGui::ColorEdit3("ciel", &environment.skyColor.x,
+                          ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+        ImGui::ColorEdit3("sol", &environment.groundColor.x,
+                          ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+        ImGui::SliderFloat("intensite", &environment.intensity, 0.0f, 2.0f, "%.3f");
+        ImGui::TextDisabled("Dose les recoins.");
+        ImGui::TextDisabled("A zero, ce qu'aucune lampe n'atteint est noir.");
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Exposition");
+        ImGui::SliderFloat("diaphragmes", &environment.exposureStops, -6.0f, 3.0f, "%.2f");
+        ImGui::TextDisabled("Dose l'image entiere, lampes comprises.");
+        ImGui::TextDisabled("Un diaphragme de moins divise par deux.");
+    }
+    ImGui::End();
+}
+
 void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,
                    const renderer::Camera& camera, Editor::Impl& impl);
 void drawGizmo(scene::Scene& scene, const renderer::Camera& camera, scene::Entity selected,
@@ -470,6 +501,8 @@ void drawHierarchy(scene::Scene& scene, const scene::ResourceTable& resources,
         }
     }
     ImGui::End();
+
+    drawEnvironmentPanel(scene);
 }
 
 } // namespace

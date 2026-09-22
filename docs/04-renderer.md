@@ -658,6 +658,97 @@ il en faudrait six cartes de profondeur chacune — donc elles traversent les mu
 loin la limite la plus visible du rendu aujourd'hui, et elle ne se corrigera pas par un
 réglage.
 
+# 8 ter. Étape 8 — l'obscurité est le sujet
+
+*Ajouté à M6.5, après un essai : « on voit trop bien dans le noir ».*
+
+## 8ter.1 Le défaut, chiffré avant d'être corrigé
+
+Le reproche était juste, et il se mesure. Une surface qu'**aucune lampe n'atteint** ne
+reçoit que le terme d'environnement. Avec les réglages d'alors :
+
+| | valeur |
+|---|---|
+| Couleur du ciel | 0,05 |
+| Intensité | 1,0 |
+| Albédo d'un mur de plâtre | 0,5 |
+| Radiance linéaire | 0,025 |
+| **À l'écran, après ACES et sRGB** | **14,8 %** |
+
+Quinze pour cent de gris n'est pas du noir : c'est de la pénombre parfaitement lisible.
+
+Le coupable n'est pas seulement la valeur, c'est la **courbe**. ACES relève délibérément
+les valeurs basses pour préserver le détail dans les ombres — c'est ce qu'on lui demande
+dans un film. Dans un jeu d'horreur, c'est l'inverse de ce qu'on veut.
+
+## 8ter.2 Deux réglages, deux rôles, et c'est leur écart qui compte
+
+Il aurait été tentant de baisser la seule intensité de l'environnement. Ce n'est pas
+suffisant, et le tableau ci-dessous dit pourquoi : à 0,25 le noir tombe à 5,9 %, mais un
+halo de lampe reste à 78 % — il écrase tout.
+
+Deux leviers sont donc nécessaires, et ils n'agissent pas au même endroit :
+
+- **`intensity`** dose la lumière que les surfaces se renvoient. Elle décide de ce qu'on
+  voit dans les recoins.
+- **`exposureStops`** dose l'image entière, lampes comprises. Elle s'applique **avant** la
+  courbe, et c'est tout son intérêt : diviser *après* ne ferait que délaver l'image, alors
+  que diviser *avant* déplace ce que la courbe considère comme sombre.
+
+| ambiante | diaph. | non éclairé | à 2 m | à 6 m | contraste |
+|---|---|---|---|---|---|
+| 1,00 | 0 | 14,8 % | 79 % | 35 % | ×5 |
+| 0,25 | 0 | 5,9 % | 78 % | 30 % | ×13 |
+| **0,15** | **−1** | **3,0 %** | **61 %** | **18 %** | **×20** |
+| 0,10 | −2 | 1,8 % | 42 % | 11 % | ×24 |
+
+Le réglage retenu est la ligne en gras. **C'est le rapport qui compte dans ce genre, pas
+la valeur absolue** : la lampe reste une lampe, mais ce qu'elle n'atteint pas disparaît.
+
+Ce calcul n'est pas resté dans un commentaire : il est **refait dans un test**, pour qu'il
+reste vérifiable plutôt que rapporté.
+
+## 8ter.3 Les diaphragmes, et pourquoi pas un facteur
+
+L'exposition s'exprime en **diaphragmes**, comme en photographie, parce que la perception
+de la luminosité est logarithmique. Entre 1 et 0,5 il y a 0,5 ; entre 0,5 et 0,25 il n'y a
+que 0,25 ; et pourtant l'œil voit le même pas. Un curseur en facteur brut serait
+inutilisable dans sa moitié basse — justement celle qui nous intéresse.
+
+`exposureFromStops` est `constexpr`, ce qui interdit `std::exp2` (non constexpr avant
+C++26). Elle passe donc par un développement limité, exact à six millionièmes près — soit
+un cent-millième de diaphragme. Un `static_assert` dans le test garantit qu'elle le reste :
+si quelqu'un y glissait un appel à `std::exp2`, le test ne compilerait plus.
+
+## 8ter.4 Le réglage est sous la main, pas dans le code
+
+C'est le seul réglage du moteur dont je **ne peux pas calculer la bonne valeur**. Elle
+dépend de l'écran, de la lumière de la pièce où l'on joue, et du goût.
+
+Il y a donc une fenêtre *Ambiance* dans l'éditeur, avec les deux curseurs, et
+l'environnement est repoussé au renderer **à chaque frame** et non une fois au chargement :
+un réglage d'ambiance se juge en le tournant, pas sur un nombre. Il est sérialisé avec la
+scène, donc il survit à l'enregistrement.
+
+## 8ter.5 Coût
+
+| | |
+|---|---|
+| Shader | un uniforme, une multiplication |
+| Moteur | un réglage de scène, sérialisé |
+| Éditeur | une fenêtre, deux curseurs |
+| Par frame | deux appels d'uniforme de plus |
+
+## 8ter.6 Ce qui marche / ce qui ne marche pas
+
+**Ce qui marche.** Ce qu'aucune lampe n'atteint est noir, et les lampes redeviennent des
+événements. Le réglage se tourne en jouant et s'enregistre.
+
+**Ce qui ne marche pas.** Les lumières ponctuelles **traversent toujours les murs** : il
+leur faudrait six cartes de profondeur chacune. Tant que c'est le cas, une pièce éclairée
+déteint sur sa voisine, et aucun réglage d'exposition ne corrigera ça. C'est de loin la
+limite la plus visible du rendu, et c'est un jalon en soi.
+
 # 9. Bilan de M2
 
 Le jalon est terminé. Le livrable du SPEC, « une pièce éclairée par une lampe torche », est atteint.

@@ -63,6 +63,9 @@ constexpr ImportedModelFile kImportedModels[] = {
     {"models/niveau/niveau_plancher.gltf", "niveau_plancher"},
     {"models/niveau/niveau_platre.gltf", "niveau_platre"},
     {"models/niveau/niveau_platre_peint.gltf", "niveau_platre_peint"},
+    // Le battant, genere lui aussi : aucun catalogue libre n'offre de porte
+    // d'interieur, et une planche plate se voit des qu'on la regarde de biais.
+    {"models/niveau/porte_battant.gltf", "porte_battant"},
     // Le mobilier, telecharge par tools/fetch_model.py depuis Poly Haven. Chacun arrive
     // avec SA matiere, declaree par son propre fichier glTF : c'est tout l'interet du
     // chargeur de M5.5, et c'est ce qui evite d'avoir a decrire ici ce que le fichier

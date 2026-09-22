@@ -1,0 +1,119 @@
+{
+ "asset": {
+  "version": "2.0",
+  "generator": "GameEngine tools/generate_level.py"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "porte_battant"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "porte_battant",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "porte",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "porte_battant.bin",
+   "byteLength": 6384
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 2016,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 2016,
+   "byteLength": 2016,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 4032,
+   "byteLength": 1344,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 5376,
+   "byteLength": 1008,
+   "target": 34963
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 168,
+   "type": "VEC3",
+   "min": [
+    -0.5,
+    -0.5,
+    -0.5
+   ],
+   "max": [
+    0.5,
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 168,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 168,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 252,
+   "type": "SCALAR"
+  }
+ ]
+}

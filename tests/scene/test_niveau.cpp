@@ -11,6 +11,7 @@
 #include "scene/scene.h"
 #include "scene/serialization.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <string>
@@ -63,9 +64,9 @@ constexpr std::size_t kLevelMeshCount = sizeof(kLevelMeshes) / sizeof(kLevelMesh
 // le modele, le nom ne se resout pas et ce test le dit. Sans lui, le chargeur remplacerait
 // silencieusement le maillage manquant par un substitut.
 constexpr const char* kPropModels[] = {
-    "caisse",  "loquet",  "armoire", "banc",     "bureau_metal", "caisse_bois",
-    "chaise",  "chevet",  "etagere", "etau",     "lit",          "table",
-    "tabouret", "tonneau", "tuyaux",
+    "caisse",   "loquet",  "porte_battant", "armoire", "banc",   "bureau_metal",
+    "caisse_bois", "chaise", "chevet",     "etagere", "etau",   "lit",
+    "table",    "tabouret", "tonneau",     "tuyaux",
 };
 constexpr std::size_t kPropCount = sizeof(kPropModels) / sizeof(kPropModels[0]);
 
@@ -383,6 +384,61 @@ TEST_CASE("Le plafond de l'atelier porte des poutres") {
     CHECK(between.distance == doctest::Approx(4.20f - 1.6f).epsilon(0.02));
     CHECK(onBeam.normal.y < -0.99f);
     CHECK(between.normal.y < -0.99f);
+}
+
+TEST_CASE("Le battant n'est pas une planche") {
+    // Aucun catalogue libre n'offre de porte d'interieur : Poly Haven n'a qu'une porte de
+    // chateau de 2,01 x 4,06 m avec son dormant, et ce qu'ambientCG appelle Door001 est
+    // une MATIERE, pas un modele. Le battant est donc genere comme le reste du batiment.
+    //
+    // Une photo de porte sur un pave marche de face et se trahit de biais, parce que le
+    // relief d'une porte est ce qui l'ombre. Ces verifications portent donc sur ce qu'une
+    // texture ne peut pas donner : la profondeur et la silhouette.
+    assets::MeshData leaf;
+    REQUIRE(assets::loadGltfMesh(
+        platform::assetPath("models/niveau/porte_battant.gltf").c_str(), leaf));
+
+    core::Vec3 low{0.0f, 0.0f, 0.0f};
+    core::Vec3 high{0.0f, 0.0f, 0.0f};
+    REQUIRE(leaf.computeBounds(low, high));
+
+    // Il occupe un cube d'unite centre sur l'origine, ce qui en fait un remplacement
+    // DIRECT du cube du jeu : l'echelle de l'entite reste (largeur, hauteur, epaisseur),
+    // et l'ancrage de la charniere reste -0,5.
+    CHECK(low.x == doctest::Approx(-0.5f));
+    CHECK(high.x == doctest::Approx(0.5f));
+    CHECK(low.y == doctest::Approx(-0.5f));
+    CHECK(high.y == doctest::Approx(0.5f));
+    CHECK(low.z == doctest::Approx(-0.5f));
+    CHECK(high.z == doctest::Approx(0.5f));
+
+    // Sa face avant n'est PAS plane : les panneaux sont en retrait, et c'est ce retrait
+    // qui fait l'ombre. Un pave n'aurait qu'une seule profondeur.
+    core::f32 frontMost = -1.0f;
+    core::f32 panelDepth = 1.0f;
+    for (core::u32 i = 0; i < static_cast<core::u32>(leaf.positions.size()); ++i) {
+        if (leaf.normals[i].z < 0.99f) {
+            continue; // on ne regarde que ce qui fait face au visiteur
+        }
+        frontMost = std::max(frontMost, leaf.positions[i].z);
+        panelDepth = std::min(panelDepth, leaf.positions[i].z);
+    }
+    CHECK(frontMost == doctest::Approx(0.5f));
+    // Sur un battant de 6 cm, ce retrait vaut pres de deux centimetres.
+    CHECK(frontMost - panelDepth > 0.2f);
+
+    // Et la matiere couvre la face exactement une fois : la photo de porte doit tomber sur
+    // les vrais panneaux, pas a cheval.
+    core::Vec2 uvLow{1.0f, 1.0f};
+    core::Vec2 uvHigh{0.0f, 0.0f};
+    for (const core::Vec2& uv : leaf.uvs) {
+        uvLow = core::Vec2(std::min(uvLow.x, uv.x), std::min(uvLow.y, uv.y));
+        uvHigh = core::Vec2(std::max(uvHigh.x, uv.x), std::max(uvHigh.y, uv.y));
+    }
+    CHECK(uvLow.x == doctest::Approx(0.0f));
+    CHECK(uvLow.y == doctest::Approx(0.0f));
+    CHECK(uvHigh.x == doctest::Approx(1.0f));
+    CHECK(uvHigh.y == doctest::Approx(1.0f));
 }
 
 TEST_CASE("Chaque baie recoit une porte battante, poignee comprise") {

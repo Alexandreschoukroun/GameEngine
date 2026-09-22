@@ -538,10 +538,32 @@ baie de 1,00 × 2,10. Ce qu'ambientCG appelle `Door001` n'est pas un modèle non
 une **matière** : une photo de porte avec sa carte de normales, sa rugosité et sa
 métallicité.
 
-C'est pourtant la bonne réponse. Le battant reste un pavé, mais ses panneaux, ses moulures
-et sa serrure sont dans le relief — et c'est le relief qu'on regarde, pas la silhouette
-d'une planche qui est de toute façon plate. Le cube du jeu a des UV de 0 à 1 par face, donc
-la porte s'y applique exactement une fois.
+La matière est donc importée, et elle apporte beaucoup : les panneaux, les moulures et la
+serrure sont dans la carte de normales.
+
+**Mais une photo sur un pavé marche de face et se trahit de biais.** Le relief d'une porte
+est ce qui l'ombre, et une carte de normales n'ombre rien : elle ne déplace pas la
+silhouette. Restaient deux voies — vivre avec une planche, ou mener le battant comme on
+mène les murs du bâtiment.
+
+**Le battant est donc généré**, à deux panneaux : deux montants de 12 cm, une traverse
+basse plus large parce qu'elle encaisse les coups de pied, une traverse de serrure à
+hauteur de poignée, une traverse haute, et deux panneaux **en retrait de 1,7 cm**.
+Quatre-vingt-quatre triangles.
+
+Il est dessiné dans un **cube d'unité centré sur l'origine**, exactement comme le cube du
+jeu qu'il remplace. C'est ce qui en fait un remplacement direct : l'échelle de l'entité
+reste (largeur, hauteur, épaisseur), l'ancrage de la charnière reste −0,5, et les
+coordonnées de texture couvrent la face une fois — la photo tombe donc sur les vrais
+panneaux, pas à cheval.
+
+Les proportions, elles, sont calculées depuis les **cotes réelles** : un montant de 12 cm
+sur un battant de 96 devient 0,125 en unitaire. Changer la largeur du battant garde donc
+des montants de 12 cm, ce qu'un dessin fait directement en unitaire perdrait.
+
+Un détail a failli passer : les coordonnées de texture allaient de −0,5 à 0,5, comme les
+sommets. La photo de porte aurait été décalée d'une demi-largeur. Le test les vérifie
+maintenant, avec le reste.
 
 `fetch_material.py` a gagné au passage la prise en charge des **cartes** de métallicité, et
 pas seulement des constantes : une porte en bois avec une serrure en laiton mélange les
@@ -606,10 +628,9 @@ mètres vingt et trois poutres. Douze lampes rares et chaudes laissent le reste 
 - Les portes n'ont **ni serrure ni béquille fonctionnelle** : on les pousse, on ne les
   verrouille pas. Aucune ne peut donc fermer un chemin, ce qui est pourtant le premier
   levier de progression du genre.
-- **Le battant reste un pavé.** Sa matière est celle d'une vraie porte, mais vu par la
-  tranche il n'a ni panneau ni moulure. Le catalogue libre n'offre aucune porte
-  d'intérieur ; la produire demanderait soit de la modéliser, soit de la générer comme le
-  reste du bâtiment.
+- Le battant est **plein et lisse sur sa tranche** : ses panneaux ne se voient que sur ses
+  deux faces. C'est sans conséquence tant qu'aucune porte n'est vue sous un angle rasant
+  depuis son bord.
 - **Aucune fenêtre.** Le bâtiment est aveugle, ce qui sert le genre mais reste une limite
   de l'outil : percer un mur à mi-hauteur n'est pas prévu.
 - Le plan est **écrit dans le script**, pas dans un fichier de données. Le changer demande

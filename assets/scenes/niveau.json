@@ -823,7 +823,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -874,7 +874,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -925,7 +925,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -976,7 +976,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1027,7 +1027,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1078,7 +1078,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1129,7 +1129,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1180,7 +1180,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1231,7 +1231,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1282,7 +1282,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1333,7 +1333,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1384,7 +1384,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1435,7 +1435,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1486,7 +1486,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {
@@ -1537,7 +1537,7 @@
         ]
       },
       "mesh": {
-        "mesh": "caisse",
+        "mesh": "porte_battant",
         "material": "porte"
       },
       "collider": {

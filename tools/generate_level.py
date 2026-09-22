@@ -108,6 +108,22 @@ LEAF_HEIGHT = 2.04
 LEAF_THICKNESS = 0.06
 LEAF_CLEARANCE = 0.02  # le bas du battant ne frotte pas le sol
 LEAF_DENSITY = 300.0   # kg/m3 : une porte pleine en bois, pas un bloc de pierre
+
+# Les proportions d'une porte a deux panneaux, en metres. Ce sont des cotes de menuiserie
+# ordinaires : un montant de 12 cm, une traverse basse plus large que les autres parce
+# qu'elle encaisse les coups de pied, une traverse de serrure a hauteur de poignee.
+#
+# Le battant n'est plus un pave. Aucune porte d'interieur n'existe dans les catalogues
+# libres - Poly Haven n'a qu'une porte de chateau de 4 m avec son dormant, et ce
+# qu'ambientCG appelle Door001 est une MATIERE, pas un modele. Restaient deux voies : vivre
+# avec une planche, ou la mener comme on mene les murs. La seconde coute quatre-vingts
+# triangles et donne une vraie silhouette.
+STILE_WIDTH = 0.12      # montants, les deux cotes
+RAIL_BOTTOM = 0.22      # traverse basse
+RAIL_LOCK_Y = 0.96      # traverse de serrure, a hauteur de poignee
+RAIL_LOCK_HEIGHT = 0.15
+RAIL_TOP = 0.13         # traverse haute
+PANEL_INSET = 0.28      # fraction de l'epaisseur dont le panneau est en retrait
 HINGE_FRICTION = 15.0  # N.m - de quoi l'arreter en deux secondes environ
 
 TRIM = "bois"          # plinthes, cimaises, chambranles, poutres
@@ -900,6 +916,62 @@ def emit_walls(boundaries, openings, meshes):
         emit_reveals(meshes, axis, line, WALL_THICKNESS, holes)
 
 
+def emit_door_leaf():
+    """Le maillage d'un battant a deux panneaux, en coordonnees UNITAIRES.
+
+    Il est dessine dans un cube de cote 1 centre sur l'origine, exactement comme le cube du
+    jeu qu'il remplace. C'est ce qui lui permet d'etre un remplacement direct : l'echelle
+    de l'entite reste (largeur, hauteur, epaisseur), l'ancrage de la charniere reste -0,5,
+    et les coordonnees de texture couvrent toujours la face une fois.
+
+    Les proportions, elles, sont calculees depuis les cotes reelles : un montant de 12 cm
+    sur un battant de 96 devient 0,125 en unitaire. Changer la largeur du battant garde
+    donc des montants de 12 cm, ce qu'un dessin fait directement en unitaire perdrait.
+    """
+    mesh = Mesh(1.0)
+
+    def part(x0, x1, y0, y1, depth):
+        """Un morceau du battant. `depth` est la demi-epaisseur, de 0 a 0,5."""
+        # Les coordonnees de texture suivent la face : on decale de 0,5 pour que le cube
+        # centre sur l'origine s'etale de 0 a 1, comme l'attend une photo de porte.
+        for axis in range(3):
+            u_axis, v_axis = [i for i in range(3) if i != axis]
+            lo = (x0, y0, -depth)
+            hi = (x1, y1, depth)
+            for sign in (1, -1):
+                plane = hi[axis] if sign == 1 else lo[axis]
+                face(mesh, axis, sign, plane, lo[u_axis], hi[u_axis], lo[v_axis], hi[v_axis])
+
+    width = LEAF_WIDTH
+    height = LEAF_HEIGHT
+    stile = STILE_WIDTH / width
+    bottom = RAIL_BOTTOM / height
+    lock0 = (RAIL_LOCK_Y - RAIL_LOCK_HEIGHT / 2) / height
+    lock1 = (RAIL_LOCK_Y + RAIL_LOCK_HEIGHT / 2) / height
+    top = 1.0 - RAIL_TOP / height
+    panel = 0.5 - PANEL_INSET
+
+    # L'ossature : deux montants et trois traverses, sur toute l'epaisseur.
+    part(-0.5, -0.5 + stile, -0.5, 0.5, 0.5)                 # montant gauche
+    part(0.5 - stile, 0.5, -0.5, 0.5, 0.5)                   # montant droit
+    inner0, inner1 = -0.5 + stile, 0.5 - stile
+    part(inner0, inner1, -0.5, -0.5 + bottom, 0.5)           # traverse basse
+    part(inner0, inner1, -0.5 + lock0, -0.5 + lock1, 0.5)    # traverse de serrure
+    part(inner0, inner1, -0.5 + top, 0.5, 0.5)               # traverse haute
+
+    # Les deux panneaux, en RETRAIT. C'est ce retrait qui fait l'ombre, et l'ombre est ce
+    # qui distingue une porte d'une planche des qu'on la regarde de biais.
+    part(inner0, inner1, -0.5 + bottom, -0.5 + lock0, panel)
+    part(inner0, inner1, -0.5 + lock1, -0.5 + top, panel)
+
+    # Le cube est centre sur l'origine, donc ses coordonnees vont de -0,5 a 0,5 - et les
+    # coordonnees de texture avec lui. On les decale pour qu'elles couvrent 0 a 1 : sans
+    # ce decalage la photo de porte serait deplacee d'une demi-largeur, et ses panneaux
+    # tomberaient a cheval sur les vrais.
+    mesh.uvs = [(u + 0.5, v + 0.5) for u, v in mesh.uvs]
+    return mesh
+
+
 # --- ecriture glTF ---------------------------------------------------------------------------
 
 def write_gltf(name, mesh, material_name):
@@ -1032,7 +1104,8 @@ def door_entities(index, position, rotation):
         # La matiere vient d'une vraie porte photographiee : ses panneaux, ses moulures et sa
         # serrure sont dans la carte de normales. La silhouette reste celle d'un pave, mais
         # le relief, lui, est juste - et c'est lui qu'on regarde.
-        ("mesh", collections.OrderedDict([("mesh", "caisse"), ("material", "porte")])),
+        ("mesh", collections.OrderedDict([("mesh", "porte_battant"),
+                                          ("material", "porte")])),
         ("collider", collections.OrderedDict([
             ("shape", "box"),
             ("halfExtents", [LEAF_WIDTH / 2, LEAF_HEIGHT / 2, LEAF_THICKNESS / 2]),
@@ -1226,6 +1299,7 @@ def main():
         print(f"{name:<24} {triangles:6d} triangles  pas : {FOOTSTEP[material]}")
 
     leaves = build_doors(openings)
+    door_triangles = write_gltf("porte_battant", emit_door_leaf(), "porte")
     write_scene(groups, leaves, furniture)
 
     doors = sum(len(holes) for holes in openings.values())
@@ -1243,8 +1317,9 @@ def main():
                   f"{before:.2f} != {after:.2f}")
         raise SystemExit("murs non alignes : le batiment serait troue")
     print("  aucun ressaut : tous les murs sont d'aplomb")
-    print(f"  {len(leaves)} portes battantes, {len(furniture)} meubles modelises, "
-          f"{len(FIXTURES)} agencements, {len(CRATES)} caisses")
+    print(f"  {len(leaves)} portes battantes ({door_triangles} triangles chacune), "
+          f"{len(furniture)} meubles modelises, {len(FIXTURES)} agencements, "
+          f"{len(CRATES)} caisses")
     missing = sorted({place.name for place in ROOMS} - reached)
     if missing:
         print(f"  INATTEIGNABLES depuis le hall : {', '.join(missing)}")

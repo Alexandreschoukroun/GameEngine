@@ -585,6 +585,61 @@ Trois cotes du battant ont une raison chiffrée :
 - **Le battant n'est pas un modèle.** Le moteur n'a pas besoin d'un fichier pour une
   planche ; la *poignée*, elle, en est un, parce que c'est là que la forme compte.
 
+## 5bis.5 bis Les luminaires portent leur propre lumière
+
+Jusqu'ici, les douze lampes du bâtiment étaient des **points invisibles**. La lumière
+sortait de nulle part — et c'est l'un des défauts qu'on ne sait pas nommer en jouant, mais
+que l'œil relève aussitôt.
+
+Chaque luminaire est maintenant **une entité qui porte à la fois le modèle et la lumière**.
+Les réunir n'est pas un raccourci d'écriture : c'est ce qui garantit que la lumière ne peut
+pas se désolidariser de la lampe qu'on voit. La position de l'ampoule est calculée depuis
+la taille réelle du modèle, aux quatre cinquièmes de sa hauteur — l'ampoule est dans
+l'abat-jour, pas à l'attache, faute de quoi on éclairerait le plafond.
+
+Deux mesures ont décidé du reste :
+
+**Le modèle a son origine au sommet** (sa base est à −1,34). Il est fait pour pendre : le
+poser à la hauteur du plafond suffit, là où un meuble se pose par sa base.
+
+**Il mesure 1,34 m, et un couloir en fait 2,80.** Une suspension entière y descendrait à
+1,46 m — le joueur, qui mesure 1,80 m, s'y cognerait le front. Plutôt que de réserver les
+suspensions aux pièces hautes, le générateur **raccourcit la suspension** jusqu'à dégager
+2,15 m de hauteur libre :
+
+```python
+scale = min(1.0, (place.height - LAMP_HEADROOM) / natural)
+```
+
+C'est exactement ce que fait un vrai bâtiment. Dans l'atelier à 4,20 m la lampe pend de
+toute sa longueur ; dans le couloir elle est réduite de moitié.
+
+Le test vérifie les deux propriétés qui comptent, et il **mesure le modèle** plutôt que de
+croire une constante : aucun point de lampe sous 2,10 m, et **aucune lumière à plus de
+1,40 m d'une lampe**.
+
+## 5bis.5 ter Le désordre
+
+Vingt-sept objets qui ne servent à rien : une boîte à outils et une clé à molette sur
+l'établi, des livres sur le bureau, un réveil sur chaque chevet, des seaux, des bidons, des
+cartons, des boîtes de conserve rouillées.
+
+**Un bâtiment rangé est un bâtiment neuf.** C'est ce qui manquait le plus, plus que le
+choix des meubles.
+
+Deux détails de mise en œuvre méritent d'être notés.
+
+Ceux qui reposent sur un meuble citent sa **hauteur mesurée** — 0,79 pour le bureau
+métallique, 0,55 pour la table, 0,70 pour le chevet. Deviner aurait donné des objets
+flottants, et c'est la raison pour laquelle je les ai posés sur des meubles dont je
+connais la hauteur plutôt que sur des étagères dont j'aurais dû deviner les tablettes.
+
+Et la collision suit une règle simple : **ce qui repose sur un meuble n'en a pas**, parce
+que le meuble en a une et que personne ne traverse un réveil posé sur un chevet ; **ce qui
+traîne par terre en a une**, sans quoi on marcherait au travers. Un booléen, et il évite de
+payer une géométrie de dix-sept mille triangles pour un obstacle que personne ne peut
+heurter.
+
 ## 5bis.6 Ce qui se pousse aussi
 
 Six caisses en entités dynamiques à collision de boîte — deux empilées dans l'atelier, deux
@@ -596,14 +651,14 @@ et l'empilement fonctionnent dans le **vrai** niveau.
 | | avant meublage | après |
 |---|---|---|
 | Triangles du décor | 7 510 | **7 558** |
-| Modèles importés | 2 | **15** |
-| Entités dans la scène | 22 | **106** |
+| Modèles importés | 2 | **25** |
+| Entités dans la scène | 22 | **149** |
 | Corps dynamiques | 0 | **21** |
-| `assets/models/` | 0,6 Mo | **28 Mo** |
+| `assets/models/` | 0,6 Mo | **50 Mo** |
 | `assets/textures/` | 29 Mo | **30 Mo** |
 
-**Le poids est le vrai prix**, et il faut le dire : le dépôt porte maintenant une
-cinquantaine de mégaoctets d'assets. Tous les modèles sont pris en 1K — une chaise qu'on
+**Le poids est le vrai prix**, et il faut le dire : le dépôt porte maintenant quatre-vingts
+mégaoctets d'assets. Tous les modèles sont pris en 1K — une chaise qu'on
 voit à deux mètres n'a pas besoin de 4096 pixels, et c'est ce qui divise le poids par
 quinze. Descendre en 512 px le diviserait encore par quatre si le besoin s'en fait sentir.
 

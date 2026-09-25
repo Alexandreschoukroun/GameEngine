@@ -239,16 +239,20 @@ TEST_CASE("Le niveau genere se charge et ne cite que des ressources connues") {
     }
     CHECK(surfaces == kLevelMeshCount);
 
-    // Un interieur sans lumiere est un ecran noir. On verifie la propriete, pas le
-    // compte exact : ajouter une lampe est un geste d'auteur, pas une regression.
+    // La scene ne declare AUCUNE lumiere : le batiment n'a plus de courant, et la lampe
+    // torche est la seule source. Elle appartient au joueur, donc au jeu, pas a la scene -
+    // c'est pour cela qu'on n'en trouve pas ici.
+    //
+    // Le controle tient donc a l'envers de ce qu'on ecrirait d'habitude : il garde le
+    // CHOIX, et il tomberait si quelqu'un rallumait une lampe sans le vouloir.
     core::u32 lights = 0;
     for (auto [entity, light] :
          level.scene.registry().view<const scene::LightSource>().each()) {
         (void)entity;
-        CHECK(light.intensity > 0.0f);
+        (void)light;
         ++lights;
     }
-    CHECK(lights > 0);
+    CHECK(lights == 0);
 }
 
 TEST_CASE("Les murs du hall presentent leur face avant a la piece") {
@@ -389,14 +393,15 @@ TEST_CASE("Le plafond de l'atelier porte des poutres") {
     CHECK(between.normal.y < -0.99f);
 }
 
-TEST_CASE("Chaque lumiere sort d'une lampe, et aucune lampe n'est a hauteur de front") {
+TEST_CASE("Les luminaires restent en place, eteints et hors de portee") {
     Level level;
     REQUIRE(loadLevel(level));
     scene::Scene& scene = level.scene;
     scene.updateWorldTransforms();
 
-    // Le modele de suspension, mesure pour de bon : le test ne peut pas se fier a une
-    // constante ecrite a la main, puisque c'est precisement ce que le generateur calcule.
+    // Le courant est coupe, mais les suspensions restent : un batiment sans lampes au
+    // plafond n'est pas sombre, il est vide, et la difference se voit des qu'on leve les
+    // yeux.
     assets::MeshData lamp;
     REQUIRE(assets::loadGltfMesh(
         platform::assetPath("models/luminaire/hanging_industrial_lamp_1k.gltf").c_str(),
@@ -408,43 +413,29 @@ TEST_CASE("Chaque lumiere sort d'une lampe, et aucune lampe n'est a hauteur de f
     const scene::ResourceHandle luminaire = level.resources.findMesh("luminaire");
     REQUIRE(luminaire != scene::kInvalidResource);
 
-    std::vector<core::Vec3> fixtures;
+    core::u32 fixtures = 0;
     for (auto [entity, renderer] :
          scene.registry().view<const scene::MeshRenderer>().each()) {
         if (renderer.mesh != luminaire) {
             continue;
         }
+        ++fixtures;
         const core::Mat4 world = scene.worldMatrix(entity);
-        const core::Vec3 position(world[3]);
         const core::f32 scale = glm::length(core::Vec3(world[1]));
-        fixtures.push_back(position);
 
         // Le modele pend SOUS son origine. Son point le plus bas doit rester au-dessus de
         // la tete du joueur : un couloir de 2,80 m ne peut pas recevoir une suspension de
         // 1,34 m en entier, et le generateur la raccourcit pour cela. Sans ce controle, on
         // traverserait la lampe - ou pire, elle nous arreterait.
-        const core::f32 bottom = position.y + lampLow.y * scale;
+        const core::f32 bottom = core::Vec3(world[3]).y + lampLow.y * scale;
         CAPTURE(bottom);
         CHECK(bottom > 2.10f);
-    }
-    CHECK(fixtures.size() == 14);
 
-    // Et surtout : AUCUNE lumiere ne flotte dans le vide. Chacune doit se trouver dans une
-    // lampe - c'est ce qui distingue un eclairage d'un point lumineux pose a peu pres au
-    // bon endroit, et c'est ce que l'oeil remarque en premier dans une piece sombre.
-    core::u32 lights = 0;
-    for (auto [entity, source] : scene.registry().view<const scene::LightSource>().each()) {
-        (void)source;
-        const core::Vec3 position(scene.worldMatrix(entity)[3]);
-        core::f32 nearest = 1e9f;
-        for (const core::Vec3& fixture : fixtures) {
-            nearest = std::min(nearest, glm::length(position - fixture));
-        }
-        CAPTURE(nearest);
-        CHECK(nearest < 1.4f);
-        ++lights;
+        // Et aucune n'a garde d'ampoule : une lampe eteinte qui eclaire serait le genre
+        // d'incoherence qu'on ne remarque qu'au bout d'une heure.
+        CHECK(scene.registry().try_get<scene::LightSource>(entity) == nullptr);
     }
-    CHECK(lights == fixtures.size());
+    CHECK(fixtures == 14);
 }
 
 TEST_CASE("Le battant n'est pas une planche") {

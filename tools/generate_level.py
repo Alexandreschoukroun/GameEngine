@@ -204,6 +204,15 @@ def lamp(room, x, z, color, intensity):
     return Luminaire(room, x, z, color, intensity)
 
 
+# Le batiment n'a plus de courant : la lampe torche est la seule source de lumiere.
+#
+# C'est un choix de jeu, pas une limite technique, et il est reversible d'un mot. Les
+# luminaires RESTENT en place, eteints - un batiment sans lampes au plafond n'est pas
+# sombre, il est vide, et la difference se voit. Leurs couleurs et leurs puissances sont
+# conservees telles quelles : le jour ou le courant revient, ou ou une seule lampe doit
+# grelotter quelque part, tout est deja la.
+LAMPS_POWERED = False
+
 LUMINAIRES = [
     lamp("hall", 0.0, 4.5, [1.00, 0.82, 0.60], 16.0),
     lamp("bureau", -10.0, 3.5, [1.00, 0.78, 0.52], 10.0),
@@ -1347,7 +1356,7 @@ def luminaire_entity(index, item, position, scale, light_y):
             ("castsShadow", False),
         ])),
     ])
-    return [node, bulb]
+    return [node, bulb] if LAMPS_POWERED else [node]
 
 
 def crate_entity(index, crate):
@@ -1410,10 +1419,14 @@ def write_scene(groups, doors, furniture, luminaires):
             # Deux reglages, deux roles, et c'est leur ECART qui fait le contraste.
             #
             # L'intensite dose la lumiere que les surfaces se renvoient - donc ce qu'on
-            # voit dans les recoins qu'aucune lampe n'atteint. A 1,0, un mur non eclaire
-            # s'affichait a 15 % de gris : de la penombre lisible, pas du noir. A 0,15 il
-            # tombe a 3 %.
-            ("intensity", 0.15),
+            # voit la ou la torche ne pointe pas. A 1,0, un mur non eclaire s'affichait a
+            # 15 % de gris : de la penombre lisible, pas du noir.
+            #
+            # Depuis que la torche est la seule source, elle descend a 0,06, soit 1,9 % -
+            # on devine les murs, on ne s'y deplace pas. Zero serait un noir absolu, ce qui
+            # est moins effrayant qu'on ne croit : sans le moindre repere, on ne joue plus,
+            # on tatonne.
+            ("intensity", 0.06),
             # L'exposition dose l'image ENTIERE, lampes comprises. Un diaphragme de moins
             # ramene un halo de 79 % a 61 % : la lampe reste une lampe, mais elle cesse de
             # tout ecraser.
@@ -1475,7 +1488,9 @@ def main():
     print(f"  {len(leaves)} portes battantes ({door_triangles} triangles chacune), "
           f"{len(FURNITURE)} meubles, {len(CLUTTER)} objets qui trainent, "
           f"{len(FIXTURES)} agencements, {len(CRATES)} caisses")
-    print(f"  {len(luminaires)} luminaires, chacun portant sa lumiere")
+    allumees = len(luminaires) if LAMPS_POWERED else 0
+    print(f"  {len(luminaires)} luminaires, dont {allumees} allumes "
+          f"({'courant coupe' if not LAMPS_POWERED else 'courant retabli'})")
     missing = sorted({place.name for place in ROOMS} - reached)
     if missing:
         print(f"  INATTEIGNABLES depuis le hall : {', '.join(missing)}")

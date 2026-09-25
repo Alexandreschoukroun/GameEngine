@@ -591,9 +591,28 @@ Jusqu'ici, les douze lampes du bâtiment étaient des **points invisibles**. La 
 sortait de nulle part — et c'est l'un des défauts qu'on ne sait pas nommer en jouant, mais
 que l'œil relève aussitôt.
 
-Chaque luminaire est maintenant **une entité qui porte à la fois le modèle et la lumière**.
-Les réunir n'est pas un raccourci d'écriture : c'est ce qui garantit que la lumière ne peut
-pas se désolidariser de la lampe qu'on voit. La position de l'ampoule est calculée depuis
+Chaque luminaire est **une entité qui porte à la fois le modèle et la lumière**. Les réunir
+n'est pas un raccourci d'écriture : c'est ce qui garantit que la lumière ne peut pas se
+désolidariser de la lampe qu'on voit.
+
+**Puis le courant a été coupé.** Le bâtiment n'a plus d'autre source que la lampe torche du
+joueur — c'est un choix de jeu, et il tient dans un booléen, `LAMPS_POWERED`. Les
+suspensions **restent en place, éteintes** : un bâtiment sans lampes au plafond n'est pas
+sombre, il est *vide*, et la différence se voit dès qu'on lève les yeux. Leurs couleurs et
+leurs puissances sont conservées telles quelles ; le jour où une seule lampe doit grelotter
+quelque part, tout est déjà là.
+
+L'ambiante est descendue de 0,15 à **0,06** en conséquence, soit 1,9 % à l'écran. Le calcul
+montre que la torche n'en est pas affectée — elle domine si largement que baisser l'ambiante
+ne coûte rien à son faisceau :
+
+| ambiante | hors faisceau | à 3 m | à 10 m | à 20 m |
+|---|---|---|---|---|
+| 0,15 | 3,0 % | 93 % | 45 % | 18 % |
+| **0,06** | **1,9 %** | **93 %** | **45 %** | **18 %** |
+
+Zéro aurait donné un noir absolu, ce qui est moins effrayant qu'on ne croit : sans le
+moindre repère, on ne joue plus, on tâtonne. La position de l'ampoule est calculée depuis
 la taille réelle du modèle, aux quatre cinquièmes de sa hauteur — l'ampoule est dans
 l'abat-jour, pas à l'attache, faute de quoi on éclairerait le plafond.
 

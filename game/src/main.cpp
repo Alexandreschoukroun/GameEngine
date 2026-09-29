@@ -515,6 +515,14 @@ protected:
 
         // F5 ecrit la scene sur le disque. Deux appuis successifs produisent exactement
         // le meme fichier : c'est l'exigence de determinisme du SPEC.
+        // F11 : plein ecran. Le moteur n'a qu'a le demander - le redimensionnement
+        // du G-buffer suit tout seul par onResize.
+        const bool f11Down = input().isKeyDown(platform::Key::F11);
+        if (f11Down && !m_f11WasDown) {
+            window().toggleFullscreen();
+        }
+        m_f11WasDown = f11Down;
+
         const bool f5Down = input().isKeyDown(platform::Key::F5);
         if (f5Down && !m_f5WasDown) {
             scene::saveSceneToFile(m_scene, m_resources,
@@ -1454,13 +1462,14 @@ private:
     bool m_tabWasDown = false;
     bool m_fWasDown = false;
     bool m_f5WasDown = false;
+    bool m_f11WasDown = false;
 };
 
 } // namespace
 
 int main() {
     platform::ApplicationConfig config;
-    config.title = "GameEngine -- M2";
+    config.title = "GameEngine -- moteur d'horreur (F11 plein ecran)";
 
     HorrorGame game(config);
     return game.run() ? 0 : 1;

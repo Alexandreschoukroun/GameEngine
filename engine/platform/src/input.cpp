@@ -21,6 +21,7 @@ SDL_Scancode toScancode(Key key) {
         case Key::F: return SDL_SCANCODE_F;
         case Key::F1: return SDL_SCANCODE_F1;
         case Key::F5: return SDL_SCANCODE_F5;
+        case Key::F11: return SDL_SCANCODE_F11;
     }
     return SDL_SCANCODE_UNKNOWN;
 }

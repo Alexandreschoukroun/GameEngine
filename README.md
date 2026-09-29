@@ -112,7 +112,7 @@ ctest --preset windows-msvc-debug
 .\build\windows-msvc\game\Debug\game.exe
 ```
 
-Commandes : **Z Q S D** pour se déplacer (les touches suivent la disposition physique, donc W A S D sur un clavier QWERTZ ou QWERTY), **Espace** pour sauter, **Maj gauche** pour courir, **Ctrl gauche** pour s'accroupir, la **souris** pour regarder, **clic gauche maintenu** pour attraper un objet ou tirer sur une porte, **F** pour allumer ou éteindre la lampe torche, **F1** pour ouvrir l'éditeur (bouton droit pour regarder, Z Q S D pour voler), **Tab** pour faire défiler les couches du G-buffer, **Échap** pour quitter.
+Commandes : **Z Q S D** pour se déplacer (les touches suivent la disposition physique, donc W A S D sur un clavier QWERTZ ou QWERTY), **Espace** pour sauter, **Maj gauche** pour courir, **Ctrl gauche** pour s'accroupir, la **souris** pour regarder, **clic gauche maintenu** pour attraper un objet ou tirer sur une porte, **F** pour allumer ou éteindre la lampe torche, **F1** pour ouvrir l'éditeur (bouton droit pour regarder, Z Q S D pour voler), **Tab** pour faire défiler les couches du G-buffer, **F11** pour basculer en plein écran, **Échap** pour quitter. La fenêtre est redimensionnable : le G-buffer suit.
 
 Le premier `cmake --preset` compile les dépendances, ce qui prend quelques minutes. Les suivants sont instantanés. La CI GitHub Actions exécute exactement ces commandes, en Debug et en Release, à chaque push. Détails dans [`docs/build-et-ci.md`](docs/build-et-ci.md).
 

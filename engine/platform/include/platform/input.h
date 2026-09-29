@@ -28,6 +28,7 @@ enum class Key : core::u32 {
     F,
     F1,
     F5,
+    F11,
 };
 
 enum class MouseButton : core::u32 {

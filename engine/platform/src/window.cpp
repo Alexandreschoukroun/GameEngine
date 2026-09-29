@@ -37,8 +37,12 @@ bool Window::create(std::string_view title, core::u32 width, core::u32 height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
 
+    // REDIMENSIONNABLE : sans ce drapeau la fenetre est figee a sa taille de
+    // creation, et le chemin de redimensionnement du moteur - qui existe pourtant
+    // jusqu'au G-buffer - ne pouvait jamais etre emprunte.
     m_window = SDL_CreateWindow(std::string(title).c_str(), static_cast<int>(width),
-                                 static_cast<int>(height), SDL_WINDOW_OPENGL);
+                                 static_cast<int>(height),
+                                 SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!m_window) {
         core::logError(SDL_GetError());
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
@@ -89,6 +93,21 @@ void Window::setRelativeMouseMode(bool enabled) {
     if (m_window != nullptr) {
         SDL_SetWindowRelativeMouseMode(m_window, enabled);
     }
+}
+
+bool Window::setFullscreen(bool fullscreen) {
+    if (m_window == nullptr || fullscreen == m_fullscreen) {
+        return false;
+    }
+    if (!SDL_SetWindowFullscreen(static_cast<SDL_Window*>(m_window), fullscreen)) {
+        core::logError(SDL_GetError());
+        return false;
+    }
+    m_fullscreen = fullscreen;
+    // On ne met PAS a jour m_width et m_height ici : SDL enverra son evenement de
+    // redimensionnement, et le prendre en avance donnerait une taille juste avant que le
+    // G-buffer ne soit refait - donc une frame dessinee a la mauvaise echelle.
+    return true;
 }
 
 void Window::notifyResized(core::u32 width, core::u32 height) {

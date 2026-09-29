@@ -44,12 +44,24 @@ public:
     void* nativeWindow() const;
     void* nativeGlContext() const { return m_glContext; }
 
+    // Plein ecran sans changer de mode d'affichage : la fenetre couvre l'ecran a sa
+    // resolution native, sans bordure. C'est ce qu'on veut ici pour trois raisons - le
+    // basculement est instantane, les autres fenetres ne sont pas deplacees par un
+    // changement de mode, et une capture video y trouve la pleine resolution.
+    //
+    // Le moteur n'a rien d'autre a faire : SDL emet un evenement de redimensionnement, et
+    // le chemin qui va jusqu'au G-buffer existe deja.
+    bool setFullscreen(bool fullscreen);
+    void toggleFullscreen() { setFullscreen(!m_fullscreen); }
+    bool isFullscreen() const { return m_fullscreen; }
+
     core::u32 width() const { return m_width; }
     core::u32 height() const { return m_height; }
 
 private:
     SDL_Window* m_window = nullptr;
     void* m_glContext = nullptr;
+    bool m_fullscreen = false;
     core::u32 m_width = 0;
     core::u32 m_height = 0;
 };
